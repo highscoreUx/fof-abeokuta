@@ -1,16 +1,10 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { QuizView } from "@/_views/admin/quiz/QuizView";
+import { redirect } from "next/navigation";
 
-export default async function AdminQuizPage({
+export default async function AdminQuizRedirect({
   params,
 }: {
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <QuizView />
-    </EventScopeProvider>
-  );
+  redirect(`/${eventSlug}/admin/games`);
 }

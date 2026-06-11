@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { VotingView } from "@/_views/admin/voting/VotingView";
+import { redirect } from "next/navigation";
 
-export default async function AdminVotingPage() {
-  return (
-    <LatestEventScope>
-      <VotingView />
-    </LatestEventScope>
-  );
+export default function AdminVotingRedirect() {
+  redirect("/admin/settings");
 }

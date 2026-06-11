@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { QuizView } from "@/_views/admin/quiz/QuizView";
+import { redirect } from "next/navigation";
 
-export default async function AdminQuizPage() {
-  return (
-    <LatestEventScope>
-      <QuizView />
-    </LatestEventScope>
-  );
+export default function AdminQuizRedirect() {
+  redirect("/admin/games");
 }

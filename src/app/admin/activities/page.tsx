@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { ActivitiesView } from "@/_views/admin/activities/ActivitiesView";
+import { redirect } from "next/navigation";
 
-export default async function AdminActivitiesPage() {
-  return (
-    <LatestEventScope>
-      <ActivitiesView />
-    </LatestEventScope>
-  );
+export default function AdminActivitiesRedirect() {
+  redirect("/admin/games");
 }

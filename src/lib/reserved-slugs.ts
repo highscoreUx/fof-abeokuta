@@ -12,5 +12,6 @@ export const RESERVED_EVENT_SLUGS = new Set([
   "settings",
   "diagnostics",
   "agenda",
+  "games",
   "api",
 ]);

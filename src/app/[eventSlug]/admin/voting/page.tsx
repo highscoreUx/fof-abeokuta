@@ -1,16 +1,10 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { VotingView } from "@/_views/admin/voting/VotingView";
+import { redirect } from "next/navigation";
 
-export default async function AdminVotingPage({
+export default async function AdminVotingRedirect({
   params,
 }: {
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <VotingView />
-    </EventScopeProvider>
-  );
+  redirect(`/${eventSlug}/admin/settings`);
 }

@@ -67,12 +67,13 @@ export function EventUserRolesSettings() {
             Add profile
           </Button>
         </CardHeader>
-        <div className="border-t border-border px-6 pb-6 pt-4">
+
+        <div className="space-y-4">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search profiles…"
-            className="mb-4 max-w-md"
+            className="max-w-md"
           />
 
           {isLoading ? (
@@ -80,7 +81,7 @@ export function EventUserRolesSettings() {
           ) : error ? (
             <p className="text-sm text-danger">Failed to load access profiles.</p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <div className="overflow-hidden rounded-xl border border-border">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>

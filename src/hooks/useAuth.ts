@@ -12,13 +12,13 @@ export function useAuth(eventSlug: string) {
   const { accessToken, user, setAuth, clearAuth } = useAuthStore();
 
   const login = useCallback(
-    async (pin: string) => {
+    async (username: string, password: string) => {
       const data = await apiFetch<{ accessToken: string; user: AuthUser }>(
         eventSlug,
         "/auth/login",
         {
           method: "POST",
-          body: JSON.stringify({ pin }),
+          body: JSON.stringify({ username, password }),
           skipAuth: true,
         },
       );

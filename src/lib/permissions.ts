@@ -11,11 +11,23 @@ export function hasMinimumRole(userRole: Role, required: Role): boolean {
   return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[required];
 }
 
-export function canViewPin(viewerRole: Role, targetRole: Role, pinDisplay?: string | null) {
-  if (!pinDisplay) return false;
+export function canViewPassword(viewerRole: Role, targetRole: Role, passwordDisplay?: string | null) {
+  if (!passwordDisplay) return false;
   if (viewerRole === "ADMIN") return true;
   if (viewerRole === "STAFF" && targetRole !== "ADMIN") return true;
   return false;
+}
+
+/** @deprecated use canViewPassword */
+export const canViewPin = canViewPassword;
+
+export function slugifyFirstName(firstName: string): string {
+  const slug = firstName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 24);
+  return slug || "user";
 }
 
 export function getPinRangeForRole(role: Role): { min: number; max: number } {

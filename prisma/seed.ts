@@ -41,29 +41,34 @@ async function main() {
     });
   }
 
-  const adminPin = "0001";
-  const adminHash = await bcrypt.hash(adminPin, 10);
+  const adminPassword = "0001";
+  const adminHash = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.upsert({
     where: {
-      eventId_username: { eventId: event.id, username: "admin.system" },
+      eventId_username: { eventId: event.id, username: "admin.portal" },
     },
-    update: {},
+    update: {
+      pinHash: adminHash,
+      pinDisplay: adminPassword,
+      loginPhrase: "portal",
+    },
     create: {
       eventId: event.id,
       role: "ADMIN",
       pinHash: adminHash,
-      pinDisplay: adminPin,
+      pinDisplay: adminPassword,
+      loginPhrase: "portal",
       firstName: "Admin",
       lastName: "System",
-      username: "admin.system",
-      email: "admin.system@event.local",
+      username: "admin.portal",
+      email: "admin.portal@event.local",
     },
   });
 
   console.log("Seed complete.");
   console.log(`Platform admin: ${platformEmail} / ${platformPassword}`);
-  console.log(`Event: /${event.slug}/login — Admin PIN: 0001`);
+  console.log(`Event: /${event.slug}/login — Admin: admin.portal / ${adminPassword}`);
 }
 
 main()

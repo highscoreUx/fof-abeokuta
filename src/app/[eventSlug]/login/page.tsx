@@ -13,7 +13,8 @@ export default function EventLoginPage() {
   const eventSlug = useEventSlug();
   const { login } = useAuth(eventSlug);
   const [slides, setSlides] = useState<string[]>([...DEFAULT_LOGIN_SLIDE_PATHS]);
-  const [pin, setPin] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +36,7 @@ export default function EventLoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(pin);
+      await login(username.trim().toLowerCase(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -43,28 +44,47 @@ export default function EventLoginPage() {
     }
   };
 
+  const canSubmit = username.trim().length >= 3 && password.length === 4;
+
   return (
     <LoginPageLayout slides={slides}>
       <LoginCard title="Event sign in" backHref="/" backLabel="Back to all events">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="pin" className="mb-2 block text-sm font-medium text-foreground">
-              PIN
+            <label htmlFor="username" className="mb-2 block text-sm font-medium text-foreground">
+              Username
             </label>
             <Input
-              id="pin"
+              id="username"
+              type="text"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              placeholder="ada.wireframe"
+              autoFocus
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Your first name plus a design phrase (e.g. <span className="font-mono">john.prototype</span>)
+            </p>
+          </div>
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
+              Password
+            </label>
+            <Input
+              id="password"
               type="password"
               inputMode="numeric"
+              autoComplete="current-password"
               maxLength={4}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              value={password}
+              onChange={(e) => setPassword(e.target.value.replace(/\D/g, ""))}
               placeholder="• • • •"
-              className="text-center text-xl tracking-[0.4em]"
-              autoFocus
+              className="font-mono tracking-[0.35em]"
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button type="submit" size="lg" className="w-full" disabled={pin.length !== 4 || loading}>
+          <Button type="submit" size="lg" className="w-full" disabled={!canSubmit || loading}>
             {loading ? "Signing in…" : "Continue"}
           </Button>
         </form>

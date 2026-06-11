@@ -15,7 +15,8 @@ interface UserRow {
   username: string;
   role: string;
   teamLetter: string | null;
-  pin?: string;
+  loginPhrase?: string | null;
+  password?: string;
   checkedInAt: string | null;
 }
 
@@ -39,9 +40,10 @@ export default function AdminUsersPage() {
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="p-2">Name</th>
+                  <th className="p-2">Username</th>
                   <th className="p-2">Role</th>
                   <th className="p-2">Team</th>
-                  <th className="p-2">PIN</th>
+                  <th className="p-2">Password</th>
                   <th className="p-2">Checked In</th>
                 </tr>
               </thead>
@@ -49,9 +51,10 @@ export default function AdminUsersPage() {
                 {users.map((u) => (
                   <tr key={u.id} className="border-b border-border/50">
                     <td className="p-2">{u.firstName} {u.lastName}</td>
+                    <td className="p-2 font-mono text-xs">{u.username}</td>
                     <td className="p-2">{u.role}</td>
                     <td className="p-2">{u.teamLetter ?? "—"}</td>
-                    <td className="p-2 font-mono">{u.pin ?? "—"}</td>
+                    <td className="p-2 font-mono">{u.password ?? "—"}</td>
                     <td className="p-2">{u.checkedInAt ? "Yes" : "No"}</td>
                   </tr>
                 ))}

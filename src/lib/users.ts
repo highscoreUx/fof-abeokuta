@@ -1,11 +1,12 @@
 import type { Role } from "@/types";
 import { prisma } from "@/lib/prisma";
 import { hashPin } from "@/lib/auth/bcrypt";
+import { shufflePhrases } from "@/lib/design-phrases";
 import {
   formatEmail,
-  formatUsername,
   getPinRangeForRole,
   isPinInRoleRange,
+  slugifyFirstName,
 } from "@/lib/permissions";
 import type { AuthUser } from "@/types";
 
@@ -22,11 +23,12 @@ export function serializeUser(
     middleName: string | null;
     teamId: string | null;
     eventId: string;
+    loginPhrase?: string | null;
     team?: { letter: string } | null;
     pinDisplay?: string | null;
   },
   eventSlug: string,
-): AuthUser & { pinDisplay?: string | null } {
+): AuthUser & { loginPhrase?: string | null; passwordDisplay?: string | null } {
   return {
     id: user.id,
     role: user.role,
@@ -39,43 +41,71 @@ export function serializeUser(
     teamLetter: user.team?.letter ?? null,
     eventId: user.eventId,
     eventSlug,
-    pinDisplay: user.pinDisplay,
+    loginPhrase: user.loginPhrase,
+    passwordDisplay: user.pinDisplay,
   };
 }
 
-export async function findUserByPin(eventId: string, pin: string) {
-  const pinNum = parseInt(pin, 10);
-  let role: Role | null = null;
-
-  if (pinNum >= 0 && pinNum <= 999) role = "ADMIN";
-  else if (pinNum >= 1000 && pinNum <= 1999) role = "STAFF";
-  else if (pinNum >= 2000 && pinNum <= 2999) role = "JUDGE";
-  else if (pinNum >= 3000 && pinNum <= 3999) role = "PARTICIPANT";
-
-  if (!role) return null;
-
-  const users = await prisma.user.findMany({
-    where: { eventId, role },
+export async function findUserByCredentials(
+  eventId: string,
+  username: string,
+  password: string,
+) {
+  const normalized = username.trim().toLowerCase();
+  const user = await prisma.user.findUnique({
+    where: { eventId_username: { eventId, username: normalized } },
     include: { team: true },
   });
 
+  if (!user) return null;
+
   const { verifyPin } = await import("@/lib/auth/bcrypt");
-  for (const user of users) {
-    if (await verifyPin(pin, user.pinHash)) {
-      return user;
+  if (!(await verifyPin(password, user.pinHash))) return null;
+
+  const passwordNum = parseInt(password, 10);
+  if (!Number.isNaN(passwordNum) && !isPinInRoleRange(passwordNum, user.role)) {
+    return null;
+  }
+
+  return user;
+}
+
+export async function allocateLoginIdentity(eventId: string, firstName: string) {
+  const base = slugifyFirstName(firstName);
+  const existingUsernames = new Set(
+    (
+      await prisma.user.findMany({
+        where: { eventId },
+        select: { username: true },
+      })
+    ).map((u) => u.username),
+  );
+
+  for (const phrase of shufflePhrases()) {
+    const username = `${base}.${phrase}`;
+    if (!existingUsernames.has(username)) {
+      return {
+        username,
+        phrase,
+        email: formatEmail(username),
+      };
     }
   }
 
-  return null;
+  throw new Error(`No available login names for ${firstName} in this event`);
 }
 
-export async function generateNextPin(eventId: string, role: Role, usedPins: Set<string>): Promise<string> {
+export async function generateNextPassword(
+  eventId: string,
+  role: Role,
+  usedPasswords: Set<string>,
+): Promise<string> {
   const { min, max } = getPinRangeForRole(role);
   for (let i = 0; i < 5000; i++) {
-    const pin = String(Math.floor(Math.random() * (max - min + 1)) + min).padStart(4, "0");
-    if (!usedPins.has(pin)) return pin;
+    const password = String(Math.floor(Math.random() * (max - min + 1)) + min).padStart(4, "0");
+    if (!usedPasswords.has(password)) return password;
   }
-  throw new Error(`No available PINs for role ${role}`);
+  throw new Error(`No available passwords for role ${role}`);
 }
 
 export async function assignTeamsBalanced(eventId: string, userIds?: string[]) {
@@ -118,20 +148,12 @@ export async function createUserFromRow(
     lastName: string;
     middleName?: string;
     role: Role;
-    pin?: string;
+    password?: string;
   },
 ) {
-  const username = formatUsername(row.firstName, row.lastName, row.middleName);
-  const email = formatEmail(username);
+  const { username, phrase, email } = await allocateLoginIdentity(eventId, row.firstName);
 
-  const existing = await prisma.user.findFirst({
-    where: { eventId, OR: [{ username }, { email }] },
-  });
-  if (existing) {
-    throw new Error(`User already exists: ${username}`);
-  }
-
-  const usedPins = new Set(
+  const usedPasswords = new Set(
     (
       await prisma.user.findMany({
         where: { eventId, pinDisplay: { not: null } },
@@ -142,20 +164,21 @@ export async function createUserFromRow(
       .filter(Boolean),
   );
 
-  const pin = row.pin ?? (await generateNextPin(eventId, row.role, usedPins));
-  const pinNum = parseInt(pin, 10);
-  if (!isPinInRoleRange(pinNum, row.role)) {
-    throw new Error(`PIN ${pin} is not valid for role ${row.role}`);
+  const password = row.password ?? (await generateNextPassword(eventId, row.role, usedPasswords));
+  const passwordNum = parseInt(password, 10);
+  if (!isPinInRoleRange(passwordNum, row.role)) {
+    throw new Error(`Password ${password} is not valid for role ${row.role}`);
   }
 
-  const pinHash = await hashPin(pin);
+  const pinHash = await hashPin(password);
 
   return prisma.user.create({
     data: {
       eventId,
       role: row.role,
       pinHash,
-      pinDisplay: pin,
+      pinDisplay: password,
+      loginPhrase: phrase,
       firstName: row.firstName,
       lastName: row.lastName,
       middleName: row.middleName ?? null,

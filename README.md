@@ -40,7 +40,9 @@ pnpm dev
 
 **Platform admin** (after seed): `admin@fofabeokuta.com` / `fofadmin123`
 
-**Event admin PIN**: `0001` at `/your-start-up-in-x-hours/login`
+**Event admin login** at `/your-start-up-in-x-hours/login`: username `admin.portal`, password `0001`
+
+Event users sign in with **username + password** (e.g. `ada.wireframe` + 4-digit password). Usernames are `firstname` + a random design phrase; passwords are assigned per role range on import.
 
 ## Create Events
 

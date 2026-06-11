@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  pin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+  username: z
+    .string()
+    .min(3, "Username is required")
+    .max(80)
+    .regex(/^[a-z0-9][a-z0-9.-]*$/, "Use your assigned username (e.g. ada.wireframe)"),
+  password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits"),
 });
 
 export const userImportRowSchema = z.object({
@@ -9,6 +14,7 @@ export const userImportRowSchema = z.object({
   lastName: z.string().min(1),
   middleName: z.string().optional(),
   role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]),
+  password: z.string().regex(/^\d{4}$/).optional(),
   pin: z.string().regex(/^\d{4}$/).optional(),
 });
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loginSchema } from "@/lib/validators/auth";
-import { findUserByPin, serializeUser } from "@/lib/users";
+import { findUserByCredentials, serializeUser } from "@/lib/users";
 import { signAccessToken } from "@/lib/auth/jwt";
 import { createRefreshToken } from "@/lib/auth/refresh";
 import {
@@ -27,12 +27,12 @@ export async function POST(
   const body = await request.json();
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
-    return jsonError("Invalid PIN format", "INVALID_PIN", 400);
+    return jsonError(parsed.error.issues[0]?.message ?? "Invalid credentials", "VALIDATION_ERROR", 400);
   }
 
-  const user = await findUserByPin(event.id, parsed.data.pin);
+  const user = await findUserByCredentials(event.id, parsed.data.username, parsed.data.password);
   if (!user) {
-    return jsonError("Invalid PIN", "INVALID_CREDENTIALS", 401);
+    return jsonError("Invalid username or password", "INVALID_CREDENTIALS", 401);
   }
 
   const accessToken = signAccessToken({

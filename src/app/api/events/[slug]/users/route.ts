@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventRole } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
-import { canViewPin } from "@/lib/permissions";
+import { canViewPassword } from "@/lib/permissions";
 
 export async function GET(
   request: NextRequest,
@@ -42,7 +42,10 @@ export async function GET(
       username: user.username,
       teamLetter: user.team?.letter ?? null,
       checkedInAt: user.checkedInAt,
-      pin: canViewPin(ctx.auth.role, user.role, user.pinDisplay) ? user.pinDisplay : undefined,
+      loginPhrase: user.loginPhrase,
+      password: canViewPassword(ctx.auth.role, user.role, user.pinDisplay)
+        ? user.pinDisplay
+        : undefined,
     })),
   });
 }

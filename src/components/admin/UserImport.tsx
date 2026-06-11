@@ -6,12 +6,18 @@ import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 
+interface CredentialRow {
+  username: string;
+  password: string;
+  role: string;
+}
+
 export function UserImport() {
   const { slug, path, api } = useEventApi();
   const [result, setResult] = useState<{
     created: number;
     errors: Array<{ row: number; error: string }>;
-    pinSheet: Array<{ username: string; pin: string; role: string }>;
+    credentialSheet: CredentialRow[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +35,10 @@ export function UserImport() {
     });
 
     const data = await response.json();
-    setResult(data);
+    setResult({
+      ...data,
+      credentialSheet: data.credentialSheet ?? data.pinSheet ?? [],
+    });
     setLoading(false);
   };
 
@@ -37,14 +46,18 @@ export function UserImport() {
     await api("/users/assign-teams", { method: "POST", body: JSON.stringify({}) });
   };
 
-  const downloadPinSheet = () => {
-    if (!result?.pinSheet) return;
-    const csv = ["username,pin,role", ...result.pinSheet.map((r) => `${r.username},${r.pin},${r.role}`)].join("\n");
+  const downloadCredentialSheet = () => {
+    const sheet = result?.credentialSheet;
+    if (!sheet?.length) return;
+    const csv = [
+      "username,password,role",
+      ...sheet.map((r) => `${r.username},${r.password},${r.role}`),
+    ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${slug}-pin-sheet.csv`;
+    a.download = `${slug}-credentials.csv`;
     a.click();
   };
 
@@ -52,7 +65,8 @@ export function UserImport() {
     <Card>
       <CardTitle>Bulk User Import</CardTitle>
       <p className="mt-2 text-sm text-muted-foreground">
-        CSV columns: firstName, lastName, middleName, role, pin (optional)
+        CSV columns: firstName, lastName, middleName (optional), role, password (optional).
+        Usernames are generated as <span className="font-mono">firstname.design-phrase</span>.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <label className="cursor-pointer">
@@ -72,9 +86,9 @@ export function UserImport() {
         <Button variant="secondary" onClick={assignTeams}>
           Re-assign Teams (F/I/G/M/A)
         </Button>
-        {result?.pinSheet?.length ? (
-          <Button variant="secondary" onClick={downloadPinSheet}>
-            Download PIN Sheet
+        {result?.credentialSheet?.length ? (
+          <Button variant="secondary" onClick={downloadCredentialSheet}>
+            Download Credentials
           </Button>
         ) : null}
       </div>

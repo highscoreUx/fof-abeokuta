@@ -36,7 +36,7 @@ export async function POST(
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const rows = parseFile(buffer, file.name);
-  const created: Array<{ username: string; pin: string; role: string }> = [];
+  const created: Array<{ username: string; password: string; role: string }> = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -46,7 +46,7 @@ export async function POST(
       lastName: row.lastName ?? row.last_name,
       middleName: row.middleName ?? row.middle_name,
       role: (row.role ?? "PARTICIPANT").toUpperCase(),
-      pin: row.pin ?? row.PIN,
+      password: row.password ?? row.PASSWORD ?? row.pin ?? row.PIN,
     });
 
     if (!parsed.success) {
@@ -56,10 +56,17 @@ export async function POST(
 
     try {
       const user = await createUserFromRow(ctx.event.id, {
-        ...parsed.data,
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        middleName: parsed.data.middleName,
         role: parsed.data.role as Role,
+        password: parsed.data.password ?? parsed.data.pin,
       });
-      created.push({ username: user.username, pin: user.pinDisplay!, role: user.role });
+      created.push({
+        username: user.username,
+        password: user.pinDisplay!,
+        role: user.role,
+      });
     } catch (error) {
       errors.push({
         row: i + 2,
@@ -76,5 +83,10 @@ export async function POST(
     await assignTeamsBalanced(ctx.event.id, participants.map((p) => p.id));
   }
 
-  return NextResponse.json({ created: created.length, errors, pinSheet: created });
+  return NextResponse.json({
+    created: created.length,
+    errors,
+    credentialSheet: created,
+    pinSheet: created,
+  });
 }

@@ -106,6 +106,7 @@ model User {
   role        Role
   pinHash     String
   pinDisplay  String?
+  loginPhrase String?
   firstName   String
   lastName    String
   middleName  String?

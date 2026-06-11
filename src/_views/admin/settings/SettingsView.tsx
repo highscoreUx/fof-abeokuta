@@ -4,21 +4,21 @@ import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
+import { ChatSettings } from "@/components/admin/ChatSettings";
 import { DiagnosticsPanel } from "@/components/admin/DiagnosticsPanel";
 import { EventUserRolesSettings } from "@/components/admin/EventUserRolesSettings";
 import { StreamControls } from "@/components/admin/StreamControls";
 import { TeamSettings } from "@/components/admin/TeamSettings";
-import { VotingPanel } from "@/components/voting/VotingPanel";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useEventNav } from "@/hooks/useEventNav";
 
-type SettingsTab = "teams" | "access" | "voting" | "broadcasting" | "diagnostics";
+type SettingsTab = "teams" | "access" | "chat" | "broadcasting" | "diagnostics";
 
 const TAB_OPTIONS: Array<{ value: SettingsTab; label: string }> = [
   { value: "teams", label: "Teams" },
   { value: "access", label: "Access" },
-  { value: "voting", label: "Voting" },
+  { value: "chat", label: "Chat" },
   { value: "broadcasting", label: "Broadcasting" },
   { value: "diagnostics", label: "Diagnostics" },
 ];
@@ -26,7 +26,7 @@ const TAB_OPTIONS: Array<{ value: SettingsTab; label: string }> = [
 function parseTab(value: string | null): SettingsTab {
   if (
     value === "access" ||
-    value === "voting" ||
+    value === "chat" ||
     value === "broadcasting" ||
     value === "diagnostics" ||
     value === "teams"
@@ -58,7 +58,7 @@ export function SettingsView() {
       anyOf={[
         "team.list",
         "event_user_role.list",
-        "vote.list",
+        "team.manage",
         "settings.broadcasting",
         "settings.diagnostics",
       ]}
@@ -70,7 +70,7 @@ export function SettingsView() {
               <div>
                 <CardTitle>Configure your event</CardTitle>
                 <CardDescription>
-                  Teams, access profiles, voting, broadcasting, and diagnostics.
+                  Teams, access profiles, chat, broadcasting, and diagnostics.
                 </CardDescription>
               </div>
               <SegmentedControl
@@ -84,14 +84,7 @@ export function SettingsView() {
 
           {tab === "teams" && <TeamSettings />}
           {tab === "access" && <EventUserRolesSettings />}
-          {tab === "voting" && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Create polls and open or close voting for participants.
-              </p>
-              <VotingPanel admin />
-            </div>
-          )}
+          {tab === "chat" && <ChatSettings />}
           {tab === "broadcasting" && <StreamControls />}
           {tab === "diagnostics" && <DiagnosticsPanel />}
         </div>

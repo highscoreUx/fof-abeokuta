@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parseDmRoomId } from "@/lib/chat-dm";
+import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { STAFF_CHAT_ROLE_SLUGS, STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -92,6 +93,10 @@ export async function GET(
 
   if (ctx.auth.teamId !== roomId) {
     return jsonError("Forbidden", "FORBIDDEN", 403);
+  }
+
+  if (!(await isTeamChatEnabled(ctx.event.id))) {
+    return jsonError("Team chat is disabled", "FORBIDDEN", 403);
   }
 
   const participants = await prisma.user.findMany({

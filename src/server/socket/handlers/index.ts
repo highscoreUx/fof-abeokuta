@@ -29,6 +29,7 @@ import {
   createStaffChatMessage,
   createTeamChatMessage,
 } from "@/lib/chat-messages-server";
+import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { isDmRoomId } from "@/lib/chat-dm";
 import { CHAT_TYPING_EVENT } from "@/lib/chat-typing";
 import { isStaffRoomId } from "@/lib/chat-staff";
@@ -111,6 +112,11 @@ export function registerSocketHandlers(io: SocketIOServer) {
       async (payload: unknown, ack?: (response: { message?: unknown; error?: string }) => void) => {
         if (!auth.teamId) {
           ack?.({ error: "No team assigned" });
+          return;
+        }
+
+        if (!(await isTeamChatEnabled(auth.eventId))) {
+          ack?.({ error: "Team chat is disabled" });
           return;
         }
 

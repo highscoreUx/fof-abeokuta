@@ -1,4 +1,5 @@
 import { createCheckInSystemMessage } from "@/lib/chat-system";
+import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { tryGetIO } from "@/server/socket/io";
 import { eventRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 
@@ -13,6 +14,7 @@ interface CheckedInUser {
 export async function broadcastCheckInAnnouncement(
   eventSlug: string,
   user: CheckedInUser,
+  eventId?: string,
 ) {
   const io = tryGetIO();
   if (!io) return;
@@ -30,7 +32,7 @@ export async function broadcastCheckInAnnouncement(
     targetRoomId: "global",
   });
 
-  if (user.teamId && user.team?.letter) {
+  if (user.teamId && user.team?.letter && eventId && (await isTeamChatEnabled(eventId))) {
     io.to(teamRoom(eventSlug, user.team.letter)).except(exceptRoom).emit("chat:system", {
       ...message,
       system: true,

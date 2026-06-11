@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { createTeamChatMessage } from "@/lib/chat-messages-server";
+import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -15,6 +16,10 @@ export async function GET(
 
   if (ctx.auth.teamId !== teamId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!(await isTeamChatEnabled(ctx.event.id))) {
+    return jsonError("Team chat is disabled", "FORBIDDEN", 403);
   }
 
   const messages = await prisma.message.findMany({
@@ -41,6 +46,10 @@ export async function POST(
 
   if (ctx.auth.teamId !== teamId) {
     return jsonError("Forbidden", "FORBIDDEN", 403);
+  }
+
+  if (!(await isTeamChatEnabled(ctx.event.id))) {
+    return jsonError("Team chat is disabled", "FORBIDDEN", 403);
   }
 
   const body = await request.json().catch(() => ({}));

@@ -1,0 +1,85 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useEventApi } from "@/hooks/useEventApi";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
+
+export function ChatSettings() {
+  const { slug, api } = useEventApi();
+  const [teamChatEnabled, setTeamChatEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    api<{ teamChatEnabled: boolean }>("/settings")
+      .then((data) => setTeamChatEnabled(data.teamChatEnabled ?? true))
+      .catch(() => setTeamChatEnabled(true))
+      .finally(() => setLoading(false));
+  }, [api, slug]);
+
+  const save = async () => {
+    setSaving(true);
+    setMessage("");
+    try {
+      await api("/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ teamChatEnabled }),
+      });
+      setMessage("Chat settings saved.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to save chat settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Chat</CardTitle>
+        <CardDescription>
+          Control which group chats participants can use. Polls and direct messages are always
+          available in General and private chats.
+        </CardDescription>
+      </CardHeader>
+
+      <div className="space-y-4">
+        <label
+          className={cn(
+            "flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 transition",
+            !loading && "hover:bg-muted/40",
+            loading && "opacity-60",
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={teamChatEnabled}
+            disabled={loading || saving}
+            onChange={(e) => setTeamChatEnabled(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border text-primary"
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-foreground">
+              Allow participants team chat
+            </span>
+            <span className="mt-1 block text-sm text-muted-foreground">
+              When off, team channels are hidden from chat for everyone and team messages cannot be
+              sent.
+            </span>
+          </span>
+        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => void save()} disabled={loading || saving}>
+            {saving ? "Saving…" : "Save chat settings"}
+          </Button>
+          {message && <p className="text-sm text-muted-foreground">{message}</p>}
+        </div>
+      </div>
+    </Card>
+  );
+}

@@ -46,7 +46,7 @@ export async function PATCH(
 
   try {
     await emitCheckInUpdate(getIO(), slug, updated);
-    await broadcastCheckInAnnouncement(slug, updated);
+    await broadcastCheckInAnnouncement(slug, updated, ctx.event.id);
   } catch {
     // socket optional
   }

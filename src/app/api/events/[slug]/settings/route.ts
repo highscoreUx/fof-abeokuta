@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
+import { requireEventContext } from "@/lib/auth/event-middleware";
+import { jsonError } from "@/lib/auth/middleware";
 import { parseAgendaTemplate } from "@/lib/agenda-templates";
+import { parseTeamChatEnabled, setTeamChatEnabled, TEAM_CHAT_ENABLED_KEY } from "@/lib/chat-settings";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -19,6 +22,7 @@ export async function GET(
     youtubeVideoId: map.youtube_video_id ?? "",
     streamLive: map.stream_live === "true",
     agendaTemplate: parseAgendaTemplate(map.agenda_template),
+    teamChatEnabled: parseTeamChatEnabled(map[TEAM_CHAT_ENABLED_KEY]),
     sponsors,
   });
 }
@@ -28,10 +32,24 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventPermission(request, slug, "settings.broadcasting");
+  const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();
+
+  const hasBroadcastingFields =
+    body.youtubeVideoId !== undefined ||
+    body.streamLive !== undefined ||
+    body.agendaTemplate !== undefined;
+  const hasChatFields = body.teamChatEnabled !== undefined;
+
+  if (hasBroadcastingFields && !hasPermission(ctx.auth.permissions, "settings.broadcasting")) {
+    return jsonError("Forbidden", "FORBIDDEN", 403);
+  }
+
+  if (hasChatFields && !hasPermission(ctx.auth.permissions, "team.manage")) {
+    return jsonError("Forbidden", "FORBIDDEN", 403);
+  }
 
   if (body.youtubeVideoId !== undefined) {
     await prisma.appSetting.upsert({
@@ -56,6 +74,10 @@ export async function PATCH(
       create: { eventId: ctx.event.id, key: "agenda_template", value: template },
       update: { value: template },
     });
+  }
+
+  if (body.teamChatEnabled !== undefined) {
+    await setTeamChatEnabled(ctx.event.id, Boolean(body.teamChatEnabled));
   }
 
   return NextResponse.json({ success: true });

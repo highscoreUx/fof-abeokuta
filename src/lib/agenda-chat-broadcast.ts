@@ -1,5 +1,6 @@
 import { createAgendaSystemMessage, type AgendaSystemAction } from "@/lib/chat-system";
 import { formatAgendaTimeRange } from "@/lib/agenda-format";
+import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { prisma } from "@/lib/prisma";
 import { tryGetIO } from "@/server/socket/io";
@@ -19,13 +20,16 @@ export async function broadcastSystemMessageToGroupChats(
     { roomId: STAFF_ROOM_ID, socketRoom: staffRoom(eventSlug) },
   ];
 
-  const teams = await prisma.team.findMany({
-    where: { eventId },
-    select: { id: true, letter: true },
-  });
+  const teamChatEnabled = await isTeamChatEnabled(eventId);
+  if (teamChatEnabled) {
+    const teams = await prisma.team.findMany({
+      where: { eventId },
+      select: { id: true, letter: true },
+    });
 
-  for (const team of teams) {
-    targets.push({ roomId: team.id, socketRoom: teamRoom(eventSlug, team.letter) });
+    for (const team of teams) {
+      targets.push({ roomId: team.id, socketRoom: teamRoom(eventSlug, team.letter) });
+    }
   }
 
   for (const target of targets) {

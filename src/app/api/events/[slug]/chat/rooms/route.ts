@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
 import { dmRoomId } from "@/lib/chat-dm";
+import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { hasPermission } from "@/lib/permissions";
 
@@ -25,7 +26,9 @@ export async function GET(
     rooms.push({ id: STAFF_ROOM_ID, category: "staff", label: "Staff" });
   }
 
-  if (ctx.auth.teamId) {
+  const teamChatEnabled = await isTeamChatEnabled(ctx.event.id);
+
+  if (teamChatEnabled && ctx.auth.teamId) {
     const team = await prisma.team.findFirst({
       where: { id: ctx.auth.teamId, eventId: ctx.event.id },
       select: { id: true, letter: true, name: true },

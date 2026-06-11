@@ -1,0 +1,232 @@
+import type { Server as SocketIOServer, Socket } from "socket.io";
+import { verifyAccessToken } from "@/lib/auth/jwt";
+import { prisma } from "@/lib/prisma";
+import {
+  eventRoom,
+  quizRoom,
+  roleRoom,
+  teamRoom,
+  userRoom,
+} from "@/server/socket/rooms";
+import {
+  adminStartNextQuestion,
+  broadcastQuizState,
+  endQuizGame,
+  startQuizSession,
+  submitQuizAnswer,
+} from "@/server/games/quizEngine";
+import {
+  broadcastSpinState,
+  completeSpinChallenge,
+  startSpinChallenge,
+  submitSpinBuild,
+} from "@/server/games/spinToBuild";
+import type { AccessTokenPayload } from "@/types";
+
+interface AuthenticatedSocket extends Socket {
+  auth?: AccessTokenPayload & { username?: string; teamLetter?: string | null };
+}
+
+export function registerSocketHandlers(io: SocketIOServer) {
+  io.use(async (socket: AuthenticatedSocket, next) => {
+    try {
+      const token = socket.handshake.auth?.token as string | undefined;
+      if (!token) return next(new Error("Unauthorized"));
+
+      const payload = verifyAccessToken(token);
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        include: { team: true },
+      });
+      if (!user || user.eventId !== payload.eventId) return next(new Error("User not found"));
+
+      socket.auth = {
+        ...payload,
+        username: user.username,
+        teamLetter: user.team?.letter ?? null,
+      };
+      next();
+    } catch {
+      next(new Error("Unauthorized"));
+    }
+  });
+
+  io.on("connection", (socket: AuthenticatedSocket) => {
+    const auth = socket.auth!;
+    const slug = auth.eventSlug;
+
+    socket.join(eventRoom(slug));
+    socket.join(roleRoom(slug, auth.role));
+    socket.join(userRoom(auth.userId));
+    if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
+    socket.join(quizRoom(slug));
+
+    socket.on("team:message", async (body: string) => {
+      if (!auth.teamId || !body?.trim()) return;
+
+      const team = await prisma.team.findUnique({ where: { id: auth.teamId } });
+      if (!team) return;
+
+      const message = await prisma.message.create({
+        data: {
+          eventId: auth.eventId,
+          teamId: auth.teamId,
+          userId: auth.userId,
+          body: body.trim().slice(0, 2000),
+        },
+        include: {
+          user: { select: { username: true, firstName: true, lastName: true } },
+        },
+      });
+
+      io.to(teamRoom(slug, team.letter)).emit("team:message", {
+        id: message.id,
+        body: message.body,
+        createdAt: message.createdAt.toISOString(),
+        user: message.user,
+      });
+    });
+
+    socket.on("quiz:answer", async (data: { sessionId: string; questionId: string; answerIndex: number }) => {
+      try {
+        await submitQuizAnswer(
+          io,
+          data.sessionId,
+          auth.userId,
+          auth.teamId ?? null,
+          data.questionId,
+          data.answerIndex,
+        );
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to submit answer",
+        });
+      }
+    });
+
+    socket.on("quiz:admin:start", async (quizId: string) => {
+      if (auth.role !== "ADMIN") return;
+      const session = await startQuizSession(io, quizId);
+      socket.emit("sync:toast", { type: "success", message: "Quiz session started" });
+      await broadcastQuizState(io, session.id);
+    });
+
+    socket.on("quiz:admin:next", async (sessionId: string) => {
+      if (auth.role !== "ADMIN") return;
+      await adminStartNextQuestion(io, sessionId);
+    });
+
+    socket.on("quiz:admin:end", async (sessionId: string) => {
+      if (auth.role !== "ADMIN") return;
+      await endQuizGame(io, sessionId);
+    });
+
+    socket.on("spin:admin:start", async (title?: string) => {
+      if (auth.role !== "ADMIN") return;
+      await startSpinChallenge(io, auth.eventId, title);
+    });
+
+    socket.on("spin:submit", async (data: { challengeId: string; payload: Record<string, unknown> }) => {
+      if (!auth.teamId) return;
+      await submitSpinBuild(data.challengeId, auth.teamId, auth.userId, data.payload);
+      await broadcastSpinState(io, slug);
+    });
+
+    socket.on("spin:admin:complete", async (challengeId: string) => {
+      if (auth.role !== "ADMIN") return;
+      await completeSpinChallenge(io, challengeId, slug);
+    });
+
+    socket.on("stream:admin:toggle", async (data: { live: boolean; videoId?: string }) => {
+      if (auth.role !== "ADMIN") return;
+      if (data.videoId) {
+        await prisma.appSetting.upsert({
+          where: { eventId_key: { eventId: auth.eventId, key: "youtube_video_id" } },
+          create: { eventId: auth.eventId, key: "youtube_video_id", value: data.videoId },
+          update: { value: data.videoId },
+        });
+      }
+      await prisma.appSetting.upsert({
+        where: { eventId_key: { eventId: auth.eventId, key: "stream_live" } },
+        create: { eventId: auth.eventId, key: "stream_live", value: String(data.live) },
+        update: { value: String(data.live) },
+      });
+
+      const videoSetting = await prisma.appSetting.findUnique({
+        where: { eventId_key: { eventId: auth.eventId, key: "youtube_video_id" } },
+      });
+
+      io.to(eventRoom(slug)).emit("stream:live", {
+        live: data.live,
+        videoId: data.videoId ?? videoSetting?.value,
+      });
+    });
+
+    socket.on("vote:admin:open", async (voteId: string) => {
+      if (auth.role !== "ADMIN") return;
+      const vote = await prisma.vote.updateMany({
+        where: { id: voteId, eventId: auth.eventId },
+        data: { open: true },
+      });
+      if (vote.count === 0) return;
+      const updated = await prisma.vote.findUnique({ where: { id: voteId } });
+      io.to(eventRoom(slug)).emit("vote:state", updated);
+    });
+
+    socket.on("disconnect", () => {
+      // no-op
+    });
+  });
+}
+
+export async function emitCheckInUpdate(
+  io: SocketIOServer,
+  eventSlug: string,
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    team?: { letter: string } | null;
+    checkedInAt: Date | null;
+  },
+) {
+  io.to(roleRoom(eventSlug, "STAFF")).to(roleRoom(eventSlug, "ADMIN")).emit("checkin:updated", {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    username: user.username,
+    teamLetter: user.team?.letter ?? null,
+    checkedInAt: user.checkedInAt?.toISOString() ?? null,
+  });
+}
+
+export async function broadcastLeaderboard(io: SocketIOServer, eventId: string) {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return;
+
+  const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
+  const scores = await prisma.score.findMany({ where: { team: { eventId } } });
+
+  const leaderboard = teams
+    .map((team) => {
+      const teamScores = scores.filter((s) => s.teamId === team.id);
+      const judgeIds = new Set(teamScores.map((s) => s.judgeId));
+      const totalPoints = teamScores.reduce((sum, s) => sum + s.points, 0);
+      const averageScore = judgeIds.size > 0 ? totalPoints / judgeIds.size : 0;
+      return {
+        teamId: team.id,
+        teamLetter: team.letter,
+        teamName: team.name,
+        averageScore: Math.round(averageScore * 100) / 100,
+        judgeCount: judgeIds.size,
+        totalPoints,
+        rank: 0,
+      };
+    })
+    .sort((a, b) => b.averageScore - a.averageScore)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+  io.to(eventRoom(event.slug)).emit("leaderboard:update", leaderboard);
+}

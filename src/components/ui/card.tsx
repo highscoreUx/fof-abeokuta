@@ -1,0 +1,14 @@
+import { HTMLAttributes } from "react";
+
+export function Card({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={`rounded-xl border border-border bg-card p-6 shadow-sm ${className}`}
+      {...props}
+    />
+  );
+}
+
+export function CardTitle({ className = "", ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  return <h2 className={`text-xl font-semibold text-foreground ${className}`} {...props} />;
+}

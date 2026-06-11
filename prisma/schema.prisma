@@ -1,0 +1,331 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  JUDGE
+  PARTICIPANT
+}
+
+enum EventStatus {
+  DRAFT
+  LIVE
+  ARCHIVED
+}
+
+enum SponsorPosition {
+  BOTTOM_LEFT
+  BOTTOM_RIGHT
+}
+
+enum QuizSessionState {
+  LOBBY
+  QUESTION
+  RESULTS
+  FINISHED
+}
+
+enum SpinChallengeState {
+  IDLE
+  ACTIVE
+  REVIEWING
+  COMPLETED
+}
+
+model PlatformAdmin {
+  id           String                 @id @default(cuid())
+  email        String                 @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  refreshTokens PlatformRefreshToken[]
+}
+
+model PlatformRefreshToken {
+  id        String        @id @default(cuid())
+  adminId   String
+  admin     PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime      @default(now())
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  title       String
+  description String?
+  date        DateTime
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  teams           Team[]
+  users           User[]
+  agendaItems     AgendaItem[]
+  sponsors        Sponsor[]
+  messages        Message[]
+  quizzes         Quiz[]
+  votes           Vote[]
+  scoreCriteria   ScoreCriterion[]
+  spinChallenges  SpinChallenge[]
+  appSettings     AppSetting[]
+  auditLogs       AuditLog[]
+}
+
+model Team {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  letter  String
+  name    String
+  color   String
+  users   User[]
+  messages Message[]
+  scores  Score[]
+  quizAnswers QuizAnswer[]
+  spinSubmissions SpinSubmission[]
+  voteBallots VoteBallot[]
+
+  @@unique([eventId, letter])
+}
+
+model User {
+  id          String    @id @default(cuid())
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  role        Role
+  pinHash     String
+  pinDisplay  String?
+  firstName   String
+  lastName    String
+  middleName  String?
+  username    String
+  email       String
+  teamId      String?
+  team        Team?     @relation(fields: [teamId], references: [id])
+  checkedInAt DateTime?
+  checkedInBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  messages      Message[]
+  quizAnswers   QuizAnswer[]
+  scoresGiven   Score[]        @relation("JudgeScores")
+  voteBallots   VoteBallot[]
+  spinSubmissions SpinSubmission[]
+  auditLogs     AuditLog[]
+
+  @@unique([eventId, username])
+  @@unique([eventId, email])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model AgendaItem {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  sortOrder   Int      @default(0)
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Sponsor {
+  id                  String          @id @default(cuid())
+  eventId             String
+  event               Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  label               String
+  position            SponsorPosition
+  visibleOnPublicOnly Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+
+  @@unique([eventId, position])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model Quiz {
+  id        String         @id @default(cuid())
+  eventId   String
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title     String
+  active    Boolean        @default(false)
+  questions QuizQuestion[]
+  sessions  QuizSession[]
+  createdAt DateTime       @default(now())
+}
+
+model QuizQuestion {
+  id           String       @id @default(cuid())
+  quizId       String
+  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text         String
+  options      Json
+  correctIndex Int
+  timeLimitSec Int          @default(20)
+  sortOrder    Int          @default(0)
+  answers      QuizAnswer[]
+}
+
+model QuizSession {
+  id                String           @id @default(cuid())
+  quizId            String
+  quiz              Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  state             QuizSessionState @default(LOBBY)
+  currentQuestionId String?
+  questionIndex     Int              @default(0)
+  questionStartedAt DateTime?
+  resultsEndsAt     DateTime?
+  endedAt           DateTime?
+  answers           QuizAnswer[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model QuizAnswer {
+  id          String       @id @default(cuid())
+  sessionId   String
+  session     QuizSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  teamId      String?
+  team        Team?        @relation(fields: [teamId], references: [id])
+  answerIndex Int
+  points      Int          @default(0)
+  answeredAt  DateTime     @default(now())
+
+  @@unique([sessionId, questionId, userId])
+}
+
+model Vote {
+  id        String       @id @default(cuid())
+  eventId   String
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title     String
+  config    Json
+  open      Boolean      @default(false)
+  ballots   VoteBallot[]
+  createdAt DateTime     @default(now())
+}
+
+model VoteBallot {
+  id         String   @id @default(cuid())
+  voteId     String
+  vote       Vote     @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  teamId     String?
+  team       Team?    @relation(fields: [teamId], references: [id])
+  selections Json
+  createdAt  DateTime @default(now())
+
+  @@unique([voteId, userId])
+}
+
+model ScoreCriterion {
+  id        String  @id @default(cuid())
+  eventId   String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name      String
+  maxPoints Int
+  sortOrder Int     @default(0)
+  scores    Score[]
+}
+
+model Score {
+  id          String         @id @default(cuid())
+  teamId      String
+  team        Team           @relation(fields: [teamId], references: [id])
+  judgeId     String
+  judge       User           @relation("JudgeScores", fields: [judgeId], references: [id])
+  criterionId String
+  criterion   ScoreCriterion @relation(fields: [criterionId], references: [id])
+  points      Int
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([teamId, judgeId, criterionId])
+}
+
+model SpinChallenge {
+  id          String             @id @default(cuid())
+  eventId     String
+  event       Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title       String
+  config      Json
+  state       SpinChallengeState @default(IDLE)
+  submissions SpinSubmission[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model SpinSubmission {
+  id          String        @id @default(cuid())
+  challengeId String
+  challenge   SpinChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  teamId      String
+  team        Team          @relation(fields: [teamId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  payload     Json
+  createdAt   DateTime      @default(now())
+
+  @@unique([challengeId, teamId])
+}
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, key])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+}

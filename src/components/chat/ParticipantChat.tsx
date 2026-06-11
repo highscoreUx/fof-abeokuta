@@ -29,7 +29,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
             : (data.rooms[0]?.id ?? "global"),
         );
       })
-      .catch(() => setRooms([{ id: "global", type: "global", label: "Global" }]));
+      .catch(() => setRooms([{ id: "global", category: "general", label: "General" }]));
   }, [api]);
 
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? rooms[0];

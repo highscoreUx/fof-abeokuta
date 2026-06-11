@@ -15,9 +15,11 @@ export interface ChatMessage {
   user: { username: string; firstName: string; lastName: string };
 }
 
+export type ChatRoomCategory = "general" | "team" | "private";
+
 export interface ChatRoom {
   id: string;
-  type: "global" | "team";
+  category: ChatRoomCategory;
   label: string;
   letter?: string;
   name?: string;
@@ -35,9 +37,10 @@ export function ChatPanel({ room, className }: ChatPanelProps) {
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const messagePath = room.type === "global" ? "/messages/global" : `/messages/${room.id}`;
-  const socketEvent = room.type === "global" ? "global:message" : "team:message";
-  const emitEvent = room.type === "global" ? "global:message" : "team:message";
+  const isGeneral = room.category === "general";
+  const messagePath = isGeneral ? "/messages/global" : `/messages/${room.id}`;
+  const socketEvent = isGeneral ? "global:message" : "team:message";
+  const emitEvent = isGeneral ? "global:message" : "team:message";
 
   useEffect(() => {
     setMessages([]);
@@ -50,7 +53,7 @@ export function ChatPanel({ room, className }: ChatPanelProps) {
     if (!socket) return;
 
     const handler = (msg: ChatMessage) => {
-      if (room.type === "team" && msg.teamId && msg.teamId !== room.id) return;
+      if (room.category === "team" && msg.teamId && msg.teamId !== room.id) return;
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
     };
 
@@ -58,7 +61,7 @@ export function ChatPanel({ room, className }: ChatPanelProps) {
     return () => {
       socket.off(socketEvent, handler);
     };
-  }, [socket, socketEvent, room.id, room.type]);
+  }, [socket, socketEvent, room.id, room.category]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -71,17 +74,24 @@ export function ChatPanel({ room, className }: ChatPanelProps) {
   };
 
   const placeholder =
-    room.type === "global" ? "Message everyone..." : `Message Team ${room.letter ?? ""}...`;
+    isGeneral
+      ? "Message everyone..."
+      : room.category === "private"
+        ? "Send a private message..."
+        : `Message Team ${room.letter ?? ""}...`;
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       <div className="shrink-0 border-b border-border px-4 py-3 sm:px-6">
         <h3 className="font-semibold text-foreground">{room.label}</h3>
-        {room.type === "team" && room.name && (
+        {room.category === "team" && room.name && (
           <p className="text-sm text-muted-foreground">{room.name}</p>
         )}
-        {room.type === "global" && (
+        {isGeneral && (
           <p className="text-sm text-muted-foreground">Event-wide conversation</p>
+        )}
+        {room.category === "private" && (
+          <p className="text-sm text-muted-foreground">Direct message</p>
         )}
       </div>
 

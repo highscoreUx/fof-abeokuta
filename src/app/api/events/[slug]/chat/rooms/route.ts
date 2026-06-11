@@ -12,11 +12,11 @@ export async function GET(
 
   const rooms: Array<{
     id: string;
-    type: "global" | "team";
+    category: "general" | "team" | "private";
     label: string;
     letter?: string;
     name?: string;
-  }> = [{ id: "global", type: "global", label: "Global" }];
+  }> = [{ id: "global", category: "general", label: "General" }];
 
   if (ctx.auth.teamId) {
     const team = await prisma.team.findFirst({
@@ -26,7 +26,7 @@ export async function GET(
     if (team) {
       rooms.push({
         id: team.id,
-        type: "team",
+        category: "team",
         label: `Team ${team.letter}`,
         letter: team.letter,
         name: team.name,

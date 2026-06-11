@@ -38,7 +38,7 @@ export function ParticipantView() {
 
   return (
     <PermissionGuard permission="participant.home" allowAdminShell>
-      <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={shellNav}>
+      <AppShell title="Home" nav={shellNav}>
         <div
           className={
             tab === "chat"

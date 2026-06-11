@@ -56,8 +56,14 @@ export function CheckInPanel() {
   }, [socket, selected?.id]);
 
   const checkIn = async (user: UserRow) => {
-    await api(`/users/${user.id}/check-in`, { method: "PATCH" });
-    setSelected(user);
+    const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, { method: "PATCH" });
+    setSelected((prev) => ({ ...(prev?.id === user.id ? prev : user), ...result.user }));
+    await search();
+  };
+
+  const uncheckIn = async (user: UserRow) => {
+    const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, { method: "DELETE" });
+    setSelected((prev) => (prev ? { ...prev, ...result.user } : result.user));
     await search();
   };
 
@@ -102,7 +108,9 @@ export function CheckInPanel() {
                   Show login
                 </Button>
                 {user.checkedInAt ? (
-                  <span className="self-center text-sm text-green-600">Checked in</span>
+                  <Button size="sm" variant="outline" onClick={() => void uncheckIn(user)}>
+                    Undo
+                  </Button>
                 ) : (
                   <Button size="sm" onClick={() => void checkIn(user)}>
                     Check in
@@ -136,11 +144,16 @@ export function CheckInPanel() {
                 </p>
               </div>
               {selected.checkedInAt ? (
-                <p className="text-sm text-green-600">Checked in — they can sign in now.</p>
+                <div className="space-y-2">
+                  <p className="text-sm text-green-600">Checked in — they can sign in now.</p>
+                  <Button size="sm" variant="outline" onClick={() => void uncheckIn(selected)}>
+                    Undo check-in
+                  </Button>
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Check them in after sharing credentials.
-                </p>
+                <Button size="sm" onClick={() => void checkIn(selected)}>
+                  Check in
+                </Button>
               )}
             </div>
           ) : (

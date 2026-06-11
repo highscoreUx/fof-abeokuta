@@ -1,15 +1,24 @@
 "use client";
 
+import { useState } from "react";
+import { UserCheckInModal } from "@/components/admin/UserCheckInModal";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
-import { useTeamsQuery, useUsersQuery } from "@/hooks/useUsersQuery";
+import {
+  useCheckInUserMutation,
+  useTeamsQuery,
+  useUncheckInUserMutation,
+  useUsersQuery,
+} from "@/hooks/useUsersQuery";
 import { cn } from "@/lib/cn";
 import {
   useUsersTableStore,
   type UsersSortField,
 } from "@/stores/usersTableStore";
+import type { EventUserRow } from "@/types/users";
 import type { Role } from "@/types";
 
 const ROLES: Array<Role | "all"> = ["all", "ADMIN", "STAFF", "JUDGE", "PARTICIPANT"];
@@ -48,6 +57,10 @@ function SortableHeader({
 export function UsersTable() {
   const { data, isLoading, isFetching, error } = useUsersQuery();
   const { data: teamsData } = useTeamsQuery();
+  const checkInUser = useCheckInUserMutation();
+  const uncheckInUser = useUncheckInUserMutation();
+  const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const search = useUsersTableStore((s) => s.search);
   const role = useUsersTableStore((s) => s.role);
@@ -64,6 +77,21 @@ export function UsersTable() {
 
   const users = data?.data ?? [];
   const teams = teamsData?.teams ?? [];
+
+  const toggleCheckIn = async (user: EventUserRow) => {
+    setTogglingId(user.id);
+    try {
+      if (user.checkedInAt) {
+        await uncheckInUser.mutateAsync(user.id);
+      } else {
+        await checkInUser.mutateAsync(user.id);
+      }
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Failed to update check-in");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -139,10 +167,10 @@ export function UsersTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Team
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Password
-                </th>
                 <SortableHeader field="checkedInAt" label="Checked in" />
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -190,13 +218,32 @@ export function UsersTable() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{user.password ?? "—"}</td>
                     <td className="px-4 py-3">
                       {user.checkedInAt ? (
                         <Badge variant="success">Yes</Badge>
                       ) : (
                         <Badge variant="muted">No</Badge>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant={user.checkedInAt ? "outline" : "primary"}
+                          className={user.checkedInAt ? "text-danger" : undefined}
+                          onClick={() => void toggleCheckIn(user)}
+                          disabled={togglingId === user.id}
+                        >
+                          {togglingId === user.id
+                            ? "…"
+                            : user.checkedInAt
+                              ? "Undo"
+                              : "Check in"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setDetailsUser(user)}>
+                          Details
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -214,6 +261,12 @@ export function UsersTable() {
           onPageChange={setPage}
         />
       )}
+
+      <UserCheckInModal
+        open={detailsUser !== null}
+        onClose={() => setDetailsUser(null)}
+        user={detailsUser}
+      />
     </div>
   );
 }

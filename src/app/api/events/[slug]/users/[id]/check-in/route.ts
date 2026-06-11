@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventRole } from "@/lib/auth/event-middleware";
+import { serializeCheckInUser } from "@/lib/check-in";
 import { prisma } from "@/lib/prisma";
 import { assignTeams } from "@/lib/team-assign";
 import { getIO } from "@/server/socket/io";
@@ -23,7 +24,7 @@ export async function PATCH(
 
   if (user.checkedInAt) {
     return NextResponse.json({
-      user: { id: user.id, checkedInAt: user.checkedInAt, teamLetter: user.team?.letter ?? null },
+      user: serializeCheckInUser(user, ctx.auth.role),
       alreadyCheckedIn: true,
     });
   }
@@ -46,13 +47,45 @@ export async function PATCH(
   }
 
   return NextResponse.json({
-    user: {
-      id: updated.id,
-      firstName: updated.firstName,
-      lastName: updated.lastName,
-      username: updated.username,
-      teamLetter: updated.team?.letter ?? null,
-      checkedInAt: updated.checkedInAt,
-    },
+    user: serializeCheckInUser(updated, ctx.auth.role),
+  });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string; id: string }> },
+) {
+  const { slug, id } = await params;
+  const ctx = await requireEventRole(request, slug, "STAFF");
+  if (ctx instanceof NextResponse) return ctx;
+
+  const user = await prisma.user.findFirst({
+    where: { id, eventId: ctx.event.id },
+    include: { team: true },
+  });
+
+  if (!user) return jsonError("User not found", "NOT_FOUND", 404);
+
+  if (!user.checkedInAt) {
+    return NextResponse.json({
+      user: serializeCheckInUser(user, ctx.auth.role),
+      alreadyUnchecked: true,
+    });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: { checkedInAt: null, checkedInBy: null },
+    include: { team: true },
+  });
+
+  try {
+    await emitCheckInUpdate(getIO(), slug, updated);
+  } catch {
+    // socket optional
+  }
+
+  return NextResponse.json({
+    user: serializeCheckInUser(updated, ctx.auth.role),
   });
 }

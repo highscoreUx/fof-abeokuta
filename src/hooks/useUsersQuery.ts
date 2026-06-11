@@ -7,6 +7,7 @@ import { useEventSlug } from "@/hooks/useEventSlug";
 import { apiFetch } from "@/lib/api-client";
 import type { PaginatedResponse } from "@/lib/pagination";
 import { useUsersTableStore } from "@/stores/usersTableStore";
+import type { CheckInUserPayload } from "@/lib/check-in";
 import type { EventUserRow } from "@/types/users";
 import type { Role } from "@/types";
 
@@ -83,6 +84,39 @@ export function useInvalidateUsers() {
   const queryClient = useQueryClient();
 
   return () => queryClient.invalidateQueries({ queryKey: ["event-users", eventSlug] });
+}
+
+export function useCheckInUserMutation() {
+  const eventSlug = useEventSlug();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<{
+        user: CheckInUserPayload;
+        alreadyCheckedIn?: boolean;
+      }>(eventSlug, `/users/${userId}/check-in`, { method: "PATCH" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["event-users", eventSlug] });
+      void queryClient.invalidateQueries({ queryKey: ["teams", eventSlug] });
+    },
+  });
+}
+
+export function useUncheckInUserMutation() {
+  const eventSlug = useEventSlug();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<{
+        user: CheckInUserPayload;
+        alreadyUnchecked?: boolean;
+      }>(eventSlug, `/users/${userId}/check-in`, { method: "DELETE" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["event-users", eventSlug] });
+    },
+  });
 }
 
 export function useTeamsQuery() {

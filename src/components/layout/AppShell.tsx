@@ -118,10 +118,12 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
           </header>
 
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            <div className="mb-6 lg:hidden">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+            <div className="mx-auto w-full max-w-6xl">
+              <div className="mb-6 lg:hidden">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+              </div>
+              {children}
             </div>
-            {children}
           </main>
 
           {showSponsors && <SponsorBars />}

@@ -24,7 +24,7 @@ export function UsersView() {
   return (
     <RoleGuard minimumRole="ADMIN">
       <AppShell title="User Management" nav={nav}>
-        <div className="mx-auto max-w-6xl space-y-4">
+        <div className="space-y-4">
           {toast && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
               {toast}

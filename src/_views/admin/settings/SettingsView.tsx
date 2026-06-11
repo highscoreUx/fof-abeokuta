@@ -53,7 +53,7 @@ export function SettingsView() {
   return (
     <RoleGuard minimumRole="ADMIN">
       <AppShell title="Event settings" nav={nav}>
-        <div className="mx-auto max-w-4xl space-y-6">
+        <div className="space-y-6">
           <Card>
             <CardHeader className="space-y-4">
               <div>

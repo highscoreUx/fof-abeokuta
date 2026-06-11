@@ -28,7 +28,7 @@ export function DiagnosticsPanel() {
   }, [slug]);
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1">
           <CardTitle>System diagnostics</CardTitle>

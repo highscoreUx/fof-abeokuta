@@ -142,7 +142,7 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col",
+        "flex min-h-0 flex-col overflow-hidden",
         !isActive && "hidden",
         className,
       )}

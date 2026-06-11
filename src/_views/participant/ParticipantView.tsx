@@ -40,11 +40,12 @@ export function ParticipantView() {
         <div
           className={
             tab === "chat"
-              ? "flex min-h-[calc(100dvh-10rem)] flex-col gap-6 lg:min-h-[calc(100dvh-8rem)]"
+              ? "flex h-[calc(100dvh-11rem)] max-h-[calc(100dvh-11rem)] flex-col gap-4 overflow-hidden sm:h-[calc(100dvh-10rem)] sm:max-h-[calc(100dvh-10rem)] lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]"
               : "space-y-6"
           }
         >
           <SegmentedControl
+            className="shrink-0"
             value={tab}
             onChange={setTab}
             options={[
@@ -52,7 +53,9 @@ export function ParticipantView() {
               { value: "agenda", label: "Agenda" },
             ]}
           />
-          {tab === "chat" && <ParticipantChat className="min-h-0 flex-1" />}
+          {tab === "chat" && (
+            <ParticipantChat className="min-h-0 flex-1 overflow-hidden" />
+          )}
           {tab === "agenda" && (
             <Card>
               <CardHeader className="mb-4">

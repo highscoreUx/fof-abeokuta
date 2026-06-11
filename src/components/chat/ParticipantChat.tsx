@@ -40,11 +40,11 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
     <div
       dir="ltr"
       className={cn(
-        "grid min-h-0 flex-1 grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)] gap-4",
+        "grid h-full min-h-0 flex-1 grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden",
         className,
       )}
     >
-      <div className={cn(panelClass, "col-start-1 row-start-1 flex min-h-0 flex-col")}>
+      <div className={cn(panelClass, "col-start-1 row-start-1 flex h-full min-h-0 flex-col")}>
         <ChatRoomList
           rooms={rooms}
           activeRoomId={activeRoomId}
@@ -60,7 +60,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
         ))}
       </div>
 
-      <div className={cn(panelClass, "col-start-2 row-start-1 min-h-0 min-w-0")}>
+      <div className={cn(panelClass, "col-start-2 row-start-1 flex h-full min-h-0 min-w-0 flex-col")}>
         {rooms.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
             No chat rooms available.
@@ -71,7 +71,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
               key={room.id}
               room={room}
               isActive={room.id === activeRoomId}
-              className="min-h-0 flex-1"
+              className="h-full min-h-0 flex-1 overflow-hidden"
             />
           ))
         )}

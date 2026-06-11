@@ -143,7 +143,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
   },
   {
     id: "games",
-    label: "Games & activities",
+    label: "Activities",
     permissions: [
       { permission: "quiz.manage", label: "Manage quizzes" },
       { permission: "quiz.run", label: "Run quiz sessions" },

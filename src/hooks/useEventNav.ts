@@ -29,7 +29,6 @@ export function useEventNav() {
       { href: `${prefix}/admin/agenda`, label: "Agenda" },
       { href: `${prefix}/admin/customize`, label: "Customize" },
       { href: `${prefix}/admin/settings`, label: "Event settings" },
-      { href: `${prefix}/stage`, label: "Main Stage" },
     ],
     staffNav: [
       { href: `${prefix}/staff/check-in`, label: "Check In" },

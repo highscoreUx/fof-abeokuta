@@ -156,18 +156,31 @@ function TextMessageBody({
   isOwn: boolean;
   isPending: boolean;
 }) {
+  const isShort = !text.includes("\n") && text.length <= 20;
+
+  if (isShort) {
+    return (
+      <div className="flex items-end gap-2 text-[14.2px] leading-[19px] text-foreground">
+        <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</span>
+        <MessageMeta
+          time={time}
+          isOwn={isOwn}
+          isPending={isPending}
+          className="shrink-0 pb-px"
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative text-[14.2px] leading-[19px] text-foreground">
-      <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</span>
-      <span className="invisible inline-flex select-none text-[11px]" aria-hidden>
-        {time}
-      </span>
+    <div className="text-[14.2px] leading-[19px] text-foreground">
       <MessageMeta
         time={time}
         isOwn={isOwn}
         isPending={isPending}
-        className="absolute bottom-0 right-0"
+        className="float-right ml-2.5 mt-0.5 h-[15px] shrink-0 translate-y-px"
       />
+      <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</span>
     </div>
   );
 }

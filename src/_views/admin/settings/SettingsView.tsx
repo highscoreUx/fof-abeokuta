@@ -2,19 +2,21 @@
 
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { AppShell } from "@/components/layout/AppShell";
-import { UserImport } from "@/components/admin/UserImport";
-import { Leaderboard } from "@/components/leaderboard/Leaderboard";
+import { TeamSettings } from "@/components/admin/TeamSettings";
+import { StreamControls } from "@/components/admin/StreamControls";
+import { LoginSlideAdmin } from "@/components/admin/LoginSlideAdmin";
 import { useEventNav } from "@/hooks/useEventNav";
 
-export function AdminView() {
+export function SettingsView() {
   const { nav } = useEventNav();
 
   return (
     <RoleGuard minimumRole="ADMIN">
-      <AppShell title="Event Admin" nav={nav}>
+      <AppShell title="Settings" nav={nav}>
         <div className="grid gap-6 lg:grid-cols-2">
-          <Leaderboard />
-          <UserImport />
+          <TeamSettings />
+          <StreamControls />
+          <LoginSlideAdmin />
         </div>
       </AppShell>
     </RoleGuard>

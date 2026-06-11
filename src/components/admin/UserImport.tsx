@@ -42,10 +42,6 @@ export function UserImport() {
     setLoading(false);
   };
 
-  const assignTeams = async () => {
-    await api("/users/assign-teams", { method: "POST", body: JSON.stringify({}) });
-  };
-
   const downloadCredentialSheet = () => {
     const sheet = result?.credentialSheet;
     if (!sheet?.length) return;
@@ -84,9 +80,6 @@ export function UserImport() {
             }}
           />
         </label>
-        <Button variant="secondary" onClick={assignTeams}>
-          Re-assign Teams (F/I/G/M/A)
-        </Button>
         {result?.credentialSheet?.length ? (
           <Button variant="secondary" onClick={downloadCredentialSheet}>
             Download Credentials

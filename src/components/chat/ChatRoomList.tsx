@@ -58,7 +58,7 @@ export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatR
 
       <div className="max-h-48 overflow-y-auto p-3">
         {filteredRooms.length === 0 ? (
-          <p className="px-2 py-4 text-sm text-muted-foreground">No chats in this category.</p>
+          <p className="px-2 py-4 text-xs text-muted-foreground">No chats in this category.</p>
         ) : (
           <div className="space-y-1">
             {filteredRooms.map((room) => {
@@ -69,7 +69,7 @@ export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatR
                   type="button"
                   onClick={() => onSelect(room.id)}
                   className={cn(
-                    "w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition",
+                    "w-full rounded-lg px-2.5 py-2 text-left text-xs font-medium transition",
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-foreground hover:bg-muted",

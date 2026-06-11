@@ -40,7 +40,7 @@ export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatR
         <p className="text-sm text-muted-foreground">Pick a room</p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="max-h-48 overflow-y-auto p-3">
         <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Global
         </p>

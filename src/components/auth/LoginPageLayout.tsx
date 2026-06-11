@@ -1,10 +1,8 @@
 "use client";
 
 import { LoginSlidePanel } from "@/components/auth/LoginSlidePanel";
-import type { LoginSlideSource } from "@/lib/login-slides";
-
 interface LoginPageLayoutProps {
-  slides: LoginSlideSource[];
+  slides: string[];
   children: React.ReactNode;
 }
 

@@ -1,16 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
-import type { LoginSlideSource } from "@/lib/login-slides";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 
 export function LoginSlideAdmin() {
   const { slug, api } = useEventApi();
-  const [slides, setSlides] = useState<LoginSlideSource[]>(resolveLoginSlides([...DEFAULT_LOGIN_SLIDE_PATHS]));
+  const [slides, setSlides] = useState<string[]>(resolveLoginSlides([...DEFAULT_LOGIN_SLIDE_PATHS]));
   const [custom, setCustom] = useState(false);
   const [uploading, setUploading] = useState<number | null>(null);
   const [message, setMessage] = useState("");
@@ -73,7 +71,8 @@ export function LoginSlideAdmin() {
         {slides.map((src, index) => (
           <div key={index} className="space-y-2">
             <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border bg-muted">
-              <Image src={src} alt={`Login slide ${index + 1}`} fill className="object-cover" sizes="200px" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={`Login slide ${index + 1}`} className="h-full w-full object-cover" />
             </div>
             <input
               ref={fileRefs[index]}

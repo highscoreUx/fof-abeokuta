@@ -8,7 +8,7 @@ import { LoginPageLayout } from "@/components/auth/LoginPageLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
-import { DEFAULT_LOGIN_SLIDES } from "@/lib/login-slides";
+import { DEFAULT_LOGIN_SLIDE_PATHS } from "@/lib/login-slides";
 
 export default function PlatformLoginPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function PlatformLoginPage() {
   };
 
   return (
-    <LoginPageLayout slides={DEFAULT_LOGIN_SLIDES}>
+    <LoginPageLayout slides={[...DEFAULT_LOGIN_SLIDE_PATHS]}>
       <Card className="w-full max-w-md">
         <CardTitle className="text-center text-2xl">Platform Admin</CardTitle>
         <p className="mt-2 text-center text-sm text-muted-foreground">

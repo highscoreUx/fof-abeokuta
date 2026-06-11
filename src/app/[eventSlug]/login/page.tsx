@@ -8,13 +8,12 @@ import { LoginPageLayout } from "@/components/auth/LoginPageLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
-import { DEFAULT_LOGIN_SLIDES, resolveLoginSlides } from "@/lib/login-slides";
-import type { LoginSlideSource } from "@/lib/login-slides";
+import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
 
 export default function EventLoginPage() {
   const eventSlug = useEventSlug();
   const { login } = useAuth(eventSlug);
-  const [slides, setSlides] = useState<LoginSlideSource[]>([...DEFAULT_LOGIN_SLIDES]);
+  const [slides, setSlides] = useState<string[]>([...DEFAULT_LOGIN_SLIDE_PATHS]);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

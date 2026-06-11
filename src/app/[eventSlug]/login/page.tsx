@@ -48,7 +48,12 @@ export default function EventLoginPage() {
 
   return (
     <LoginPageLayout slides={slides}>
-      <LoginCard title="Event sign in" backHref="/" backLabel="Back to all events">
+      <LoginCard
+        title="Event sign in"
+        subtitle="Use the username and password given to you by staff at check-in."
+        backHref="/"
+        backLabel="Back to all events"
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="username" className="mb-2 block text-sm font-medium text-foreground">
@@ -60,12 +65,9 @@ export default function EventLoginPage() {
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
-              placeholder="ada.wireframe"
+              placeholder="Given to you at check-in"
               autoFocus
             />
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Your first name plus a design phrase (e.g. <span className="font-mono">john.prototype</span>)
-            </p>
           </div>
           <div>
             <label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">

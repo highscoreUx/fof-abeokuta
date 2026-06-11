@@ -3,17 +3,20 @@ import { LoginBrand } from "@/components/auth/LoginBrand";
 
 interface LoginCardProps {
   title: string;
+  subtitle?: string;
   backHref: string;
   backLabel: string;
   children: React.ReactNode;
 }
 
-export function LoginCard({ title, backHref, backLabel, children }: LoginCardProps) {
+export function LoginCard({ title, subtitle, backHref, backLabel, children }: LoginCardProps) {
   return (
     <div className="w-full">
       <LoginBrand />
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Welcome back — enter your details to continue.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {subtitle ?? "Welcome back — enter your details to continue."}
+      </p>
       <div className="mt-8">{children}</div>
       <p className="mt-8 text-sm">
         <Link

@@ -42,7 +42,7 @@ pnpm dev
 
 **Event admin login** at `/your-start-up-in-x-hours/login`: username `admin.portal`, password `0001`
 
-Event users sign in with **username + password** (e.g. `ada.wireframe` + 4-digit password). Usernames are `firstname` + a random design phrase; passwords are assigned per role range on import.
+Event users sign in with **username + password** assigned at import (not chosen by the attendee). Usernames are `firstname` + a random design phrase (e.g. `ada.wireframe`). Passwords are 4-digit codes in each role’s range. **Staff at check-in** look up the attendee and read out their credentials before they sign in.
 
 ## Create Events
 

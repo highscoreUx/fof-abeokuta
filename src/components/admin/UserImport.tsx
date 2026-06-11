@@ -66,7 +66,8 @@ export function UserImport() {
       <CardTitle>Bulk User Import</CardTitle>
       <p className="mt-2 text-sm text-muted-foreground">
         CSV columns: firstName, lastName, middleName (optional), role, password (optional).
-        Usernames are generated as <span className="font-mono">firstname.design-phrase</span>.
+        Usernames are auto-assigned as <span className="font-mono">firstname.design-phrase</span> —
+        attendees do not pick these; staff share them at check-in.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <label className="cursor-pointer">

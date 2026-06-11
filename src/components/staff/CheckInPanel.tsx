@@ -13,6 +13,7 @@ interface UserRow {
   lastName: string;
   username: string;
   teamLetter: string | null;
+  password?: string;
   checkedInAt: string | null;
 }
 
@@ -22,12 +23,16 @@ export function CheckInPanel() {
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [recent, setRecent] = useState<UserRow[]>([]);
+  const [selected, setSelected] = useState<UserRow | null>(null);
 
   const search = async () => {
     const data = await api<{ users: UserRow[] }>(
       `/users?q=${encodeURIComponent(query)}&role=PARTICIPANT`,
     );
     setUsers(data.users);
+    if (selected && !data.users.some((u) => u.id === selected.id)) {
+      setSelected(null);
+    }
   };
 
   useEffect(() => {
@@ -41,21 +46,28 @@ export function CheckInPanel() {
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, checkedInAt: user.checkedInAt } : u)),
       );
+      if (selected?.id === user.id) {
+        setSelected((prev) => (prev ? { ...prev, checkedInAt: user.checkedInAt } : null));
+      }
     });
     return () => {
       socket.off("checkin:updated");
     };
-  }, [socket]);
+  }, [socket, selected?.id]);
 
-  const checkIn = async (userId: string) => {
-    await api(`/users/${userId}/check-in`, { method: "PATCH" });
+  const checkIn = async (user: UserRow) => {
+    await api(`/users/${user.id}/check-in`, { method: "PATCH" });
+    setSelected(user);
     await search();
   };
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <Card className="lg:col-span-2">
-        <CardTitle>Check In Attendees</CardTitle>
+        <CardTitle>Welcome attendees</CardTitle>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Search by name, then share their assigned username and password before they sign in.
+        </p>
         <div className="mt-4 flex gap-2">
           <Input
             value={query}
@@ -69,40 +81,89 @@ export function CheckInPanel() {
           {users.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between rounded-lg border border-border p-3"
+              className={`flex items-center justify-between rounded-lg border p-3 ${
+                selected?.id === user.id ? "border-primary bg-primary/5" : "border-border"
+              }`}
             >
               <div>
                 <p className="font-medium">
                   {user.firstName} {user.lastName}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {user.username} {user.teamLetter ? `• Team ${user.teamLetter}` : ""}
+                  {user.teamLetter ? `Team ${user.teamLetter}` : "Team pending check-in"}
                 </p>
               </div>
-              {user.checkedInAt ? (
-                <span className="text-sm text-green-600">Checked in</span>
-              ) : (
-                <Button size="sm" onClick={() => checkIn(user.id)}>
-                  Check In
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setSelected(user)}
+                >
+                  Show login
                 </Button>
+                {user.checkedInAt ? (
+                  <span className="self-center text-sm text-green-600">Checked in</span>
+                ) : (
+                  <Button size="sm" onClick={() => void checkIn(user)}>
+                    Check in
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div className="space-y-6">
+        <Card>
+          <CardTitle>Login details to share</CardTitle>
+          {selected ? (
+            <div className="mt-4 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Tell <span className="font-medium text-foreground">{selected.firstName}</span> to
+                use these at the sign-in page. They cannot choose their own — these are assigned.
+              </p>
+              <div className="rounded-lg border border-border bg-muted/50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Username
+                </p>
+                <p className="mt-1 font-mono text-lg font-semibold text-primary">{selected.username}</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Password
+                </p>
+                <p className="mt-1 font-mono text-2xl font-semibold tracking-widest text-foreground">
+                  {selected.password ?? "—"}
+                </p>
+              </div>
+              {selected.checkedInAt ? (
+                <p className="text-sm text-green-600">Checked in — they can sign in now.</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Check them in after sharing credentials.
+                </p>
               )}
             </div>
-          ))}
-        </div>
-      </Card>
-      <Card>
-        <CardTitle>Recent Check-ins</CardTitle>
-        <div className="mt-4 space-y-2">
-          {recent.length === 0 && (
-            <p className="text-sm text-muted-foreground">No recent check-ins</p>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Select an attendee to see the username and password to give them.
+            </p>
           )}
-          {recent.map((user) => (
-            <div key={user.id} className="rounded-lg bg-muted p-2 text-sm">
-              {user.firstName} {user.lastName} — Team {user.teamLetter ?? "?"}
-            </div>
-          ))}
-        </div>
-      </Card>
+        </Card>
+
+        <Card>
+          <CardTitle>Recent check-ins</CardTitle>
+          <div className="mt-4 space-y-2">
+            {recent.length === 0 && (
+              <p className="text-sm text-muted-foreground">No recent check-ins</p>
+            )}
+            {recent.map((user) => (
+              <div key={user.id} className="rounded-lg bg-muted p-2 text-sm">
+                {user.firstName} {user.lastName} — Team {user.teamLetter ?? "?"}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -50,7 +50,7 @@ export function EventLoginForm({ eventSlug }: EventLoginFormProps) {
 
   return (
     <LoginPageLayout slides={slides}>
-      <LoginCard title="Event sign in" subtitle="Use the username and password given to you by staff at check-in.">
+      <LoginCard title="Event sign in" subtitle="Sign in with your username and password.">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="username" className="mb-2 block text-sm font-medium text-foreground">

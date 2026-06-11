@@ -42,7 +42,7 @@ export function ParticipantView() {
         <div
           className={
             tab === "chat"
-              ? "flex h-[calc(100dvh-6.5rem)] max-h-[calc(100dvh-6.5rem)] flex-col gap-2 overflow-hidden sm:h-[calc(100dvh-10rem)] sm:max-h-[calc(100dvh-10rem)] sm:gap-4 lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]"
+              ? "flex h-[calc(100dvh-6.5rem)] max-h-[calc(100dvh-6.5rem)] flex-col items-start gap-2 overflow-hidden sm:h-[calc(100dvh-10rem)] sm:max-h-[calc(100dvh-10rem)] sm:gap-4 lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]"
               : "space-y-6"
           }
         >
@@ -56,7 +56,7 @@ export function ParticipantView() {
             ]}
           />
           {tab === "chat" && (
-            <ParticipantChat className="min-h-0 min-w-0 flex-1 overflow-hidden" />
+            <ParticipantChat className="min-h-0 min-w-0 w-full flex-1 overflow-hidden" />
           )}
           {tab === "agenda" && (
             <Card>

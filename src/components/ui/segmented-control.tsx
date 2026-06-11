@@ -16,7 +16,7 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       className={cn(
-        "inline-flex w-full rounded-xl border border-border bg-muted/60 p-1 sm:w-auto",
+        "inline-flex w-fit max-w-full rounded-xl border border-border bg-muted/60 p-1",
         className,
       )}
       role="tablist"
@@ -31,7 +31,7 @@ export function SegmentedControl<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
+              "rounded-lg px-4 py-2 text-sm font-medium transition",
               active
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",

@@ -65,6 +65,20 @@ body {
   --vt-slide-offset: 28px;
 }
 
+@keyframes chat-message-highlight {
+  0% {
+    background-color: color-mix(in oklab, var(--primary) 24%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.chat-message-highlight {
+  animation: chat-message-highlight 1.4s ease-out;
+  border-radius: 0.5rem;
+}
+
 @keyframes vt-fade-in {
   from {
     opacity: 0;

@@ -25,9 +25,11 @@ interface ChatComposerProps {
   draft: string;
   placeholder: string;
   disabled?: boolean;
+  allowPolls?: boolean;
   replyTo?: ChatReplyRef | null;
   onDraftChange: (value: string) => void;
   onClearReply?: () => void;
+  onScrollToReply?: (messageId: string) => void;
   onSendContent: (content: ChatContent) => boolean | Promise<boolean>;
 }
 
@@ -35,9 +37,11 @@ export function ChatComposer({
   draft,
   placeholder,
   disabled = false,
+  allowPolls = true,
   replyTo = null,
   onDraftChange,
   onClearReply,
+  onScrollToReply,
   onSendContent,
 }: ChatComposerProps) {
   const [picker, setPicker] = useState<PickerTab | null>(null);
@@ -49,6 +53,12 @@ export function ChatComposer({
   const [expiresInMinutes, setExpiresInMinutes] = useState("5");
   const [emojiCategory, setEmojiCategory] = useState<string>(CHAT_EMOJI_CATEGORIES[0].id);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!allowPolls) {
+      setShowPollBuilder(false);
+    }
+  }, [allowPolls]);
 
   useEffect(() => {
     if (!picker) return;
@@ -163,12 +173,17 @@ export function ChatComposer({
     <div ref={containerRef} className="relative space-y-2">
       {replyTo && (
         <div className="flex items-start gap-2 rounded-lg border-l-[3px] border-primary bg-muted/40 px-3 py-2">
-          <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => onScrollToReply?.(replyTo.id)}
+            disabled={!onScrollToReply}
+            className="min-w-0 flex-1 text-left disabled:cursor-default"
+          >
             <p className="text-xs font-semibold text-primary">
               Replying to {replyTo.firstName} {replyTo.lastName}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">{replyTo.preview}</p>
-          </div>
+          </button>
           <button
             type="button"
             onClick={onClearReply}
@@ -180,7 +195,7 @@ export function ChatComposer({
         </div>
       )}
 
-      {showPollBuilder && (
+      {showPollBuilder && allowPolls && (
         <div className="mb-2 space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-foreground">Create poll</p>
@@ -429,16 +444,18 @@ export function ChatComposer({
         >
           🎨
         </Button>
-        <Button
-          type="button"
-          variant={showPollBuilder ? "secondary" : "ghost"}
-          size="sm"
-          className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
-          onClick={openPollBuilder}
-          aria-label="Poll"
-        >
-          Poll
-        </Button>
+        {allowPolls && (
+          <Button
+            type="button"
+            variant={showPollBuilder ? "secondary" : "ghost"}
+            size="sm"
+            className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
+            onClick={openPollBuilder}
+            aria-label="Poll"
+          >
+            Poll
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-2">

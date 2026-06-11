@@ -39,8 +39,12 @@ export function ChatPanel({
   const { user } = useAuth();
   const socket = useSocket();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   const messages = useChatStore((s) => s.messagesByRoom[room.id] ?? EMPTY_CHAT_MESSAGES);
   const draft = useChatStore((s) => s.draftsByRoom[room.id] ?? "");
@@ -82,6 +86,49 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isActive]);
 
+  useEffect(
+    () => () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    const element = messageRefs.current.get(messageId);
+    const container = scrollContainerRef.current;
+    if (!element || !container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const offset = elementRect.top - containerRect.top + container.scrollTop;
+    const targetScroll =
+      offset - container.clientHeight / 2 + element.clientHeight / 2;
+
+    container.scrollTo({
+      top: Math.max(0, targetScroll),
+      behavior: "smooth",
+    });
+
+    setHighlightedMessageId(messageId);
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+    }
+    highlightTimeoutRef.current = setTimeout(() => {
+      setHighlightedMessageId(null);
+      highlightTimeoutRef.current = null;
+    }, 1400);
+  }, []);
+
+  const registerMessageRef = useCallback((messageId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      messageRefs.current.set(messageId, element);
+      return;
+    }
+    messageRefs.current.delete(messageId);
+  }, []);
+
   const sendViaApi = useCallback(
     async (payload: string, optimisticId: string): Promise<boolean> => {
       try {
@@ -103,6 +150,7 @@ export function ChatPanel({
     async (content: ChatContent): Promise<boolean> => {
       if (!user || sendingRef.current) return false;
       if (isPrivate && !peerId) return false;
+      if (isPrivate && content.type === "poll") return false;
 
       const payload = serializeChatContent(content);
       if (!payload) return false;
@@ -217,7 +265,10 @@ export function ChatPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-chat-background px-3 py-2 sm:px-4 sm:py-3">
+      <div
+        ref={scrollContainerRef}
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-chat-background px-3 py-2 sm:px-4 sm:py-3"
+      >
         {!messagesLoaded && messages.length === 0 ? (
           <p className="px-2 text-sm text-muted-foreground">Loading messages...</p>
         ) : messages.length === 0 ? (
@@ -241,8 +292,12 @@ export function ChatPanel({
                 showAvatar={showAvatar}
                 isGrouped={isGrouped}
                 isPending={isPending}
+                highlighted={highlightedMessageId === m.id}
+                hidePolls={isPrivate}
+                registerRef={(element) => registerMessageRef(m.id, element)}
                 onReply={!isOwn ? handleReply : undefined}
                 onMessagePrivately={allowPrivateAction ? onMessagePrivately : undefined}
+                onScrollToReply={scrollToMessage}
               />
             );
           })
@@ -255,9 +310,11 @@ export function ChatPanel({
           draft={draft}
           placeholder={placeholder}
           disabled={sending}
+          allowPolls={!isPrivate}
           replyTo={replyTo}
           onDraftChange={(value) => setDraft(room.id, value)}
           onClearReply={() => setReplyTo(room.id, null)}
+          onScrollToReply={scrollToMessage}
           onSendContent={sendContent}
         />
       </div>

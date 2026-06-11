@@ -23,8 +23,12 @@ interface ChatMessageBubbleProps {
   showAvatar: boolean;
   isGrouped: boolean;
   isPending: boolean;
+  highlighted?: boolean;
+  hidePolls?: boolean;
+  registerRef?: (element: HTMLDivElement | null) => void;
   onReply?: (message: ChatMessage) => void;
   onMessagePrivately?: (message: ChatMessage) => void;
+  onScrollToReply?: (messageId: string) => void;
 }
 
 function MessageMeta({
@@ -97,31 +101,47 @@ function MessageStatus({
 }
 
 function ReplyQuote({
-  username,
+  messageId,
+  displayName,
+  colorUsername,
   preview,
   isOwn,
+  onScrollToReply,
 }: {
-  username: string;
+  messageId: string;
+  displayName: string;
+  colorUsername: string;
   preview: string;
   isOwn: boolean;
+  onScrollToReply?: (messageId: string) => void;
 }) {
+  const clickable = Boolean(onScrollToReply);
+
   return (
-    <div
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={clickable ? () => onScrollToReply!(messageId) : undefined}
+      onTouchStart={(event) => event.stopPropagation()}
+      onTouchMove={(event) => event.stopPropagation()}
+      onTouchEnd={(event) => event.stopPropagation()}
       className={cn(
-        "mb-1.5 rounded-md border-l-[3px] px-2 py-1 text-xs",
+        "mb-1.5 block w-full rounded-md border-l-[3px] px-2 py-1 text-left text-xs",
         isOwn
           ? "border-primary/60 bg-muted/40"
           : "border-secondary bg-muted/30",
+        clickable && "cursor-pointer transition hover:brightness-95 active:brightness-90",
+        !clickable && "cursor-default",
       )}
     >
       <p
         className="font-semibold leading-tight"
-        style={{ color: nameColorForUser(username) }}
+        style={{ color: nameColorForUser(colorUsername) }}
       >
-        {username}
+        {displayName}
       </p>
       <p className="mt-0.5 line-clamp-2 text-muted-foreground">{preview}</p>
-    </div>
+    </button>
   );
 }
 
@@ -152,14 +172,18 @@ export function ChatMessageBubble({
   showAvatar,
   isGrouped,
   isPending,
+  highlighted = false,
+  hidePolls = false,
+  registerRef,
   onReply,
   onMessagePrivately,
+  onScrollToReply,
 }: ChatMessageBubbleProps) {
   const time = formatMessageTime(message.createdAt);
   const fullName = `${message.user.firstName} ${message.user.lastName}`;
   const content = parseChatContent(message.body);
   const isText = content.type === "text";
-  const isPoll = content.type === "poll";
+  const isPoll = content.type === "poll" && !hidePolls;
   const showActions = !isOwn && (onReply || onMessagePrivately);
 
   const [swipeX, setSwipeX] = useState(0);
@@ -217,10 +241,12 @@ export function ChatMessageBubble({
 
   return (
     <div
+      ref={registerRef}
       className={cn(
         "group relative flex w-full gap-2",
         isOwn ? "justify-end" : "justify-start",
         isGrouped ? "mt-0.5" : "mt-2",
+        highlighted && "chat-message-highlight",
       )}
       onContextMenu={handleContextMenu}
     >
@@ -284,9 +310,12 @@ export function ChatMessageBubble({
 
             {isText && content.replyTo && (
               <ReplyQuote
-                username={`${content.replyTo.firstName} ${content.replyTo.lastName}`}
+                messageId={content.replyTo.id}
+                displayName={`${content.replyTo.firstName} ${content.replyTo.lastName}`}
+                colorUsername={content.replyTo.username}
                 preview={content.replyTo.preview}
                 isOwn={isOwn}
+                onScrollToReply={onScrollToReply}
               />
             )}
 
@@ -310,6 +339,16 @@ export function ChatMessageBubble({
                 <div className="mt-1 flex justify-end">
                   <MessageMeta time={time} isOwn={isOwn} isPending={isPending} />
                 </div>
+              </div>
+            ) : content.type === "poll" && hidePolls ? (
+              <div className="text-[14.2px] leading-[19px] text-muted-foreground italic">
+                <MessageMeta
+                  time={time}
+                  isOwn={isOwn}
+                  isPending={isPending}
+                  className="float-right ml-2.5 mt-1 h-[15px] translate-y-px"
+                />
+                Poll (not available in direct messages)
               </div>
             ) : (
               <div className="relative inline-block max-w-full">

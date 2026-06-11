@@ -136,6 +136,7 @@ export async function createDirectChatMessage(
 
   const body = normalizeChatPayload(payload);
   if (!body) throw new Error("Invalid message");
+  if (parsePollBody(body)) throw new Error("Polls are not allowed in direct messages");
 
   const recipient = await prisma.user.findFirst({
     where: { id: recipientId, eventId },

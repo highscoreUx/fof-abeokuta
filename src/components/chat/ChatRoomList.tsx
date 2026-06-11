@@ -28,7 +28,7 @@ export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatR
   );
 
   return (
-    <div className={cn("flex min-h-0 flex-col", className)}>
+    <div className={cn("flex min-h-0 flex-col flex-1 md:flex-none", className)}>
       <div className="shrink-0 border-b border-border px-4 py-3">
         <h3 className="font-semibold text-foreground">Chats</h3>
       </div>
@@ -56,7 +56,7 @@ export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatR
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 md:max-h-44 md:flex-none">
         {filteredRooms.length === 0 ? (
           <p className="px-2 py-4 text-xs text-muted-foreground">No chats in this category.</p>
         ) : (

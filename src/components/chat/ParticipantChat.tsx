@@ -63,14 +63,14 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
           rooms={rooms}
           activeRoomId={activeRoomId}
           onSelect={handleSelectRoom}
-          className="min-h-0 flex-1"
+          className="min-h-0 flex-1 md:flex-none"
         />
         {activeRoom && (
           <ChatParticipants
             key={activeRoom.id}
             room={activeRoom}
             isActive
-            className="hidden md:flex"
+            className="hidden min-h-0 flex-1 md:flex"
           />
         )}
       </div>

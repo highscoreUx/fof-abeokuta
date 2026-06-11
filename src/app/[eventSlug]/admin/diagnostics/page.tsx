@@ -1,16 +1,10 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { DiagnosticsView } from "@/_views/admin/diagnostics/DiagnosticsView";
+import { redirect } from "next/navigation";
 
-export default async function AdminDiagnosticsPage({
+export default async function AdminDiagnosticsRedirect({
   params,
 }: {
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <DiagnosticsView />
-    </EventScopeProvider>
-  );
+  redirect(`/${eventSlug}/admin/settings?tab=diagnostics`);
 }

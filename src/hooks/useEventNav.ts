@@ -16,7 +16,6 @@ export function useEventNav() {
     agenda: `${prefix}/admin/agenda`,
     customize: `${prefix}/admin/customize`,
     settings: `${prefix}/admin/settings`,
-    diagnostics: `${prefix}/admin/diagnostics`,
     stage: `${prefix}/stage`,
     participant: `${prefix}/participant`,
     participantActivities: `${prefix}/participant/activities`,
@@ -30,7 +29,6 @@ export function useEventNav() {
       { href: `${prefix}/admin/agenda`, label: "Agenda" },
       { href: `${prefix}/admin/customize`, label: "Customize" },
       { href: `${prefix}/admin/settings`, label: "Event settings" },
-      { href: `${prefix}/admin/diagnostics`, label: "Diagnostics" },
       { href: `${prefix}/stage`, label: "Main Stage" },
     ],
     staffNav: [

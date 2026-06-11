@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { AppShell } from "@/components/layout/AppShell";
+import { DiagnosticsPanel } from "@/components/admin/DiagnosticsPanel";
 import { StreamControls } from "@/components/admin/StreamControls";
 import { TeamSettings } from "@/components/admin/TeamSettings";
 import { VotingPanel } from "@/components/voting/VotingPanel";
@@ -11,16 +12,24 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useEventNav } from "@/hooks/useEventNav";
 
-type SettingsTab = "teams" | "voting" | "broadcasting";
+type SettingsTab = "teams" | "voting" | "broadcasting" | "diagnostics";
 
 const TAB_OPTIONS: Array<{ value: SettingsTab; label: string }> = [
   { value: "teams", label: "Teams" },
   { value: "voting", label: "Voting" },
   { value: "broadcasting", label: "Broadcasting" },
+  { value: "diagnostics", label: "Diagnostics" },
 ];
 
 function parseTab(value: string | null): SettingsTab {
-  if (value === "voting" || value === "broadcasting" || value === "teams") return value;
+  if (
+    value === "voting" ||
+    value === "broadcasting" ||
+    value === "diagnostics" ||
+    value === "teams"
+  ) {
+    return value;
+  }
   return "teams";
 }
 
@@ -50,14 +59,14 @@ export function SettingsView() {
               <div>
                 <CardTitle>Configure your event</CardTitle>
                 <CardDescription>
-                  Manage teams, voting sessions, and the live broadcast from one place.
+                  Teams, voting, broadcasting, and system diagnostics for your event.
                 </CardDescription>
               </div>
               <SegmentedControl
                 value={tab}
                 onChange={setTab}
                 options={TAB_OPTIONS}
-                className="w-full sm:max-w-xl"
+                className="w-full sm:max-w-2xl"
               />
             </CardHeader>
           </Card>
@@ -72,6 +81,7 @@ export function SettingsView() {
             </div>
           )}
           {tab === "broadcasting" && <StreamControls />}
+          {tab === "diagnostics" && <DiagnosticsPanel />}
         </div>
       </AppShell>
     </RoleGuard>

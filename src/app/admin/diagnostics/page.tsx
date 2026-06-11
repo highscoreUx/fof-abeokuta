@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { DiagnosticsView } from "@/_views/admin/diagnostics/DiagnosticsView";
+import { redirect } from "next/navigation";
 
-export default async function AdminDiagnosticsPage() {
-  return (
-    <LatestEventScope>
-      <DiagnosticsView />
-    </LatestEventScope>
-  );
+export default function AdminDiagnosticsRedirect() {
+  redirect("/admin/settings?tab=diagnostics");
 }

@@ -6,8 +6,10 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
+import { ChatSystemMessage } from "@/components/chat/ChatSystemMessage";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { useChatTyping } from "@/hooks/useChatTyping";
+import { isSystemChatMessage } from "@/lib/chat-system";
 import { parseDmRoomId } from "@/lib/chat-dm";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { isSameMessageGroup } from "@/lib/chat-display";
@@ -290,6 +292,10 @@ export function ChatPanel({
           <p className="px-2 text-sm text-muted-foreground">No messages yet. Say hello!</p>
         ) : (
           messages.map((m, index) => {
+            if (isSystemChatMessage(m)) {
+              return <ChatSystemMessage key={m.id} message={m} />;
+            }
+
             const isOwn = m.user.username === user?.username;
             const isGrouped = isSameMessageGroup(m, messages[index - 1]);
             const isGroupRoom = !isPrivate && !isStaff;

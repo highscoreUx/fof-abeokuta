@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
+import { broadcastAgendaUpdate } from "@/lib/agenda-chat-broadcast";
 import { agendaItemSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
@@ -27,6 +28,17 @@ export async function PATCH(
 
   if (item.count === 0) return jsonError("Not found", "NOT_FOUND", 404);
   const updated = await prisma.agendaItem.findUnique({ where: { id } });
+  if (!updated) return jsonError("Not found", "NOT_FOUND", 404);
+
+  await broadcastAgendaUpdate(
+    ctx.event.id,
+    slug,
+    "updated",
+    updated.title,
+    updated.startTime.toISOString(),
+    updated.endTime.toISOString(),
+  );
+
   return NextResponse.json({ item: updated });
 }
 
@@ -38,6 +50,14 @@ export async function DELETE(
   const ctx = await requireEventPermission(request, slug, "agenda.delete");
   if (ctx instanceof NextResponse) return ctx;
 
+  const existing = await prisma.agendaItem.findFirst({
+    where: { id, eventId: ctx.event.id },
+  });
+  if (!existing) return jsonError("Not found", "NOT_FOUND", 404);
+
   await prisma.agendaItem.deleteMany({ where: { id, eventId: ctx.event.id } });
+
+  await broadcastAgendaUpdate(ctx.event.id, slug, "deleted", existing.title);
+
   return NextResponse.json({ success: true });
 }

@@ -23,13 +23,19 @@ function SpiralRings() {
 function AgendaNotebookCard({
   item,
   index,
+  isPresent = false,
   onEdit,
   onDelete,
+  onSetPresent,
+  onClearPresent,
 }: {
   item: AgendaListProps["items"][number];
   index: number;
+  isPresent?: boolean;
   onEdit?: AgendaListProps["onEdit"];
   onDelete?: AgendaListProps["onDelete"];
+  onSetPresent?: AgendaListProps["onSetPresent"];
+  onClearPresent?: AgendaListProps["onClearPresent"];
 }) {
   const color = agendaColorForItem(item.id, index);
   const indexLabel = formatAgendaTime24(item.startTime).replace(":", "");
@@ -73,6 +79,11 @@ function AgendaNotebookCard({
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-base font-bold sm:text-lg" style={{ color: color.main }}>
               {item.title}
+              {isPresent && (
+                <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  Now
+                </span>
+              )}
             </h3>
             <p className="mt-0.5 text-xs font-medium text-muted-foreground">
               {formatAgendaTimeRange(item.startTime, item.endTime)}
@@ -83,7 +94,14 @@ function AgendaNotebookCard({
               </p>
             )}
           </div>
-          <AgendaItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
+          <AgendaItemActions
+            item={item}
+            isPresent={isPresent}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onSetPresent={onSetPresent}
+            onClearPresent={onClearPresent}
+          />
         </div>
         <div className="w-4 shrink-0 rounded-r-md sm:w-5" style={{ backgroundColor: color.main }} />
       </div>
@@ -95,8 +113,11 @@ export function AgendaNotebookList({
   items,
   className,
   emptyMessage = "No agenda items yet.",
+  presentItemId,
   onEdit,
   onDelete,
+  onSetPresent,
+  onClearPresent,
 }: AgendaListProps) {
   if (items.length === 0) {
     return <AgendaEmpty message={emptyMessage} />;
@@ -109,8 +130,11 @@ export function AgendaNotebookList({
           key={item.id}
           item={item}
           index={index}
+          isPresent={presentItemId === item.id}
           onEdit={onEdit}
           onDelete={onDelete}
+          onSetPresent={onSetPresent}
+          onClearPresent={onClearPresent}
         />
       ))}
     </div>

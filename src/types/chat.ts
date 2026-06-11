@@ -6,6 +6,7 @@ export interface ChatMessage {
   teamId?: string;
   recipientId?: string;
   staffChannel?: boolean;
+  system?: boolean;
   user: { username: string; firstName: string; lastName: string };
 }
 

@@ -18,6 +18,7 @@ interface AgendaAdminProps {
 export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdminProps) {
   const { slug, api } = useEventApi();
   const [items, setItems] = useState<AgendaListItem[]>([]);
+  const [presentItemId, setPresentItemId] = useState<string | null>(null);
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
   const [formOpen, setFormOpen] = useState(false);
@@ -25,10 +26,11 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
   const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = () =>
-    api<{ items: AgendaListItem[]; template: AgendaTemplateId; event: AgendaEventMeta }>(
+    api<{ items: AgendaListItem[]; presentItemId?: string | null; template: AgendaTemplateId; event: AgendaEventMeta }>(
       "/agenda",
     ).then((d) => {
       setItems(d.items);
+      setPresentItemId(d.presentItemId ?? null);
       setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
       setEvent(d.event);
     });
@@ -39,6 +41,19 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
 
   const remove = async (id: string) => {
     await api(`/agenda/${id}`, { method: "DELETE" });
+    await load();
+  };
+
+  const setPresent = async (item: AgendaListItem) => {
+    await api(`/agenda/${item.id}/present`, { method: "POST" });
+    await load();
+  };
+
+  const clearPresent = async (item: AgendaListItem) => {
+    await api(`/agenda/${item.id}/present`, {
+      method: "POST",
+      body: JSON.stringify({ clear: true }),
+    });
     await load();
   };
 
@@ -87,8 +102,11 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
         template={template}
         items={items}
         event={event}
+        presentItemId={presentItemId}
         onEdit={openEdit}
         onDelete={remove}
+        onSetPresent={setPresent}
+        onClearPresent={clearPresent}
       />
 
       <AgendaItemModal

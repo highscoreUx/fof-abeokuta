@@ -25,6 +25,7 @@ export function ParticipantView() {
   const shellNav = user && hasAdminShellAccess(user.permissions) ? nav : participantNav;
   const manageAgenda = user ? canManageAgenda(user.permissions) : false;
   const [agenda, setAgenda] = useState<AgendaListItem[]>([]);
+  const [presentItemId, setPresentItemId] = useState<string | null>(null);
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
   const [tab, setTab] = useState<"chat" | "agenda">("chat");
@@ -45,10 +46,12 @@ export function ParticipantView() {
 
     api<{
       items: AgendaListItem[];
+      presentItemId?: string | null;
       template: AgendaTemplateId;
       event: AgendaEventMeta;
     }>("/agenda").then((d) => {
       setAgenda(d.items);
+      setPresentItemId(d.presentItemId ?? null);
       setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
       setEvent(d.event);
     });
@@ -95,6 +98,7 @@ export function ParticipantView() {
                   template={template}
                   items={agenda}
                   event={event}
+                  presentItemId={presentItemId}
                   emptyMessage="Agenda will appear here when published."
                 />
               </Card>

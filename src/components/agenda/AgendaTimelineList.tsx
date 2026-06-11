@@ -11,8 +11,11 @@ export function AgendaTimelineList({
   items,
   className,
   emptyMessage = "No agenda items yet.",
+  presentItemId,
   onEdit,
   onDelete,
+  onSetPresent,
+  onClearPresent,
 }: AgendaListProps) {
   if (items.length === 0) {
     return <AgendaEmpty message={emptyMessage} />;
@@ -35,6 +38,7 @@ export function AgendaTimelineList({
         <div className="space-y-8">
           {items.map((item, index) => {
             const color = agendaColorForItem(item.id, index);
+            const isPresent = presentItemId === item.id;
             return (
               <article key={item.id} className="group relative flex items-start gap-0">
                 <div
@@ -56,6 +60,11 @@ export function AgendaTimelineList({
                     <div className="min-w-0 flex-1">
                       <h3 className="font-bold" style={{ color: color.main }}>
                         {item.title}
+                        {isPresent && (
+                          <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                            Now
+                          </span>
+                        )}
                       </h3>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatAgendaTimeRange(item.startTime, item.endTime)}
@@ -66,7 +75,14 @@ export function AgendaTimelineList({
                         </p>
                       )}
                     </div>
-                    <AgendaItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
+                    <AgendaItemActions
+                      item={item}
+                      isPresent={isPresent}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onSetPresent={onSetPresent}
+                      onClearPresent={onClearPresent}
+                    />
                   </div>
                 </div>
               </article>

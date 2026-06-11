@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getSocket, useSocket } from "@/hooks/useSocket";
 import { dmRoomIdForMessage } from "@/lib/chat-dm";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
+import { CHAT_SYSTEM_EVENT, type ChatSystemBroadcast } from "@/lib/chat-system";
 import { useChatStore } from "@/stores/chatStore";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
@@ -78,11 +79,21 @@ export function useChatRealtime(
       }
     };
 
+    const onSystem = (payload: ChatSystemBroadcast) => {
+      if (!payload.targetRoomId) return;
+      if (payload.targetRoomId === STAFF_ROOM_ID && !hasStaffRoom) return;
+      if (payload.targetRoomId !== "global" && payload.targetRoomId !== STAFF_ROOM_ID) {
+        if (!teamRoomIds.has(payload.targetRoomId)) return;
+      }
+      upsertMessage(payload.targetRoomId, payload);
+    };
+
     instance.on("global:message", onGlobal);
     instance.on("staff:message", onStaff);
     instance.on("team:message", onTeam);
     instance.on("dm:message", onDm);
     instance.on("poll:update", onPollUpdate);
+    instance.on(CHAT_SYSTEM_EVENT, onSystem);
 
     return () => {
       instance.off("global:message", onGlobal);
@@ -90,6 +101,7 @@ export function useChatRealtime(
       instance.off("team:message", onTeam);
       instance.off("dm:message", onDm);
       instance.off("poll:update", onPollUpdate);
+      instance.off(CHAT_SYSTEM_EVENT, onSystem);
     };
   }, [socket, teamRoomIds, dmRoomIds, hasStaffRoom, upsertMessage, user?.id, onIncomingDm]);
 }

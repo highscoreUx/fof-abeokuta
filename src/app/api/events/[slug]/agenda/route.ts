@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
 import { hasPermission } from "@/lib/permissions";
 import { parseAgendaTemplate } from "@/lib/agenda-templates";
+import {
+  broadcastAgendaUpdate,
+  getPresentAgendaItemId,
+} from "@/lib/agenda-chat-broadcast";
 import { agendaItemSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
@@ -14,7 +18,7 @@ export async function GET(
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
-  const [items, templateSetting] = await Promise.all([
+  const [items, templateSetting, presentItemId] = await Promise.all([
     prisma.agendaItem.findMany({
       where: {
         eventId: ctx.event.id,
@@ -25,10 +29,12 @@ export async function GET(
     prisma.appSetting.findUnique({
       where: { eventId_key: { eventId: ctx.event.id, key: "agenda_template" } },
     }),
+    getPresentAgendaItemId(ctx.event.id),
   ]);
 
   return NextResponse.json({
     items,
+    presentItemId,
     template: parseAgendaTemplate(templateSetting?.value),
     event: {
       title: ctx.event.title,
@@ -60,6 +66,15 @@ export async function POST(
       visible: parsed.data.visible ?? true,
     },
   });
+
+  await broadcastAgendaUpdate(
+    ctx.event.id,
+    slug,
+    "created",
+    item.title,
+    item.startTime.toISOString(),
+    item.endTime.toISOString(),
+  );
 
   return NextResponse.json({ item });
 }

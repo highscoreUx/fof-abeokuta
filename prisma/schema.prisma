@@ -133,7 +133,8 @@ model User {
   updatedAt   DateTime  @updatedAt
 
   refreshTokens RefreshToken[]
-  messages      Message[]
+  messages      Message[]      @relation("MessageAuthor")
+  directMessages Message[]     @relation("DirectMessageRecipient")
   quizAnswers   QuizAnswer[]
   scoresGiven   Score[]        @relation("JudgeScores")
   voteBallots   VoteBallot[]
@@ -180,15 +181,19 @@ model Sponsor {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teamId    String?
-  team      Team?    @relation(fields: [teamId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  body      String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id])
+  userId      String
+  user        User     @relation("MessageAuthor", fields: [userId], references: [id])
+  recipientId String?
+  recipient   User?    @relation("DirectMessageRecipient", fields: [recipientId], references: [id])
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([eventId, recipientId, userId])
 }
 
 model Quiz {

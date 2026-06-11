@@ -6,11 +6,13 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
+import { parseDmRoomId } from "@/lib/chat-dm";
 import { isSameMessageGroup } from "@/lib/chat-display";
 import { cn } from "@/lib/cn";
 import type { ChatContent } from "@/lib/chat-content";
 import { serializeChatContent } from "@/lib/chat-content";
 import { createOptimisticChatMessage } from "@/lib/chat-optimistic";
+import { buildReplyRef } from "@/lib/chat-reply";
 import { EMPTY_CHAT_MESSAGES, useChatStore } from "@/stores/chatStore";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
@@ -20,12 +22,19 @@ interface ChatPanelProps {
   room: ChatRoom;
   isActive: boolean;
   onBack?: () => void;
+  onMessagePrivately?: (message: ChatMessage) => void;
   className?: string;
 }
 
 type SocketAck = { message?: ChatMessage; error?: string };
 
-export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps) {
+export function ChatPanel({
+  room,
+  isActive,
+  onBack,
+  onMessagePrivately,
+  className,
+}: ChatPanelProps) {
   const { api } = useEventApi();
   const { user } = useAuth();
   const socket = useSocket();
@@ -35,17 +44,24 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
 
   const messages = useChatStore((s) => s.messagesByRoom[room.id] ?? EMPTY_CHAT_MESSAGES);
   const draft = useChatStore((s) => s.draftsByRoom[room.id] ?? "");
+  const replyTo = useChatStore((s) => s.replyToByRoom[room.id] ?? null);
   const messagesLoaded = useChatStore((s) => s.messagesLoaded[room.id] ?? false);
   const setMessages = useChatStore((s) => s.setMessages);
   const appendMessage = useChatStore((s) => s.appendMessage);
   const upsertMessage = useChatStore((s) => s.upsertMessage);
   const removeMessage = useChatStore((s) => s.removeMessage);
   const setDraft = useChatStore((s) => s.setDraft);
+  const setReplyTo = useChatStore((s) => s.setReplyTo);
   const markMessagesLoaded = useChatStore((s) => s.markMessagesLoaded);
 
+  const peerId = room.category === "private" ? parseDmRoomId(room.id) : null;
   const isGeneral = room.category === "general";
-  const messagePath = isGeneral ? "/messages/global" : `/messages/${room.id}`;
-  const emitEvent = isGeneral ? "global:message" : "team:message";
+  const isPrivate = room.category === "private";
+  const messagePath = isGeneral
+    ? "/messages/global"
+    : isPrivate && peerId
+      ? `/messages/dm/${peerId}`
+      : `/messages/${room.id}`;
 
   useEffect(() => {
     if (messagesLoaded) return;
@@ -86,13 +102,17 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
   const sendContent = useCallback(
     async (content: ChatContent): Promise<boolean> => {
       if (!user || sendingRef.current) return false;
+      if (isPrivate && !peerId) return false;
 
       const payload = serializeChatContent(content);
       if (!payload) return false;
 
       const optimistic = createOptimisticChatMessage(payload, user, room);
       appendMessage(room.id, optimistic);
-      if (content.type === "text") setDraft(room.id, "");
+      if (content.type === "text") {
+        setDraft(room.id, "");
+        setReplyTo(room.id, null);
+      }
 
       sendingRef.current = true;
       setSending(true);
@@ -102,16 +122,23 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
 
         if (activeSocket && isSocketConnected()) {
           return await new Promise<boolean>((resolve) => {
-            activeSocket
-              .timeout(8000)
-              .emit(emitEvent, payload, (error: Error | null, response?: SocketAck) => {
-                if (error || response?.error || !response?.message) {
-                  void sendViaApi(payload, optimistic.id).then(resolve);
-                  return;
-                }
-                upsertMessage(room.id, response.message!);
-                resolve(true);
-              });
+            const ackHandler = (error: Error | null, response?: SocketAck) => {
+              if (error || response?.error || !response?.message) {
+                void sendViaApi(payload, optimistic.id).then(resolve);
+                return;
+              }
+              upsertMessage(room.id, response.message!);
+              resolve(true);
+            };
+
+            if (isPrivate && peerId) {
+              activeSocket
+                .timeout(8000)
+                .emit("dm:message", { recipientId: peerId, payload }, ackHandler);
+            } else {
+              const emitEvent = isGeneral ? "global:message" : "team:message";
+              activeSocket.timeout(8000).emit(emitEvent, payload, ackHandler);
+            }
           });
         }
 
@@ -123,22 +150,34 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
     },
     [
       appendMessage,
-      emitEvent,
+      isGeneral,
+      isPrivate,
+      peerId,
       room,
       sendViaApi,
       setDraft,
+      setReplyTo,
       socket,
       upsertMessage,
       user,
     ],
   );
 
+  const handleReply = useCallback(
+    (message: ChatMessage) => {
+      setReplyTo(room.id, buildReplyRef(message));
+    },
+    [room.id, setReplyTo],
+  );
+
   const placeholder =
     isGeneral
       ? "Message everyone..."
-      : room.category === "private"
+      : isPrivate
         ? "Send a private message..."
         : `Message Team ${room.letter ?? ""}...`;
+
+  const allowPrivateAction = !isPrivate && Boolean(onMessagePrivately);
 
   return (
     <div
@@ -171,7 +210,7 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
             {isGeneral && (
               <p className="truncate text-sm text-muted-foreground">Event-wide conversation</p>
             )}
-            {room.category === "private" && (
+            {isPrivate && (
               <p className="truncate text-sm text-muted-foreground">Direct message</p>
             )}
           </div>
@@ -187,7 +226,7 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
           messages.map((m, index) => {
             const isOwn = m.user.username === user?.username;
             const isGrouped = isSameMessageGroup(m, messages[index - 1]);
-            const isGroupRoom = room.category !== "private";
+            const isGroupRoom = !isPrivate;
             const showName = !isOwn && isGroupRoom && !isGrouped;
             const showAvatar = !isOwn && !isGrouped;
             const isPending = m.id.startsWith("pending-");
@@ -202,6 +241,8 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
                 showAvatar={showAvatar}
                 isGrouped={isGrouped}
                 isPending={isPending}
+                onReply={!isOwn ? handleReply : undefined}
+                onMessagePrivately={allowPrivateAction ? onMessagePrivately : undefined}
               />
             );
           })
@@ -214,7 +255,9 @@ export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps)
           draft={draft}
           placeholder={placeholder}
           disabled={sending}
+          replyTo={replyTo}
           onDraftChange={(value) => setDraft(room.id, value)}
+          onClearReply={() => setReplyTo(room.id, null)}
           onSendContent={sendContent}
         />
       </div>

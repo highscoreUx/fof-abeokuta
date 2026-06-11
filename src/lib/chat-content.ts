@@ -1,3 +1,4 @@
+import { isValidReplyRef, type ChatReplyRef } from "@/lib/chat-reply";
 import {
   isValidPollData,
   parsePollBody,
@@ -6,9 +7,9 @@ import {
   type ChatPollData,
 } from "@/lib/chat-poll";
 
-export type { ChatPollData };
+export type { ChatPollData, ChatReplyRef };
 export type ChatContent =
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; replyTo?: ChatReplyRef }
   | { type: "gif"; url: string; alt?: string }
   | { type: "sticker"; id: string; url: string; label?: string }
   | { type: "poll"; poll: ChatPollData };
@@ -32,7 +33,14 @@ export function isAllowedStickerUrl(url: string): boolean {
 }
 
 export function serializeChatContent(content: ChatContent): string {
-  if (content.type === "text") return content.text.trim();
+  if (content.type === "text") {
+    const text = content.text.trim();
+    if (!text) return "";
+    if (content.replyTo) {
+      return JSON.stringify({ type: "text", text, replyTo: content.replyTo });
+    }
+    return text;
+  }
   if (content.type === "poll") return serializePoll(content.poll);
   return JSON.stringify(content);
 }
@@ -60,6 +68,13 @@ export function parseChatContent(body: string): ChatContent {
       }
       const poll = parsePollBody(trimmed);
       if (poll) return { type: "poll", poll };
+      if (parsed.type === "text" && typeof parsed.text === "string") {
+        return {
+          type: "text",
+          text: parsed.text,
+          replyTo: isValidReplyRef(parsed.replyTo) ? parsed.replyTo : undefined,
+        };
+      }
     } catch {
       // plain text fallback
     }
@@ -102,7 +117,11 @@ export function normalizeChatPayload(input: unknown): string | null {
     }
     if (record.type === "text" && typeof record.text === "string") {
       const text = record.text.trim();
-      return text ? text.slice(0, 2000) : null;
+      if (!text) return null;
+      const replyTo = isValidReplyRef(record.replyTo) ? record.replyTo : undefined;
+      return replyTo
+        ? JSON.stringify({ type: "text", text: text.slice(0, 2000), replyTo })
+        : text.slice(0, 2000);
     }
     if (record.type === "poll") {
       const source = record.poll && typeof record.poll === "object" ? record.poll : record;

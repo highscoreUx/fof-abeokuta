@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
+import { parseDmRoomId } from "@/lib/chat-dm";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -39,6 +40,27 @@ export async function GET(
         teamLetter: user.team?.letter ?? null,
         roleName: user.eventUserRole.name,
       })),
+    });
+  }
+
+  const peerId = parseDmRoomId(roomId);
+  if (peerId) {
+    const peer = await prisma.user.findFirst({
+      where: { id: peerId, eventId: ctx.event.id },
+      select: participantSelect,
+    });
+    if (!peer) return jsonError("User not found", "NOT_FOUND", 404);
+
+    return NextResponse.json({
+      participants: [
+        {
+          id: peer.id,
+          firstName: peer.firstName,
+          lastName: peer.lastName,
+          teamLetter: peer.team?.letter ?? null,
+          roleName: peer.eventUserRole.name,
+        },
+      ],
     });
   }
 

@@ -23,6 +23,7 @@ import {
 } from "@/server/games/spinToBuild";
 import {
   castChatPollVote,
+  createDirectChatMessage,
   createGlobalChatMessage,
   createTeamChatMessage,
 } from "@/lib/chat-messages-server";
@@ -106,6 +107,37 @@ export function registerSocketHandlers(io: SocketIOServer) {
             auth.userId,
             auth.teamId,
             payload,
+          );
+          ack?.({ message });
+        } catch (error) {
+          ack?.({
+            error: error instanceof Error ? error.message : "Failed to send message",
+          });
+        }
+      },
+    );
+
+    socket.on(
+      "dm:message",
+      async (
+        data: { recipientId: string; payload: unknown },
+        ack?: (response: { message?: unknown; error?: string }) => void,
+      ) => {
+        if (
+          !data ||
+          typeof data.recipientId !== "string" ||
+          data.payload === undefined
+        ) {
+          ack?.({ error: "Invalid message" });
+          return;
+        }
+
+        try {
+          const message = await createDirectChatMessage(
+            auth.eventId,
+            auth.userId,
+            data.recipientId,
+            data.payload,
           );
           ack?.({ message });
         } catch (error) {

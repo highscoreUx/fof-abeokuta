@@ -2,7 +2,9 @@ export interface ChatMessage {
   id: string;
   body: string;
   createdAt: string;
+  userId?: string;
   teamId?: string;
+  recipientId?: string;
   user: { username: string; firstName: string; lastName: string };
 }
 

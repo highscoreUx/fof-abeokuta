@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatContent } from "@/lib/chat-content";
+import type { ChatReplyRef } from "@/lib/chat-reply";
 import {
   CHAT_EMOJI_CATEGORIES,
   CHAT_GIFS,
@@ -24,7 +25,9 @@ interface ChatComposerProps {
   draft: string;
   placeholder: string;
   disabled?: boolean;
+  replyTo?: ChatReplyRef | null;
   onDraftChange: (value: string) => void;
+  onClearReply?: () => void;
   onSendContent: (content: ChatContent) => boolean | Promise<boolean>;
 }
 
@@ -32,7 +35,9 @@ export function ChatComposer({
   draft,
   placeholder,
   disabled = false,
+  replyTo = null,
   onDraftChange,
+  onClearReply,
   onSendContent,
 }: ChatComposerProps) {
   const [picker, setPicker] = useState<PickerTab | null>(null);
@@ -61,9 +66,14 @@ export function ChatComposer({
   const sendText = async () => {
     const text = draft.trim();
     if (!text || disabled) return;
-    const sent = await onSendContent({ type: "text", text });
+    const sent = await onSendContent({
+      type: "text",
+      text,
+      ...(replyTo ? { replyTo } : {}),
+    });
     if (!sent) return;
     onDraftChange("");
+    onClearReply?.();
     setPicker(null);
   };
 
@@ -151,6 +161,25 @@ export function ChatComposer({
 
   return (
     <div ref={containerRef} className="relative space-y-2">
+      {replyTo && (
+        <div className="flex items-start gap-2 rounded-lg border-l-[3px] border-primary bg-muted/40 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-primary">
+              Replying to {replyTo.firstName} {replyTo.lastName}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{replyTo.preview}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClearReply}
+            className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Cancel reply"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {showPollBuilder && (
         <div className="mb-2 space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
           <div className="flex items-center justify-between gap-2">

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ChatReplyRef } from "@/lib/chat-reply";
 import type { ChatMessage, ChatParticipant } from "@/types/chat";
 
 /** Stable fallbacks for useSyncExternalStore selectors (never use inline `?? []`). */
@@ -9,6 +10,7 @@ interface ChatStore {
   messagesByRoom: Record<string, ChatMessage[]>;
   participantsByRoom: Record<string, ChatParticipant[]>;
   draftsByRoom: Record<string, string>;
+  replyToByRoom: Record<string, ChatReplyRef | null>;
   messagesLoaded: Record<string, boolean>;
   participantsLoaded: Record<string, boolean>;
   setMessages: (roomId: string, messages: ChatMessage[]) => void;
@@ -17,6 +19,7 @@ interface ChatStore {
   removeMessage: (roomId: string, messageId: string) => void;
   setParticipants: (roomId: string, participants: ChatParticipant[]) => void;
   setDraft: (roomId: string, draft: string) => void;
+  setReplyTo: (roomId: string, reply: ChatReplyRef | null) => void;
   markMessagesLoaded: (roomId: string) => void;
   markParticipantsLoaded: (roomId: string) => void;
 }
@@ -25,6 +28,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   messagesByRoom: {},
   participantsByRoom: {},
   draftsByRoom: {},
+  replyToByRoom: {},
   messagesLoaded: {},
   participantsLoaded: {},
 
@@ -87,6 +91,11 @@ export const useChatStore = create<ChatStore>((set) => ({
   setDraft: (roomId, draft) =>
     set((state) => ({
       draftsByRoom: { ...state.draftsByRoom, [roomId]: draft },
+    })),
+
+  setReplyTo: (roomId, reply) =>
+    set((state) => ({
+      replyToByRoom: { ...state.replyToByRoom, [roomId]: reply },
     })),
 
   markMessagesLoaded: (roomId) =>

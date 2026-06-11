@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { getSocket, useSocket } from "@/hooks/useSocket";
+import { dmRoomIdForMessage } from "@/lib/chat-dm";
 import { useChatStore } from "@/stores/chatStore";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
-export function useChatRealtime(rooms: ChatRoom[]) {
+export function useChatRealtime(
+  rooms: ChatRoom[],
+  onIncomingDm?: (message: ChatMessage, roomId: string) => void,
+) {
   const socket = useSocket();
+  const { user } = useAuth();
   const upsertMessage = useChatStore((s) => s.upsertMessage);
   const teamRoomIds = useMemo(
     () => new Set(rooms.filter((room) => room.category === "team").map((room) => room.id)),
+    [rooms],
+  );
+  const dmRoomIds = useMemo(
+    () => new Set(rooms.filter((room) => room.category === "private").map((room) => room.id)),
     [rooms],
   );
 
@@ -18,6 +28,7 @@ export function useChatRealtime(rooms: ChatRoom[]) {
     if (!instance) return;
 
     const onGlobal = (msg: ChatMessage) => {
+      if (msg.recipientId) return;
       upsertMessage("global", msg);
     };
 
@@ -26,24 +37,43 @@ export function useChatRealtime(rooms: ChatRoom[]) {
       upsertMessage(msg.teamId, msg);
     };
 
+    const onDm = (msg: ChatMessage) => {
+      if (!user?.id) return;
+      const roomId = dmRoomIdForMessage(msg, user.id);
+      if (!roomId) return;
+      upsertMessage(roomId, msg);
+      if (!dmRoomIds.has(roomId)) {
+        onIncomingDm?.(msg, roomId);
+      }
+    };
+
     const onPollUpdate = (msg: ChatMessage) => {
+      if (msg.recipientId && user?.id) {
+        const roomId = dmRoomIdForMessage(msg, user.id);
+        if (roomId) {
+          upsertMessage(roomId, msg);
+        }
+        return;
+      }
       if (msg.teamId && teamRoomIds.has(msg.teamId)) {
         upsertMessage(msg.teamId, msg);
         return;
       }
-      if (!msg.teamId) {
+      if (!msg.teamId && !msg.recipientId) {
         upsertMessage("global", msg);
       }
     };
 
     instance.on("global:message", onGlobal);
     instance.on("team:message", onTeam);
+    instance.on("dm:message", onDm);
     instance.on("poll:update", onPollUpdate);
 
     return () => {
       instance.off("global:message", onGlobal);
       instance.off("team:message", onTeam);
+      instance.off("dm:message", onDm);
       instance.off("poll:update", onPollUpdate);
     };
-  }, [socket, teamRoomIds, upsertMessage]);
+  }, [socket, teamRoomIds, dmRoomIds, upsertMessage, user?.id, onIncomingDm]);
 }

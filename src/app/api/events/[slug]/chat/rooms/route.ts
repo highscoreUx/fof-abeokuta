@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
+import { dmRoomId } from "@/lib/chat-dm";
 
 export async function GET(
   request: NextRequest,
@@ -32,6 +33,34 @@ export async function GET(
         name: team.name,
       });
     }
+  }
+
+  const dmMessages = await prisma.message.findMany({
+    where: {
+      eventId: ctx.event.id,
+      recipientId: { not: null },
+      OR: [{ userId: ctx.auth.userId }, { recipientId: ctx.auth.userId }],
+    },
+    select: {
+      userId: true,
+      recipientId: true,
+      user: { select: { id: true, firstName: true, lastName: true } },
+      recipient: { select: { id: true, firstName: true, lastName: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const seenPeers = new Set<string>();
+  for (const message of dmMessages) {
+    const peer =
+      message.userId === ctx.auth.userId ? message.recipient : message.user;
+    if (!peer || seenPeers.has(peer.id)) continue;
+    seenPeers.add(peer.id);
+    rooms.push({
+      id: dmRoomId(peer.id),
+      category: "private",
+      label: `${peer.firstName} ${peer.lastName}`,
+    });
   }
 
   return NextResponse.json({ rooms });

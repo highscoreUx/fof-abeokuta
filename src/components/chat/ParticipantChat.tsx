@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import type { ChatRoom } from "@/types/chat";
+import type { ChatMessage, ChatRoom } from "@/types/chat";
 import { ChatParticipants } from "@/components/chat/ChatParticipants";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
+import { useAuth } from "@/hooks/useAuth";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useEventApi } from "@/hooks/useEventApi";
+import { dmRoomId, parseDmRoomId } from "@/lib/chat-dm";
 import { cn } from "@/lib/cn";
 
 interface ParticipantChatProps {
@@ -18,6 +20,7 @@ const panelClass =
 
 export function ParticipantChat({ className }: ParticipantChatProps) {
   const { api } = useEventApi();
+  const { user } = useAuth();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string>("global");
   const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
@@ -35,7 +38,40 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
       .catch(() => setRooms([{ id: "global", category: "general", label: "General" }]));
   }, [api]);
 
-  useChatRealtime(rooms);
+  const handleIncomingDm = useCallback(
+    (message: ChatMessage, roomId: string) => {
+      const peerId = parseDmRoomId(roomId);
+      if (!peerId || !user?.id) return;
+
+      const label =
+        message.userId === user.id
+          ? rooms.find((room) => room.id === roomId)?.label ?? "Direct message"
+          : `${message.user.firstName} ${message.user.lastName}`;
+
+      setRooms((current) => {
+        if (current.some((room) => room.id === roomId)) return current;
+        return [...current, { id: roomId, category: "private", label }];
+      });
+    },
+    [rooms, user?.id],
+  );
+
+  useChatRealtime(rooms, handleIncomingDm);
+
+  const openPrivateChat = useCallback((message: ChatMessage) => {
+    const peerId = message.userId;
+    if (!peerId) return;
+
+    const roomId = dmRoomId(peerId);
+    const label = `${message.user.firstName} ${message.user.lastName}`;
+
+    setRooms((current) => {
+      if (current.some((room) => room.id === roomId)) return current;
+      return [...current, { id: roomId, category: "private", label }];
+    });
+    setActiveRoomId(roomId);
+    setMobilePane("chat");
+  }, []);
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -93,6 +129,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
               room={room}
               isActive={room.id === activeRoomId}
               onBack={() => setMobilePane("list")}
+              onMessagePrivately={openPrivateChat}
               className="h-full min-h-0 flex-1 overflow-hidden"
             />
           ))

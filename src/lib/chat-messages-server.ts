@@ -2,7 +2,7 @@ import { normalizeChatPayload } from "@/lib/chat-content";
 import { castPollVote, parsePollBody, serializePoll } from "@/lib/chat-poll";
 import { prisma } from "@/lib/prisma";
 import { tryGetIO } from "@/server/socket/io";
-import { eventRoom, teamRoom } from "@/server/socket/rooms";
+import { eventRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 
 const userSelect = { select: { username: true, firstName: true, lastName: true } } as const;
 
@@ -11,13 +11,17 @@ export function serializeChatMessageRecord(message: {
   body: string;
   createdAt: Date;
   teamId: string | null;
+  recipientId?: string | null;
+  userId: string;
   user: { username: string; firstName: string; lastName: string };
 }) {
   return {
     id: message.id,
     body: message.body,
     createdAt: message.createdAt.toISOString(),
+    userId: message.userId,
     ...(message.teamId ? { teamId: message.teamId } : {}),
+    ...(message.recipientId ? { recipientId: message.recipientId } : {}),
     user: message.user,
   };
 }
@@ -54,6 +58,18 @@ export function broadcastTeamMessage(
   message: SerializedChatMessage,
 ) {
   broadcastChatMessage(eventSlug, message, { type: "team", letter: teamLetter });
+}
+
+export function broadcastDirectMessage(
+  senderId: string,
+  recipientId: string,
+  message: SerializedChatMessage,
+) {
+  const io = tryGetIO();
+  if (!io) return;
+
+  io.in(userRoom(senderId)).emit("dm:message", message);
+  io.in(userRoom(recipientId)).emit("dm:message", message);
 }
 
 export async function createGlobalChatMessage(
@@ -110,6 +126,38 @@ export async function createTeamChatMessage(
   return serialized;
 }
 
+export async function createDirectChatMessage(
+  eventId: string,
+  senderId: string,
+  recipientId: string,
+  payload: unknown,
+) {
+  if (senderId === recipientId) throw new Error("Cannot message yourself");
+
+  const body = normalizeChatPayload(payload);
+  if (!body) throw new Error("Invalid message");
+
+  const recipient = await prisma.user.findFirst({
+    where: { id: recipientId, eventId },
+    select: { id: true },
+  });
+  if (!recipient) throw new Error("User not found");
+
+  const message = await prisma.message.create({
+    data: {
+      body,
+      event: { connect: { id: eventId } },
+      user: { connect: { id: senderId } },
+      recipient: { connect: { id: recipientId } },
+    },
+    include: { user: userSelect },
+  });
+
+  const serialized = serializeChatMessageRecord(message);
+  broadcastDirectMessage(senderId, recipientId, serialized);
+  return serialized;
+}
+
 export async function castChatPollVote(
   eventId: string,
   eventSlug: string,
@@ -138,7 +186,9 @@ export async function castChatPollVote(
   });
 
   const serialized = serializeChatMessageRecord(updated);
-  if (message.teamId && message.team) {
+  if (message.recipientId) {
+    broadcastDirectMessage(message.userId, message.recipientId, serialized);
+  } else if (message.teamId && message.team) {
     broadcastTeamMessage(eventSlug, message.team.letter, serialized);
   } else {
     broadcastGlobalMessage(eventSlug, serialized);

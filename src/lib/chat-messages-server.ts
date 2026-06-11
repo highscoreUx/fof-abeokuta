@@ -43,7 +43,11 @@ export async function createGlobalChatMessage(
   if (!body) throw new Error("Invalid message");
 
   const message = await prisma.message.create({
-    data: { eventId, teamId: null, userId, body },
+    data: {
+      body,
+      event: { connect: { id: eventId } },
+      user: { connect: { id: userId } },
+    },
     include: { user: userSelect },
   });
 
@@ -69,7 +73,12 @@ export async function createTeamChatMessage(
   if (!team) throw new Error("Team not found");
 
   const message = await prisma.message.create({
-    data: { eventId, teamId: team.id, userId, body },
+    data: {
+      body,
+      event: { connect: { id: eventId } },
+      user: { connect: { id: userId } },
+      team: { connect: { id: team.id } },
+    },
     include: { user: userSelect },
   });
 

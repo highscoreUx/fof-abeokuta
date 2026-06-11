@@ -54,7 +54,7 @@ export function ParticipantView() {
             ]}
           />
           {tab === "chat" && (
-            <ParticipantChat className="-mx-4 min-h-0 flex-1 overflow-hidden sm:mx-0" />
+            <ParticipantChat className="min-h-0 min-w-0 flex-1 overflow-hidden" />
           )}
           {tab === "agenda" && (
             <Card>

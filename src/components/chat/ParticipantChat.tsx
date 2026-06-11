@@ -55,7 +55,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
       <div
         className={cn(
           panelClass,
-          "col-start-1 row-start-1 flex h-full min-h-0 flex-col rounded-none border-x-0 border-t-0 md:rounded-xl md:border",
+          "col-start-1 row-start-1 flex h-full min-h-0 flex-col",
           mobilePane === "chat" ? "hidden md:flex" : "flex",
         )}
       >
@@ -78,7 +78,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
       <div
         className={cn(
           panelClass,
-          "col-start-1 row-start-1 flex h-full min-h-0 min-w-0 flex-col rounded-none border-x-0 border-t-0 md:col-start-2 md:rounded-xl md:border",
+          "col-start-1 row-start-1 flex h-full min-h-0 min-w-0 flex-col md:col-start-2",
           mobilePane === "list" ? "hidden md:flex" : "flex",
         )}
       >

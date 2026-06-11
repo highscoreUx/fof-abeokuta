@@ -32,8 +32,6 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
       .catch(() => setRooms([{ id: "global", category: "general", label: "General" }]));
   }, [api]);
 
-  const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? rooms[0];
-
   return (
     <div
       dir="ltr"
@@ -49,16 +47,29 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
           onSelect={setActiveRoomId}
           className="shrink-0"
         />
-        {activeRoom && <ChatParticipants room={activeRoom} />}
+        {rooms.map((room) => (
+          <ChatParticipants
+            key={room.id}
+            room={room}
+            isActive={room.id === activeRoomId}
+          />
+        ))}
       </div>
 
       <div className={cn(panelClass, "col-start-2 row-start-1 min-h-0 min-w-0")}>
-        {activeRoom ? (
-          <ChatPanel key={activeRoom.id} room={activeRoom} className="min-h-0 flex-1" />
-        ) : (
+        {rooms.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
             No chat rooms available.
           </div>
+        ) : (
+          rooms.map((room) => (
+            <ChatPanel
+              key={room.id}
+              room={room}
+              isActive={room.id === activeRoomId}
+              className="min-h-0 flex-1"
+            />
+          ))
         )}
       </div>
     </div>

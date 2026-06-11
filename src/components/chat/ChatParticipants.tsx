@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { ChatRoom } from "@/components/chat/ChatPanel";
 import { useEventApi } from "@/hooks/useEventApi";
 import { cn } from "@/lib/cn";
+import { EMPTY_CHAT_PARTICIPANTS, useChatStore } from "@/stores/chatStore";
+import { useEffect } from "react";
 
 export interface ChatParticipant {
   id: string;
@@ -15,6 +16,7 @@ export interface ChatParticipant {
 
 interface ChatParticipantsProps {
   room: ChatRoom;
+  isActive: boolean;
   className?: string;
 }
 
@@ -22,30 +24,56 @@ function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-export function ChatParticipants({ room, className }: ChatParticipantsProps) {
+export function ChatParticipants({ room, isActive, className }: ChatParticipantsProps) {
   const { api } = useEventApi();
-  const [participants, setParticipants] = useState<ChatParticipant[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const participants = useChatStore(
+    (s) => s.participantsByRoom[room.id] ?? EMPTY_CHAT_PARTICIPANTS,
+  );
+  const participantsLoaded = useChatStore((s) => s.participantsLoaded[room.id] ?? false);
+  const setParticipants = useChatStore((s) => s.setParticipants);
+  const markParticipantsLoaded = useChatStore((s) => s.markParticipantsLoaded);
 
   useEffect(() => {
-    setLoading(true);
+    if (participantsLoaded) return;
+
     api<{ participants: ChatParticipant[] }>(`/chat/rooms/${room.id}/participants`)
-      .then((data) => setParticipants(data.participants))
-      .catch(() => setParticipants([]))
-      .finally(() => setLoading(false));
-  }, [api, room.id]);
+      .then((data) => {
+        setParticipants(room.id, data.participants);
+        markParticipantsLoaded(room.id);
+      })
+      .catch(() => {
+        setParticipants(room.id, []);
+        markParticipantsLoaded(room.id);
+      });
+  }, [
+    api,
+    room.id,
+    participantsLoaded,
+    setParticipants,
+    markParticipantsLoaded,
+  ]);
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col border-t border-border", className)}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col border-t border-border",
+        !isActive && "hidden",
+        className,
+      )}
+      aria-hidden={!isActive}
+    >
       <div className="shrink-0 px-4 py-3">
         <h4 className="text-sm font-semibold text-foreground">Participants</h4>
         <p className="text-xs text-muted-foreground">
-          {loading ? "Loading..." : `${participants.length} in ${room.label}`}
+          {!participantsLoaded
+            ? "Loading..."
+            : `${participants.length} in ${room.label}`}
         </p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-        {!loading && participants.length === 0 ? (
+        {participantsLoaded && participants.length === 0 ? (
           <p className="px-1 text-sm text-muted-foreground">No participants yet.</p>
         ) : (
           <ul className="space-y-1">

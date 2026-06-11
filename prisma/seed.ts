@@ -37,7 +37,12 @@ async function main() {
       title: "Your Start Up in X hours",
       description: "FOF Abeokuta flagship startup event",
       date: new Date(),
-      status: "DRAFT",
+      status: "LIVE",
+    });
+  } else if (event.status !== "LIVE") {
+    event = await prisma.event.update({
+      where: { id: event.id },
+      data: { status: "LIVE" },
     });
   }
 
@@ -68,7 +73,8 @@ async function main() {
 
   console.log("Seed complete.");
   console.log(`Platform admin: ${platformEmail} / ${platformPassword}`);
-  console.log(`Event: /${event.slug}/login — Admin: admin.portal / ${adminPassword}`);
+  console.log(`Current event: / and /login — Admin: admin.portal / ${adminPassword}`);
+  console.log(`Event pages: /${event.slug} and /${event.slug}/login`);
 }
 
 main()

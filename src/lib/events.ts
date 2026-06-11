@@ -30,6 +30,48 @@ export async function requireEventBySlug(slug: string) {
   return event;
 }
 
+/** The published event shown at `/` and `/login` */
+export async function getCurrentEvent() {
+  return prisma.event.findFirst({
+    where: { status: "LIVE" },
+    orderBy: { date: "desc" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      date: true,
+      status: true,
+    },
+  });
+}
+
+export async function getPublicEventBySlug(slug: string) {
+  return prisma.event.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      date: true,
+      status: true,
+    },
+  });
+}
+
+export const RESERVED_EVENT_SLUGS = new Set([
+  "fg-admin",
+  "login",
+  "all-event",
+  "admin",
+  "participant",
+  "staff",
+  "judge",
+  "stage",
+  "api",
+]);
+
 export async function createEventWithDefaults(data: {
   title: string;
   description?: string;

@@ -41,7 +41,7 @@ export default function PlatformLoginPage() {
 
   return (
     <LoginPageLayout slides={[...DEFAULT_LOGIN_SLIDE_PATHS]}>
-      <LoginCard title="Platform admin" backHref="/" backLabel="Back to events">
+      <LoginCard title="Platform admin">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">

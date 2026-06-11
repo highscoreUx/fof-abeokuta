@@ -8,25 +8,32 @@ Multi-event platform for FOF Abeokuta. Host many events from one deployment.
 - Prisma 7 + PostgreSQL
 - pnpm
 - Platform admin: email + password at `/fg-admin`
-- Event access: PIN-based roles at `/{event-slug}/login`
+- Event access: username + password at `/login` (current event) or `/{slug}/login`
 
 ## URLs
 
 | Area | Path |
 |------|------|
-| Public home | `/` |
+| Current event landing | `/` |
+| Current event sign-in | `/login` |
+| Past / all events | `/all-event` |
+| Event landing (any slug) | `/{slug}` |
+| Event sign-in (any slug) | `/{slug}/login` |
 | Platform admin | `/fg-admin` |
-| Event login | `/{slug}/login` |
 | Event admin | `/{slug}/admin` |
 
-## PIN Roles (per event)
+Set an event’s status to **LIVE** in platform admin to make it the current event at `/` and `/login`.
 
-| Role | PIN Range |
-|------|-----------|
+## Roles & passwords (per event)
+
+| Role | Password range |
+|------|----------------|
 | Admin | 0000–0999 |
 | Staff | 1000–1999 |
 | Judge | 2000–2999 |
 | Participant | 3000–3999 |
+
+Usernames are auto-assigned (`firstname.design-phrase`). Staff share credentials at check-in.
 
 ## Local Development
 
@@ -40,15 +47,14 @@ pnpm dev
 
 **Platform admin** (after seed): `admin@fofabeokuta.com` / `fofadmin123`
 
-**Event admin login** at `/your-start-up-in-x-hours/login`: username `admin.portal`, password `0001`
-
-Event users sign in with **username + password** assigned at import (not chosen by the attendee). Usernames are `firstname` + a random design phrase (e.g. `ada.wireframe`). Passwords are 4-digit codes in each role’s range. **Staff at check-in** look up the attendee and read out their credentials before they sign in.
+**Current event admin**: `/login` — username `admin.portal`, password `0001`
 
 ## Create Events
 
 1. Sign in at `/fg-admin` with platform credentials
-2. Create an event — slug is auto-generated from the title via `slugify`
-3. Open **Event Admin** or share `/{slug}/login` with attendees
+2. Create an event — slug is auto-generated from the title
+3. Set status to **LIVE** when it should be the public homepage
+4. Share `/` and `/login`, or `/{slug}` and `/{slug}/login` for direct links
 
 ## Deploy to Render
 

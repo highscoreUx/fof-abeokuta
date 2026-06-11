@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { RESERVED_EVENT_SLUGS } from "@/lib/events";
 
 const PLATFORM_PUBLIC = ["/fg-admin/login", "/api/fg-admin/auth/login", "/api/fg-admin/auth/refresh"];
+
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/all-event",
+  "/api/events/public",
+  "/api/events/current",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
-    pathname === "/" ||
-    pathname.startsWith("/api/events/public") ||
+    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/socket.io") ||
     pathname.startsWith("/images/") ||
@@ -28,7 +36,11 @@ export function proxy(request: NextRequest) {
   }
 
   const eventLoginMatch = pathname.match(/^\/([^/]+)\/login$/);
-  if (eventLoginMatch) {
+  if (eventLoginMatch && !RESERVED_EVENT_SLUGS.has(eventLoginMatch[1])) {
+    return NextResponse.next();
+  }
+
+  if (pathname === "/login") {
     return NextResponse.next();
   }
 
@@ -42,11 +54,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const eventLandingMatch = pathname.match(/^\/([^/]+)$/);
+  if (eventLandingMatch && !RESERVED_EVENT_SLUGS.has(eventLandingMatch[1])) {
+    return NextResponse.next();
+  }
+
   const hasEventRefresh = request.cookies.has("fof_refresh_token");
 
   if (pathname.match(/^\/([^/]+)\//) && !hasEventRefresh && !pathname.startsWith("/api/")) {
     const slug = pathname.split("/")[1];
-    return NextResponse.redirect(new URL(`/${slug}/login`, request.url));
+    if (!RESERVED_EVENT_SLUGS.has(slug)) {
+      return NextResponse.redirect(new URL(`/${slug}/login`, request.url));
+    }
   }
 
   return NextResponse.next();

@@ -7,5 +7,10 @@ export const RESERVED_EVENT_SLUGS = new Set([
   "staff",
   "judge",
   "stage",
+  "customize",
+  "streaming",
+  "settings",
+  "diagnostics",
+  "agenda",
   "api",
 ]);

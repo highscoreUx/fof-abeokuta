@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import type { TeamAssignAlgorithm, TeamAssignSettings } from "@/lib/team-assign";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 
 const ALGORITHM_OPTIONS: Array<{ value: TeamAssignAlgorithm; label: string; description: string }> =
   [
@@ -84,21 +85,25 @@ export function TeamAutoAssign({ onMessage }: { onMessage: (msg: string) => void
   if (!settings) {
     return (
       <Card>
-        <CardTitle>Auto-assign teams</CardTitle>
-        <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
+        <CardHeader>
+          <CardTitle>Auto-assign teams</CardTitle>
+          <CardDescription>Loading…</CardDescription>
+        </CardHeader>
       </Card>
     );
   }
 
   return (
     <Card>
-      <CardTitle>Auto-assign teams</CardTitle>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Choose how participants are distributed. FIGMA events typically use five teams (F, I, G, M,
-        A), but any team setup works.
-      </p>
+      <CardHeader>
+        <CardTitle>Auto-assign teams</CardTitle>
+        <CardDescription>
+          Choose how participants are distributed. FIGMA events typically use five teams (F, I, G, M,
+          A), but any team setup works.
+        </CardDescription>
+      </CardHeader>
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-4">
         <label className="block text-sm font-medium text-foreground">Algorithm</label>
         <select
           value={settings.algorithm}
@@ -107,7 +112,9 @@ export function TeamAutoAssign({ onMessage }: { onMessage: (msg: string) => void
               prev ? { ...prev, algorithm: e.target.value as TeamAssignAlgorithm } : prev,
             )
           }
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          className={cn(
+            "h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15",
+          )}
         >
           {ALGORITHM_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -148,7 +155,7 @@ export function TeamAutoAssign({ onMessage }: { onMessage: (msg: string) => void
         <Button onClick={saveSettings} disabled={saving}>
           {saving ? "Saving…" : "Save auto-assign settings"}
         </Button>
-        <Button variant="secondary" onClick={runNow} disabled={running}>
+        <Button variant="outline" onClick={runNow} disabled={running}>
           {running ? "Assigning…" : "Run auto-assign now"}
         </Button>
       </div>

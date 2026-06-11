@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/layout/BrandMark";
+import { Badge } from "@/components/ui/badge";
 import type { PlatformEvent } from "@/types";
 
 export function AllEventsView() {
@@ -17,13 +19,17 @@ export function AllEventsView() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-5">
           <div>
-            <p className="text-sm font-semibold text-primary">Friends of Figma Abeokuta</p>
-            <h1 className="text-2xl font-bold text-foreground">All events</h1>
+            <BrandMark className="mb-3" />
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">All events</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Browse past and upcoming FOF Abeokuta events.</p>
           </div>
-          <Link href="/" className="text-sm text-primary underline">
-            Latest event
+          <Link
+            href="/"
+            className="text-sm font-medium text-primary hover:text-primary-hover"
+          >
+            Latest event →
           </Link>
         </div>
       </header>
@@ -37,16 +43,16 @@ export function AllEventsView() {
               <Link
                 key={event.id}
                 href={`/${event.slug}`}
-                className="rounded-xl border border-border bg-card p-6 shadow-sm transition hover:border-primary hover:shadow-md"
+                className="group rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-card)] transition hover:border-primary/40 hover:shadow-md"
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-foreground">{event.title}</h2>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    {event.status}
-                  </span>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-foreground group-hover:text-primary">
+                    {event.title}
+                  </h2>
+                  <Badge variant={event.status === "LIVE" ? "success" : "muted"}>{event.status}</Badge>
                 </div>
                 {event.description && (
-                  <p className="mb-3 text-sm text-muted-foreground">{event.description}</p>
+                  <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">{event.description}</p>
                 )}
                 <p className="text-sm text-muted-foreground">
                   {new Date(event.date).toLocaleDateString(undefined, {

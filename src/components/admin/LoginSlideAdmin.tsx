@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function LoginSlideAdmin() {
   const { slug, api } = useEventApi();
@@ -63,10 +63,12 @@ export function LoginSlideAdmin() {
 
   return (
     <Card>
-      <CardTitle>Login Page Slides</CardTitle>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Images shown on the left of your event login page. Leave unset to use the default FOF photos.
-      </p>
+      <CardHeader>
+        <CardTitle>Login page slides</CardTitle>
+        <CardDescription>
+          Images shown on the left of your event sign-in page. Leave unset to use the default FOF photos.
+        </CardDescription>
+      </CardHeader>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         {slides.map((src, index) => (
           <div key={index} className="space-y-2">
@@ -87,7 +89,7 @@ export function LoginSlideAdmin() {
             />
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               size="sm"
               className="w-full"
               disabled={uploading === index}

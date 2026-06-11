@@ -12,7 +12,7 @@ export function AdminView() {
   return (
     <RoleGuard minimumRole="ADMIN">
       <AppShell title="Event Admin" nav={nav}>
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-2">
           <Leaderboard />
           <UserImport />
         </div>

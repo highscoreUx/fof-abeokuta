@@ -9,7 +9,8 @@ import { VotingPanel } from "@/components/voting/VotingPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 
 interface AgendaItem {
   id: string;
@@ -33,18 +34,16 @@ export function ParticipantView() {
   return (
     <RoleGuard minimumRole="PARTICIPANT">
       <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={participantNav} showSponsors>
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          {(["chat", "quiz", "vote"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`rounded-lg border px-4 py-2 capitalize ${
-                tab === t ? "border-primary bg-primary/10 text-primary" : "border-border"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="mb-6">
+          <SegmentedControl
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "chat", label: "Chat" },
+              { value: "quiz", label: "Quiz" },
+              { value: "vote", label: "Vote" },
+            ]}
+          />
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -53,7 +52,9 @@ export function ParticipantView() {
             {tab === "vote" && <VotingPanel />}
           </div>
           <Card>
-            <CardTitle>Agenda</CardTitle>
+            <CardHeader className="mb-4">
+              <CardTitle>Agenda</CardTitle>
+            </CardHeader>
             <div className="mt-4 space-y-3">
               {agenda.map((item) => (
                 <div key={item.id} className="rounded-lg bg-muted p-3">

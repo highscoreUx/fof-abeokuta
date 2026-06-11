@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { TeamAutoAssign } from "@/components/admin/TeamAutoAssign";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Team {
   id: string;
@@ -133,11 +133,13 @@ export function TeamSettings() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardTitle>Teams</CardTitle>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Full team management — add, edit, or remove teams. Use any team code you like; for FIGMA
-          events, quick-add the F / I / G / M / A set.
-        </p>
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>
+            Add, edit, or remove teams. Use any team code you like; for FIGMA events, quick-add the
+            F / I / G / M / A set.
+          </CardDescription>
+        </CardHeader>
         <div className="mt-4 space-y-3">
           {teams.length === 0 && !showAddForm && (
             <p className="text-sm text-muted-foreground">No teams yet. Add teams or seed FIGMA.</p>
@@ -145,7 +147,7 @@ export function TeamSettings() {
           {teams.map((team) => (
             <div
               key={team.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-muted/30 p-3"
             >
               <span
                 className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-lg px-2 text-sm font-bold text-white"
@@ -176,7 +178,7 @@ export function TeamSettings() {
                 {team.memberCount ?? 0} member{(team.memberCount ?? 0) === 1 ? "" : "s"}
               </span>
               <Button
-                variant="secondary"
+                variant="danger"
                 size="sm"
                 onClick={() => deleteTeam(team)}
                 disabled={deletingId === team.id}
@@ -226,11 +228,11 @@ export function TeamSettings() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {!showAddForm && (
-            <Button variant="secondary" onClick={() => setShowAddForm(true)}>
+            <Button variant="outline" onClick={() => setShowAddForm(true)}>
               Add team
             </Button>
           )}
-          <Button variant="secondary" onClick={seedFigma} disabled={seeding}>
+          <Button variant="outline" onClick={seedFigma} disabled={seeding}>
             {seeding ? "Adding FIGMA…" : "Quick add FIGMA teams"}
           </Button>
           {teams.length > 0 && (

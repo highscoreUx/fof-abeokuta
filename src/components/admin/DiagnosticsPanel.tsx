@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface HealthData {
   status: string;
@@ -27,24 +28,39 @@ export function DiagnosticsPanel() {
   }, [slug]);
 
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <CardTitle>System Diagnostics</CardTitle>
-        <Button variant="secondary" size="sm" onClick={check}>Refresh</Button>
-      </div>
+    <Card className="max-w-2xl">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <div className="space-y-1">
+          <CardTitle>System diagnostics</CardTitle>
+          <CardDescription>Live health checks for this event environment.</CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={check}>
+          Refresh
+        </Button>
+      </CardHeader>
       {health ? (
-        <div className="mt-4 space-y-2 text-sm">
-          <p>
-            Status:{" "}
-            <span className={health.status === "healthy" ? "text-green-600" : "text-yellow-600"}>
-              {health.status}
-            </span>
-          </p>
-          <p>Database: {health.database.ok ? `OK (${health.database.latencyMs}ms)` : health.database.error}</p>
-          <p>Socket clients: {health.socket.clients}</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+            <div className="mt-2">
+              <Badge variant={health.status === "healthy" ? "success" : "secondary"}>
+                {health.status}
+              </Badge>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Database</p>
+            <p className="mt-2 text-sm font-medium text-foreground">
+              {health.database.ok ? `OK (${health.database.latencyMs}ms)` : health.database.error}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sockets</p>
+            <p className="mt-2 text-sm font-medium text-foreground">{health.socket.clients} clients</p>
+          </div>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">Unable to fetch health data</p>
+        <p className="text-sm text-muted-foreground">Unable to fetch health data</p>
       )}
     </Card>
   );

@@ -1,0 +1,29 @@
+"use client";
+
+import { RoleGuard } from "@/components/auth/RoleGuard";
+import { AppShell } from "@/components/layout/AppShell";
+import { LoginSlideAdmin } from "@/components/admin/LoginSlideAdmin";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEventNav } from "@/hooks/useEventNav";
+
+export function CustomizeView() {
+  const { nav } = useEventNav();
+
+  return (
+    <RoleGuard minimumRole="ADMIN">
+      <AppShell title="Customize" nav={nav}>
+        <div className="mx-auto max-w-3xl space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Event branding</CardTitle>
+              <CardDescription>
+                Tailor how this event looks to participants — starting with the sign-in experience.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          <LoginSlideAdmin />
+        </div>
+      </AppShell>
+    </RoleGuard>
+  );
+}

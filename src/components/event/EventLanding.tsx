@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/layout/BrandMark";
+import { Badge } from "@/components/ui/badge";
 import type { PlatformEvent } from "@/types";
 
 interface EventLandingProps {
@@ -17,35 +19,33 @@ export function EventLanding({ event, loginHref, isCurrent = false }: EventLandi
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-surface via-background to-background">
-      <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
-          <div>
-            <p className="text-sm font-semibold text-primary">Friends of Figma Abeokuta</p>
-            {isCurrent && (
-              <p className="text-xs font-medium uppercase tracking-wide text-secondary">Current event</p>
-            )}
-          </div>
+      <header className="border-b border-border/80 bg-card/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
+          <BrandMark />
+          {isCurrent && <Badge variant="secondary">Latest event</Badge>}
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-16">
+      <main className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
         <div className="max-w-2xl">
-          {event.status === "ARCHIVED" && (
-            <span className="mb-4 inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              Past event
-            </span>
-          )}
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{event.title}</h1>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {event.status === "ARCHIVED" && <Badge variant="muted">Past event</Badge>}
+            {event.status === "LIVE" && <Badge variant="success">Live</Badge>}
+            {event.status === "DRAFT" && <Badge variant="muted">Draft</Badge>}
+          </div>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            {event.title}
+          </h1>
           <p className="mt-4 text-lg text-muted-foreground">{formattedDate}</p>
           {event.description && (
             <p className="mt-6 text-base leading-relaxed text-foreground/80">{event.description}</p>
           )}
-          <div className="mt-10 flex flex-wrap gap-3">
+          <div className="mt-10">
             <Link
               href={loginHref}
-              className="rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+              className="inline-flex h-11 items-center rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary-hover"
             >
-              Sign in
+              Sign in to event
             </Link>
           </div>
         </div>

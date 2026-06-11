@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { EventScopeProvider } from "@/contexts/EventScopeContext";
 import { ParticipantView } from "@/_views/participant/ParticipantView";
 
@@ -10,7 +11,9 @@ export default async function HomePage({
 
   return (
     <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <ParticipantView />
+      <Suspense fallback={null}>
+        <ParticipantView />
+      </Suspense>
     </EventScopeProvider>
   );
 }

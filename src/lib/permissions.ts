@@ -91,6 +91,16 @@ export function hasParticipantHomeAccess(permissions: RolePermission[]): boolean
   return hasPermission(permissions, "participant.home") || hasAdminShellAccess(permissions);
 }
 
+export function canManageAgenda(permissions: RolePermission[]): boolean {
+  return hasAnyPermission(permissions, [
+    "agenda.list",
+    "agenda.create",
+    "agenda.update",
+    "agenda.delete",
+    "agenda.template",
+  ]);
+}
+
 export function resolveDefaultRoute(permissions: RolePermission[], pathPrefix: string): string {
   if (hasAdminShellAccess(permissions)) return `${pathPrefix}/home`;
   if (hasPermission(permissions, "user.check_in")) return `${pathPrefix}/staff/check-in`;

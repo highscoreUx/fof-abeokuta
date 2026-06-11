@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AgendaItemModal } from "@/components/admin/AgendaItemModal";
 import { ChangeAgendaTemplateModal } from "@/components/admin/ChangeAgendaTemplateModal";
 import { AgendaList } from "@/components/agenda/AgendaList";
@@ -9,7 +9,13 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { AGENDA_TEMPLATES, DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-templates";
 
-export function AgendaAdmin() {
+interface AgendaAdminProps {
+  /** Hides the header toolbar — use with an external Add button (e.g. Home agenda tab). */
+  embedded?: boolean;
+  onRegisterOpenAdd?: (openAdd: () => void) => void;
+}
+
+export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdminProps) {
   const { slug, api } = useEventApi();
   const [items, setItems] = useState<AgendaListItem[]>([]);
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
@@ -36,10 +42,10 @@ export function AgendaAdmin() {
     await load();
   };
 
-  const openAdd = () => {
+  const openAdd = useCallback(() => {
     setEditingItem(null);
     setFormOpen(true);
-  };
+  }, []);
 
   const openEdit = (item: AgendaListItem) => {
     setEditingItem(item);
@@ -51,25 +57,31 @@ export function AgendaAdmin() {
     setEditingItem(null);
   };
 
+  useEffect(() => {
+    onRegisterOpenAdd?.(openAdd);
+  }, [onRegisterOpenAdd, openAdd]);
+
   const templateName =
     AGENDA_TEMPLATES.find((entry) => entry.id === template)?.name ?? "Notebook";
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Event schedule ({items.length})
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">Template: {templateName}</p>
+      {!embedded && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Event schedule ({items.length})
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">Template: {templateName}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setTemplateOpen(true)}>
+              Change template
+            </Button>
+            <Button onClick={openAdd}>Add agenda item</Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setTemplateOpen(true)}>
-            Change template
-          </Button>
-          <Button onClick={openAdd}>Add agenda item</Button>
-        </div>
-      </div>
+      )}
 
       <AgendaList
         template={template}

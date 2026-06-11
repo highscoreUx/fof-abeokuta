@@ -128,7 +128,7 @@ export function ChatMessageBubble({
 
       <div
         className={cn(
-          "relative w-fit max-w-[min(28rem,82%)] shadow-sm",
+          "relative w-fit max-w-[min(28rem,88%)] shadow-sm sm:max-w-[min(28rem,82%)]",
           isOwn ? "bg-surface text-foreground" : "bg-card text-foreground",
           isGrouped
             ? "rounded-lg"

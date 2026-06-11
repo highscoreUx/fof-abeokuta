@@ -20,6 +20,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
   const { api } = useEventApi();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string>("global");
+  const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
 
   useEffect(() => {
     api<{ rooms: ChatRoom[] }>("/chat/rooms")
@@ -36,31 +37,49 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
 
   useChatRealtime(rooms);
 
+  const handleSelectRoom = (roomId: string) => {
+    setActiveRoomId(roomId);
+    setMobilePane("chat");
+  };
+
   return (
     <div
       dir="ltr"
       className={cn(
-        "grid h-full min-h-0 flex-1 grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-4 overflow-hidden",
+        "grid h-full min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden md:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)] md:gap-4",
         className,
       )}
     >
-      <div className={cn(panelClass, "col-start-1 row-start-1 flex h-full min-h-0 flex-col")}>
+      <div
+        className={cn(
+          panelClass,
+          "col-start-1 row-start-1 flex h-full min-h-0 flex-col rounded-none border-x-0 border-t-0 md:rounded-xl md:border",
+          mobilePane === "chat" ? "hidden md:flex" : "flex",
+        )}
+      >
         <ChatRoomList
           rooms={rooms}
           activeRoomId={activeRoomId}
-          onSelect={setActiveRoomId}
-          className="shrink-0"
+          onSelect={handleSelectRoom}
+          className="min-h-0 flex-1"
         />
         {rooms.map((room) => (
           <ChatParticipants
             key={room.id}
             room={room}
             isActive={room.id === activeRoomId}
+            className="hidden md:flex"
           />
         ))}
       </div>
 
-      <div className={cn(panelClass, "col-start-2 row-start-1 flex h-full min-h-0 min-w-0 flex-col")}>
+      <div
+        className={cn(
+          panelClass,
+          "col-start-1 row-start-1 flex h-full min-h-0 min-w-0 flex-col rounded-none border-x-0 border-t-0 md:col-start-2 md:rounded-xl md:border",
+          mobilePane === "list" ? "hidden md:flex" : "flex",
+        )}
+      >
         {rooms.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
             No chat rooms available.
@@ -71,6 +90,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
               key={room.id}
               room={room}
               isActive={room.id === activeRoomId}
+              onBack={() => setMobilePane("list")}
               className="h-full min-h-0 flex-1 overflow-hidden"
             />
           ))

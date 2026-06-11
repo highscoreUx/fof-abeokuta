@@ -360,12 +360,12 @@ export function ChatComposer({
         </div>
       )}
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 overflow-x-auto sm:gap-1">
         <Button
           type="button"
           variant={picker === "emoji" ? "secondary" : "ghost"}
           size="sm"
-          className="shrink-0 px-2.5"
+          className="shrink-0 px-2 sm:px-2.5"
           onClick={() => {
             setShowPollBuilder(false);
             setPicker((current) => (current === "emoji" ? null : "emoji"));
@@ -378,7 +378,7 @@ export function ChatComposer({
           type="button"
           variant={picker === "gif" ? "secondary" : "ghost"}
           size="sm"
-          className="shrink-0 px-2.5 text-xs font-semibold"
+          className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
           onClick={() => {
             setShowPollBuilder(false);
             setPicker((current) => (current === "gif" ? null : "gif"));
@@ -391,7 +391,7 @@ export function ChatComposer({
           type="button"
           variant={picker === "sticker" ? "secondary" : "ghost"}
           size="sm"
-          className="shrink-0 px-2.5 text-xs font-semibold"
+          className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
           onClick={() => {
             setShowPollBuilder(false);
             setPicker((current) => (current === "sticker" ? null : "sticker"));
@@ -404,7 +404,7 @@ export function ChatComposer({
           type="button"
           variant={showPollBuilder ? "secondary" : "ghost"}
           size="sm"
-          className="shrink-0 px-2.5 text-xs font-semibold"
+          className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
           onClick={openPollBuilder}
           aria-label="Poll"
         >
@@ -413,16 +413,22 @@ export function ChatComposer({
       </div>
 
       <div className="flex gap-2">
-          <Input
-            value={draft}
-            disabled={disabled}
-            onChange={(e) => onDraftChange(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void sendText()}
-            placeholder={placeholder}
-          />
-          <Button onClick={() => void sendText()} disabled={disabled}>
-            Send
-          </Button>
+        <Input
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void sendText()}
+          placeholder={placeholder}
+          className="min-w-0 flex-1"
+        />
+        <Button
+          onClick={() => void sendText()}
+          disabled={disabled}
+          size="sm"
+          className="shrink-0 sm:h-10 sm:px-4 sm:text-sm"
+        >
+          Send
+        </Button>
       </div>
     </div>
   );

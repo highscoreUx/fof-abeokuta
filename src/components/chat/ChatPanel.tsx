@@ -19,12 +19,13 @@ export type { ChatMessage, ChatRoom, ChatRoomCategory } from "@/types/chat";
 interface ChatPanelProps {
   room: ChatRoom;
   isActive: boolean;
+  onBack?: () => void;
   className?: string;
 }
 
 type SocketAck = { message?: ChatMessage; error?: string };
 
-export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
+export function ChatPanel({ room, isActive, onBack, className }: ChatPanelProps) {
   const { api } = useEventApi();
   const { user } = useAuth();
   const socket = useSocket();
@@ -148,20 +149,36 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
       )}
       aria-hidden={!isActive}
     >
-      <div className="shrink-0 border-b border-border px-4 py-3 sm:px-6">
-        <h3 className="font-semibold text-foreground">{room.label}</h3>
-        {room.category === "team" && room.name && (
-          <p className="text-sm text-muted-foreground">{room.name}</p>
-        )}
-        {isGeneral && (
-          <p className="text-sm text-muted-foreground">Event-wide conversation</p>
-        )}
-        {room.category === "private" && (
-          <p className="text-sm text-muted-foreground">Direct message</p>
-        )}
+      <div className="shrink-0 border-b border-border px-3 py-2.5 sm:px-6 sm:py-3">
+        <div className="flex items-center gap-2">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              aria-label="Back to chats"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-semibold text-foreground">{room.label}</h3>
+            {room.category === "team" && room.name && (
+              <p className="truncate text-sm text-muted-foreground">{room.name}</p>
+            )}
+            {isGeneral && (
+              <p className="truncate text-sm text-muted-foreground">Event-wide conversation</p>
+            )}
+            {room.category === "private" && (
+              <p className="truncate text-sm text-muted-foreground">Direct message</p>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-chat-background px-3 py-3 sm:px-4">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-chat-background px-2 py-2 sm:px-4 sm:py-3">
         {!messagesLoaded && messages.length === 0 ? (
           <p className="px-2 text-sm text-muted-foreground">Loading messages...</p>
         ) : messages.length === 0 ? (
@@ -192,7 +209,7 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 border-t border-border px-4 py-4 sm:px-6">
+      <div className="shrink-0 border-t border-border px-2 py-2 sm:px-6 sm:py-4">
         <ChatComposer
           draft={draft}
           placeholder={placeholder}

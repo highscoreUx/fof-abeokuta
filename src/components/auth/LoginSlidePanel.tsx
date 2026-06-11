@@ -6,6 +6,10 @@ import { DEFAULT_LOGIN_SLIDE_PATHS } from "@/lib/login-slides";
 const INTERVAL_MS = 7000;
 const FADE_MS = 2500;
 
+/** Image fades out toward the bottom so primary blue shows through */
+const IMAGE_MASK =
+  "linear-gradient(to top, transparent 0%, rgba(0,0,0,0.35) 22%, rgba(0,0,0,0.85) 42%, black 52%)";
+
 interface LoginSlidePanelProps {
   slides: string[];
   className?: string;
@@ -58,55 +62,65 @@ export function LoginSlidePanel({ slides, className = "" }: LoginSlidePanelProps
     return () => window.clearInterval(timer);
   }, [items.length, transitionTo]);
 
-  const opacity = (visible: boolean) => (visible ? (fadeIn ? 1 : 0) : fadeIn ? 0 : 1);
+  const transition = `opacity ${FADE_MS}ms ease-in-out, clip-path ${FADE_MS}ms ease-in-out`;
 
   return (
-    <div className={`relative overflow-hidden bg-neutral-900 ${className}`}>
-      {outgoing !== null && (
-        // eslint-disable-next-line @next/next/no-img-element
+    <div className={`relative overflow-hidden bg-primary ${className}`}>
+      <div
+        className="absolute inset-0"
+        style={{
+          WebkitMaskImage: IMAGE_MASK,
+          maskImage: IMAGE_MASK,
+        }}
+      >
+        {outgoing !== null && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={items[outgoing]}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              opacity: fadeIn ? 0 : 1,
+              clipPath: "inset(0 0 0 0)",
+              zIndex: 1,
+              transition,
+            }}
+          />
+        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={items[outgoing]}
+          src={items[index]}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
           style={{
-            opacity: opacity(false),
-            zIndex: 1,
-            transition: `opacity ${FADE_MS}ms ease-in-out`,
+            opacity: 1,
+            clipPath: fadeIn ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
+            zIndex: 2,
+            transition,
           }}
         />
-      )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={items[index]}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{
-          opacity: opacity(true),
-          zIndex: 2,
-          transition: `opacity ${FADE_MS}ms ease-in-out`,
-        }}
-      />
-      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+      </div>
+
+      <div className="absolute bottom-14 left-6 z-20 sm:bottom-16 sm:left-8">
+        <p className="text-base font-semibold text-white drop-shadow-sm sm:text-lg">
+          Friends of Figma Abeokuta
+        </p>
+        <p className="mt-1 text-sm font-medium text-white/90 drop-shadow-sm">Design. Build. Connect.</p>
+      </div>
 
       {items.length > 1 && (
-        <div className="absolute bottom-8 left-8 right-8 z-20">
-          <div className="flex gap-2">
-            {items.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Show slide ${i + 1}`}
-                onClick={() => transitionTo(i)}
-                className="group h-1 flex-1 overflow-hidden rounded-full bg-white/25"
-              >
-                <span
-                  className={`block h-full rounded-full bg-white transition-all duration-500 ${
-                    i === index ? "w-full" : "w-0 group-hover:w-1/2"
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
+        <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 gap-2 sm:bottom-8">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Show slide ${i + 1}`}
+              onClick={() => transitionTo(i)}
+              className={`h-2 rounded-full transition-all duration-300 ease-out ${
+                i === index ? "w-6 bg-white" : "w-2 bg-white/45 hover:bg-white/65"
+              }`}
+            />
+          ))}
         </div>
       )}
     </div>

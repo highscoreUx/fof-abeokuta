@@ -4,10 +4,12 @@ export const CHAT_SYSTEM_EVENT = "chat:system";
 
 export type AgendaSystemAction = "created" | "updated" | "deleted" | "present" | "cleared";
 
+export type ChatSystemKind = "agenda" | "check-in";
+
 export interface ChatSystemBody {
   type: "system";
-  kind: "agenda";
-  action: AgendaSystemAction;
+  kind: ChatSystemKind;
+  action?: AgendaSystemAction;
   text: string;
 }
 
@@ -50,15 +52,44 @@ export function createAgendaSystemMessage(
   };
 }
 
+export function formatCheckInSystemText(
+  firstName: string,
+  lastName: string,
+  teamLetter?: string | null,
+): string {
+  const name = `${firstName} ${lastName}`.trim();
+  if (teamLetter) {
+    return `${name} (Team ${teamLetter}) checked in`;
+  }
+  return `${name} checked in`;
+}
+
+export function createCheckInSystemMessage(
+  firstName: string,
+  lastName: string,
+  teamLetter?: string | null,
+): ChatMessage {
+  const text = formatCheckInSystemText(firstName, lastName, teamLetter);
+  return {
+    id: `system-${crypto.randomUUID()}`,
+    body: JSON.stringify({ type: "system", kind: "check-in", text } satisfies ChatSystemBody),
+    createdAt: new Date().toISOString(),
+    system: true,
+    user: { username: "system", firstName: "Check-in", lastName: "Update" },
+  };
+}
+
 export function parseSystemBody(body: string): ChatSystemBody | null {
   if (!body.trim().startsWith("{")) return null;
   try {
     const parsed = JSON.parse(body) as Partial<ChatSystemBody>;
     if (parsed.type !== "system" || typeof parsed.text !== "string") return null;
+    const kind: ChatSystemKind =
+      parsed.kind === "check-in" ? "check-in" : parsed.kind === "agenda" ? "agenda" : "agenda";
     return {
       type: "system",
-      kind: parsed.kind === "agenda" ? "agenda" : "agenda",
-      action: parsed.action ?? "updated",
+      kind,
+      action: parsed.action,
       text: parsed.text,
     };
   } catch {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { serializeCheckInUser } from "@/lib/check-in";
+import { broadcastCheckInAnnouncement } from "@/lib/check-in-chat-broadcast";
 import { prisma } from "@/lib/prisma";
 import { assignTeams } from "@/lib/team-assign";
 import { getIO } from "@/server/socket/io";
@@ -45,6 +46,7 @@ export async function PATCH(
 
   try {
     await emitCheckInUpdate(getIO(), slug, updated);
+    await broadcastCheckInAnnouncement(slug, updated);
   } catch {
     // socket optional
   }

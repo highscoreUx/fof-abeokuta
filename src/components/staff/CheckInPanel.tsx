@@ -26,11 +26,11 @@ export function CheckInPanel() {
   const [selected, setSelected] = useState<UserRow | null>(null);
 
   const search = async () => {
-    const data = await api<{ users: UserRow[] }>(
-      `/users?q=${encodeURIComponent(query)}&role=PARTICIPANT`,
+    const data = await api<{ data: UserRow[] }>(
+      `/users?q=${encodeURIComponent(query)}&role=PARTICIPANT&limit=25`,
     );
-    setUsers(data.users);
-    if (selected && !data.users.some((u) => u.id === selected.id)) {
+    setUsers(data.data);
+    if (selected && !data.data.some((u) => u.id === selected.id)) {
       setSelected(null);
     }
   };

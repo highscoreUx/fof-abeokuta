@@ -8,8 +8,9 @@ import {
   CHAT_STICKER_PACKS,
 } from "@/lib/chat-assets";
 import {
-  createEmptyPoll,
+  createPoll,
   isValidPollData,
+  POLL_MAX_EXPIRY_MINUTES,
   POLL_MAX_OPTIONS,
   POLL_MIN_OPTIONS,
 } from "@/lib/chat-poll";
@@ -38,6 +39,9 @@ export function ChatComposer({
   const [showPollBuilder, setShowPollBuilder] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [allowVoteSwitching, setAllowVoteSwitching] = useState(false);
+  const [timedPoll, setTimedPoll] = useState(false);
+  const [expiresInMinutes, setExpiresInMinutes] = useState("5");
   const [emojiCategory, setEmojiCategory] = useState<string>(CHAT_EMOJI_CATEGORIES[0].id);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -109,19 +113,31 @@ export function ChatComposer({
     );
   };
 
+  const buildDraftPoll = () => {
+    const minutes = timedPoll ? parseInt(expiresInMinutes, 10) : undefined;
+    return createPoll(pollQuestion, pollOptions, {
+      allowVoteSwitching,
+      expiresInMinutes:
+        minutes && minutes > 0 ? Math.min(minutes, POLL_MAX_EXPIRY_MINUTES) : undefined,
+    });
+  };
+
   const sendPoll = async () => {
     if (disabled) return;
 
-    const poll = createEmptyPoll(pollQuestion, pollOptions);
+    const poll = buildDraftPoll();
     if (!isValidPollData(poll)) return;
     if (!(await onSendContent({ type: "poll", poll }))) return;
 
     setPollQuestion("");
     setPollOptions(["", ""]);
+    setAllowVoteSwitching(false);
+    setTimedPoll(false);
+    setExpiresInMinutes("5");
     setShowPollBuilder(false);
   };
 
-  const pollReady = isValidPollData(createEmptyPoll(pollQuestion, pollOptions));
+  const pollReady = isValidPollData(buildDraftPoll());
 
   const activeEmojiCategory =
     CHAT_EMOJI_CATEGORIES.find((category) => category.id === emojiCategory) ??
@@ -180,6 +196,43 @@ export function ChatComposer({
                 )}
               </div>
             ))}
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={allowVoteSwitching}
+                disabled={disabled}
+                onChange={(e) => setAllowVoteSwitching(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary"
+              />
+              Allow vote switching
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={timedPoll}
+                disabled={disabled}
+                onChange={(e) => setTimedPoll(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-primary"
+              />
+              Timed poll
+            </label>
+            {timedPoll && (
+              <div className="flex items-center gap-2 pl-6">
+                <Input
+                  type="number"
+                  min={1}
+                  max={POLL_MAX_EXPIRY_MINUTES}
+                  value={expiresInMinutes}
+                  disabled={disabled}
+                  onChange={(e) => setExpiresInMinutes(e.target.value)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">minutes until close</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2">

@@ -45,7 +45,13 @@ export const useChatStore = create<ChatStore>((set) => ({
   upsertMessage: (roomId, message) =>
     set((state) => {
       const current = state.messagesByRoom[roomId] ?? [];
-      if (current.some((m) => m.id === message.id)) return state;
+      const existingIndex = current.findIndex((m) => m.id === message.id);
+
+      if (existingIndex >= 0) {
+        const next = [...current];
+        next[existingIndex] = message;
+        return { messagesByRoom: { ...state.messagesByRoom, [roomId]: next } };
+      }
 
       const pendingIndex = current.findIndex(
         (m) =>

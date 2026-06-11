@@ -26,12 +26,24 @@ export function useChatRealtime(rooms: ChatRoom[]) {
       upsertMessage(msg.teamId, msg);
     };
 
+    const onPollUpdate = (msg: ChatMessage) => {
+      if (msg.teamId && teamRoomIds.has(msg.teamId)) {
+        upsertMessage(msg.teamId, msg);
+        return;
+      }
+      if (!msg.teamId) {
+        upsertMessage("global", msg);
+      }
+    };
+
     instance.on("global:message", onGlobal);
     instance.on("team:message", onTeam);
+    instance.on("poll:update", onPollUpdate);
 
     return () => {
       instance.off("global:message", onGlobal);
       instance.off("team:message", onTeam);
+      instance.off("poll:update", onPollUpdate);
     };
   }, [socket, teamRoomIds, upsertMessage]);
 }

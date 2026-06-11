@@ -1,7 +1,7 @@
 import {
-  createEmptyPoll,
   isValidPollData,
   parsePollBody,
+  sanitizeNewPoll,
   serializePoll,
   type ChatPollData,
 } from "@/lib/chat-poll";
@@ -104,22 +104,10 @@ export function normalizeChatPayload(input: unknown): string | null {
       const text = record.text.trim();
       return text ? text.slice(0, 2000) : null;
     }
-    if (record.type === "poll" && record.poll && typeof record.poll === "object") {
-      const pollRecord = record.poll as Record<string, unknown>;
-      const question = typeof pollRecord.question === "string" ? pollRecord.question : "";
-      const options = Array.isArray(pollRecord.options)
-        ? pollRecord.options.filter((o): o is string => typeof o === "string")
-        : [];
-      const poll = createEmptyPoll(question, options);
-      return isValidPollData(poll) ? serializePoll(poll) : null;
-    }
     if (record.type === "poll") {
-      const question = typeof record.question === "string" ? record.question : "";
-      const options = Array.isArray(record.options)
-        ? record.options.filter((o): o is string => typeof o === "string")
-        : [];
-      const poll = createEmptyPoll(question, options);
-      return isValidPollData(poll) ? serializePoll(poll) : null;
+      const source = record.poll && typeof record.poll === "object" ? record.poll : record;
+      const poll = sanitizeNewPoll(source);
+      return poll ? serializePoll(poll) : null;
     }
   }
 

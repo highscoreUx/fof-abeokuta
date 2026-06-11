@@ -22,6 +22,7 @@ import {
   submitSpinBuild,
 } from "@/server/games/spinToBuild";
 import {
+  castChatPollVote,
   createGlobalChatMessage,
   createTeamChatMessage,
 } from "@/lib/chat-messages-server";
@@ -110,6 +111,44 @@ export function registerSocketHandlers(io: SocketIOServer) {
         } catch (error) {
           ack?.({
             error: error instanceof Error ? error.message : "Failed to send message",
+          });
+        }
+      },
+    );
+
+    socket.on(
+      "poll:vote",
+      async (
+        data: { messageId: string; optionIndex: number },
+        ack?: (response: { message?: unknown; error?: string }) => void,
+      ) => {
+        if (!socketCan(auth, "participant.chat")) {
+          ack?.({ error: "Forbidden" });
+          return;
+        }
+
+        if (
+          !data ||
+          typeof data.messageId !== "string" ||
+          typeof data.optionIndex !== "number" ||
+          !Number.isInteger(data.optionIndex)
+        ) {
+          ack?.({ error: "Invalid vote" });
+          return;
+        }
+
+        try {
+          const message = await castChatPollVote(
+            auth.eventId,
+            slug,
+            data.messageId,
+            auth.userId,
+            data.optionIndex,
+          );
+          ack?.({ message });
+        } catch (error) {
+          ack?.({
+            error: error instanceof Error ? error.message : "Failed to vote",
           });
         }
       },

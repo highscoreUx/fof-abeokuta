@@ -22,16 +22,38 @@ export function serializeChatMessageRecord(message: {
   };
 }
 
-export function broadcastGlobalMessage(eventSlug: string, message: ReturnType<typeof serializeChatMessageRecord>) {
-  tryGetIO()?.to(eventRoom(eventSlug)).emit("global:message", message);
+type SerializedChatMessage = ReturnType<typeof serializeChatMessageRecord>;
+
+function broadcastChatMessage(
+  eventSlug: string,
+  message: SerializedChatMessage,
+  scope: { type: "global" } | { type: "team"; letter: string },
+) {
+  const io = tryGetIO();
+  if (!io) return;
+
+  if (scope.type === "team") {
+    const room = teamRoom(eventSlug, scope.letter);
+    io.in(room).emit("team:message", message);
+    io.in(room).emit("poll:update", message);
+    return;
+  }
+
+  const room = eventRoom(eventSlug);
+  io.in(room).emit("global:message", message);
+  io.in(room).emit("poll:update", message);
+}
+
+export function broadcastGlobalMessage(eventSlug: string, message: SerializedChatMessage) {
+  broadcastChatMessage(eventSlug, message, { type: "global" });
 }
 
 export function broadcastTeamMessage(
   eventSlug: string,
   teamLetter: string,
-  message: ReturnType<typeof serializeChatMessageRecord>,
+  message: SerializedChatMessage,
 ) {
-  tryGetIO()?.to(teamRoom(eventSlug, teamLetter)).emit("team:message", message);
+  broadcastChatMessage(eventSlug, message, { type: "team", letter: teamLetter });
 }
 
 export async function createGlobalChatMessage(

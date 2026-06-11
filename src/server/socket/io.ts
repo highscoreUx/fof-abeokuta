@@ -1,12 +1,18 @@
 import type { Server as SocketIOServer } from "socket.io";
 
-let io: SocketIOServer | null = null;
+/** Shared across Next.js route bundles and the custom server entry. */
+const globalIo = globalThis as typeof globalThis & { __fofSocketIo?: SocketIOServer };
+
+function ioRef(): SocketIOServer | null {
+  return globalIo.__fofSocketIo ?? null;
+}
 
 export function setIO(server: SocketIOServer) {
-  io = server;
+  globalIo.__fofSocketIo = server;
 }
 
 export function getIO(): SocketIOServer {
+  const io = ioRef();
   if (!io) {
     throw new Error("Socket.io not initialized");
   }
@@ -14,9 +20,9 @@ export function getIO(): SocketIOServer {
 }
 
 export function tryGetIO(): SocketIOServer | null {
-  return io;
+  return ioRef();
 }
 
 export function getClientCount(): number {
-  return io?.engine.clientsCount ?? 0;
+  return ioRef()?.engine.clientsCount ?? 0;
 }

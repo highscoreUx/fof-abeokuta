@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useSocket } from "@/hooks/useSocket";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
+import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { cn } from "@/lib/cn";
 import type { ChatContent } from "@/lib/chat-content";
 import { serializeChatContent } from "@/lib/chat-content";
+import { createOptimisticChatMessage } from "@/lib/chat-optimistic";
 import { EMPTY_CHAT_MESSAGES, useChatStore } from "@/stores/chatStore";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
@@ -19,22 +21,28 @@ interface ChatPanelProps {
   className?: string;
 }
 
+type SocketAck = { message?: ChatMessage; error?: string };
+
 export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
   const { api } = useEventApi();
+  const { user } = useAuth();
   const socket = useSocket();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
+  const [sending, setSending] = useState(false);
 
   const messages = useChatStore((s) => s.messagesByRoom[room.id] ?? EMPTY_CHAT_MESSAGES);
   const draft = useChatStore((s) => s.draftsByRoom[room.id] ?? "");
   const messagesLoaded = useChatStore((s) => s.messagesLoaded[room.id] ?? false);
   const setMessages = useChatStore((s) => s.setMessages);
   const appendMessage = useChatStore((s) => s.appendMessage);
+  const upsertMessage = useChatStore((s) => s.upsertMessage);
+  const removeMessage = useChatStore((s) => s.removeMessage);
   const setDraft = useChatStore((s) => s.setDraft);
   const markMessagesLoaded = useChatStore((s) => s.markMessagesLoaded);
 
   const isGeneral = room.category === "general";
   const messagePath = isGeneral ? "/messages/global" : `/messages/${room.id}`;
-  const socketEvent = isGeneral ? "global:message" : "team:message";
   const emitEvent = isGeneral ? "global:message" : "team:message";
 
   useEffect(() => {
@@ -52,31 +60,76 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
   }, [api, messagePath, room.id, messagesLoaded, setMessages, markMessagesLoaded]);
 
   useEffect(() => {
-    if (!socket) return;
-
-    const handler = (msg: ChatMessage) => {
-      if (room.category === "team" && msg.teamId && msg.teamId !== room.id) return;
-      appendMessage(room.id, msg);
-    };
-
-    socket.on(socketEvent, handler);
-    return () => {
-      socket.off(socketEvent, handler);
-    };
-  }, [socket, socketEvent, room.id, room.category, appendMessage]);
-
-  useEffect(() => {
     if (!isActive) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isActive]);
 
-  const sendContent = (content: ChatContent) => {
-    if (!socket) return;
-    const payload = serializeChatContent(content);
-    if (!payload) return;
-    socket.emit(emitEvent, payload);
-    if (content.type === "text") setDraft(room.id, "");
-  };
+  const sendViaApi = useCallback(
+    async (payload: string, optimisticId: string): Promise<boolean> => {
+      try {
+        const data = await api<{ message: ChatMessage }>(messagePath, {
+          method: "POST",
+          body: JSON.stringify({ content: payload }),
+        });
+        upsertMessage(room.id, data.message);
+        return true;
+      } catch {
+        removeMessage(room.id, optimisticId);
+        return false;
+      }
+    },
+    [api, messagePath, removeMessage, room.id, upsertMessage],
+  );
+
+  const sendContent = useCallback(
+    async (content: ChatContent): Promise<boolean> => {
+      if (!user || sendingRef.current) return false;
+
+      const payload = serializeChatContent(content);
+      if (!payload) return false;
+
+      const optimistic = createOptimisticChatMessage(payload, user, room);
+      appendMessage(room.id, optimistic);
+      if (content.type === "text") setDraft(room.id, "");
+
+      sendingRef.current = true;
+      setSending(true);
+
+      try {
+        const activeSocket = socket ?? getSocket();
+
+        if (activeSocket && isSocketConnected()) {
+          return await new Promise<boolean>((resolve) => {
+            activeSocket
+              .timeout(8000)
+              .emit(emitEvent, payload, (error: Error | null, response?: SocketAck) => {
+                if (error || response?.error || !response?.message) {
+                  void sendViaApi(payload, optimistic.id).then(resolve);
+                  return;
+                }
+                upsertMessage(room.id, response.message!);
+                resolve(true);
+              });
+          });
+        }
+
+        return await sendViaApi(payload, optimistic.id);
+      } finally {
+        sendingRef.current = false;
+        setSending(false);
+      }
+    },
+    [
+      appendMessage,
+      emitEvent,
+      room,
+      sendViaApi,
+      setDraft,
+      socket,
+      upsertMessage,
+      user,
+    ],
+  );
 
   const placeholder =
     isGeneral
@@ -108,13 +161,19 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4 sm:px-6">
-        {!messagesLoaded ? (
+        {!messagesLoaded && messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">Loading messages...</p>
         ) : messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
         ) : (
           messages.map((m) => (
-            <div key={m.id} className="rounded-lg bg-muted p-3">
+            <div
+              key={m.id}
+              className={cn(
+                "rounded-lg bg-muted p-3",
+                m.id.startsWith("pending-") && "opacity-70",
+              )}
+            >
               <p className="text-xs text-muted-foreground">
                 {m.user.firstName} {m.user.lastName}
               </p>
@@ -129,6 +188,7 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
         <ChatComposer
           draft={draft}
           placeholder={placeholder}
+          disabled={sending}
           onDraftChange={(value) => setDraft(room.id, value)}
           onSendContent={sendContent}
         />

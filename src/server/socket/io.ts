@@ -13,6 +13,10 @@ export function getIO(): SocketIOServer {
   return io;
 }
 
+export function tryGetIO(): SocketIOServer | null {
+  return io;
+}
+
 export function getClientCount(): number {
   return io?.engine.clientsCount ?? 0;
 }

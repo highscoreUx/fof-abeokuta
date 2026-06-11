@@ -16,13 +16,15 @@ type PickerTab = "emoji" | "gif" | "sticker";
 interface ChatComposerProps {
   draft: string;
   placeholder: string;
+  disabled?: boolean;
   onDraftChange: (value: string) => void;
-  onSendContent: (content: ChatContent) => void;
+  onSendContent: (content: ChatContent) => boolean | Promise<boolean>;
 }
 
 export function ChatComposer({
   draft,
   placeholder,
+  disabled = false,
   onDraftChange,
   onSendContent,
 }: ChatComposerProps) {
@@ -43,10 +45,11 @@ export function ChatComposer({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [picker]);
 
-  const sendText = () => {
+  const sendText = async () => {
     const text = draft.trim();
-    if (!text) return;
-    onSendContent({ type: "text", text });
+    if (!text || disabled) return;
+    const sent = await onSendContent({ type: "text", text });
+    if (!sent) return;
     onDraftChange("");
     setPicker(null);
   };
@@ -55,18 +58,24 @@ export function ChatComposer({
     onDraftChange(draft + emoji);
   };
 
-  const sendGif = (gif: (typeof CHAT_GIFS)[number]) => {
-    onSendContent({ type: "gif", url: gif.url, alt: gif.alt });
+  const sendGif = async (gif: (typeof CHAT_GIFS)[number]) => {
+    if (disabled) return;
+    if (!(await onSendContent({ type: "gif", url: gif.url, alt: gif.alt }))) return;
     setPicker(null);
   };
 
-  const sendSticker = (sticker: (typeof CHAT_STICKER_PACKS)[number]["stickers"][number]) => {
-    onSendContent({
-      type: "sticker",
-      id: sticker.id,
-      url: sticker.url,
-      label: sticker.label,
-    });
+  const sendSticker = async (sticker: (typeof CHAT_STICKER_PACKS)[number]["stickers"][number]) => {
+    if (disabled) return;
+    if (
+      !(await onSendContent({
+        type: "sticker",
+        id: sticker.id,
+        url: sticker.url,
+        label: sticker.label,
+      }))
+    ) {
+      return;
+    }
     setPicker(null);
   };
 
@@ -221,13 +230,16 @@ export function ChatComposer({
       </div>
 
       <div className="flex gap-2">
-        <Input
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendText()}
-          placeholder={placeholder}
-        />
-        <Button onClick={sendText}>Send</Button>
+          <Input
+            value={draft}
+            disabled={disabled}
+            onChange={(e) => onDraftChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void sendText()}
+            placeholder={placeholder}
+          />
+          <Button onClick={() => void sendText()} disabled={disabled}>
+            Send
+          </Button>
       </div>
     </div>
   );

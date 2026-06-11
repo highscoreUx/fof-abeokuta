@@ -21,7 +21,10 @@ import {
   startSpinChallenge,
   submitSpinBuild,
 } from "@/server/games/spinToBuild";
-import { normalizeChatPayload } from "@/lib/chat-content";
+import {
+  createGlobalChatMessage,
+  createTeamChatMessage,
+} from "@/lib/chat-messages-server";
 import { hasPermission } from "@/lib/permissions";
 import type { AccessTokenPayload } from "@/types";
 import type { Permission } from "@/lib/permissions/catalog";
@@ -68,59 +71,49 @@ export function registerSocketHandlers(io: SocketIOServer) {
     if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
     socket.join(quizRoom(slug));
 
-    socket.on("global:message", async (payload: unknown) => {
-      const body = normalizeChatPayload(payload);
-      if (!body) return;
+    socket.on(
+      "global:message",
+      async (payload: unknown, ack?: (response: { message?: unknown; error?: string }) => void) => {
+        try {
+          const message = await createGlobalChatMessage(
+            auth.eventId,
+            slug,
+            auth.userId,
+            payload,
+          );
+          ack?.({ message });
+        } catch (error) {
+          ack?.({
+            error: error instanceof Error ? error.message : "Failed to send message",
+          });
+        }
+      },
+    );
 
-      const message = await prisma.message.create({
-        data: {
-          eventId: auth.eventId,
-          teamId: null,
-          userId: auth.userId,
-          body,
-        },
-        include: {
-          user: { select: { username: true, firstName: true, lastName: true } },
-        },
-      });
+    socket.on(
+      "team:message",
+      async (payload: unknown, ack?: (response: { message?: unknown; error?: string }) => void) => {
+        if (!auth.teamId) {
+          ack?.({ error: "No team assigned" });
+          return;
+        }
 
-      io.to(eventRoom(slug)).emit("global:message", {
-        id: message.id,
-        body: message.body,
-        createdAt: message.createdAt.toISOString(),
-        user: message.user,
-      });
-    });
-
-    socket.on("team:message", async (payload: unknown) => {
-      if (!auth.teamId) return;
-
-      const body = normalizeChatPayload(payload);
-      if (!body) return;
-
-      const team = await prisma.team.findUnique({ where: { id: auth.teamId } });
-      if (!team) return;
-
-      const message = await prisma.message.create({
-        data: {
-          eventId: auth.eventId,
-          teamId: auth.teamId,
-          userId: auth.userId,
-          body,
-        },
-        include: {
-          user: { select: { username: true, firstName: true, lastName: true } },
-        },
-      });
-
-      io.to(teamRoom(slug, team.letter)).emit("team:message", {
-        id: message.id,
-        teamId: auth.teamId,
-        body: message.body,
-        createdAt: message.createdAt.toISOString(),
-        user: message.user,
-      });
-    });
+        try {
+          const message = await createTeamChatMessage(
+            auth.eventId,
+            slug,
+            auth.userId,
+            auth.teamId,
+            payload,
+          );
+          ack?.({ message });
+        } catch (error) {
+          ack?.({
+            error: error instanceof Error ? error.message : "Failed to send message",
+          });
+        }
+      },
+    );
 
     socket.on("quiz:answer", async (data: { sessionId: string; questionId: string; answerIndex: number }) => {
       try {

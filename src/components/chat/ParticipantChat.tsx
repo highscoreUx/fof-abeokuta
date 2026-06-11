@@ -5,6 +5,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import type { ChatRoom } from "@/types/chat";
 import { ChatParticipants } from "@/components/chat/ChatParticipants";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
+import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useEventApi } from "@/hooks/useEventApi";
 import { cn } from "@/lib/cn";
 
@@ -32,6 +33,8 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
       })
       .catch(() => setRooms([{ id: "global", category: "general", label: "General" }]));
   }, [api]);
+
+  useChatRealtime(rooms);
 
   return (
     <div

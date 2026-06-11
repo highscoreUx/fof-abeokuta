@@ -9,6 +9,7 @@ import { SponsorBars } from "@/components/layout/SponsorBars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { navTransitionTypes } from "@/lib/nav-transition";
 
 interface NavItem {
   href: string;
@@ -34,6 +35,8 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
   const { user, logout } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  const navHrefs = nav.map((item) => item.href);
+
   const navLink = (item: NavItem, onNavigate?: () => void) => {
     const active = activeHref === item.href;
     return (
@@ -41,6 +44,7 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
         key={item.href}
         href={item.href}
         onClick={onNavigate}
+        transitionTypes={navTransitionTypes(pathname, item.href, navHrefs)}
         className={cn(
           "block rounded-lg px-3 py-2 text-sm font-medium transition",
           active
@@ -56,7 +60,10 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
   return (
     <div className="min-h-screen bg-background">
       <div className="lg:flex">
-        <aside className="hidden w-64 shrink-0 border-r border-border bg-sidebar lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+        <aside
+          className="hidden w-64 shrink-0 border-r border-border bg-sidebar lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col"
+          style={{ viewTransitionName: "app-sidebar" }}
+        >
           <div className="border-b border-border p-5">
             <BrandMark />
           </div>
@@ -77,7 +84,10 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur-md">
+          <header
+            className="sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur-md"
+            style={{ viewTransitionName: "site-header" }}
+          >
             <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
                 <button

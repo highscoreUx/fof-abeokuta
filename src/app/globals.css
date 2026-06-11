@@ -55,3 +55,107 @@ body {
 ::selection {
   background: color-mix(in srgb, var(--primary) 18%, transparent);
 }
+
+/* --- View transitions (Next.js experimental.viewTransition + React ViewTransition) --- */
+:root {
+  --vt-duration-exit: 140ms;
+  --vt-duration-enter: 200ms;
+  --vt-slide-offset: 28px;
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vt-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-slide-in {
+  from {
+    transform: translateX(var(--vt-slide-offset));
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes vt-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(var(--vt-slide-offset) * -1));
+  }
+}
+
+::view-transition-old(.page-fade) {
+  animation: var(--vt-duration-exit) ease-out both vt-fade-out;
+}
+
+::view-transition-new(.page-fade) {
+  animation: var(--vt-duration-enter) ease-out var(--vt-duration-exit) both vt-fade-in;
+}
+
+::view-transition-old(.nav-forward) {
+  --vt-slide-offset: -28px;
+  animation:
+    var(--vt-duration-exit) ease-in both vt-fade-out,
+    320ms ease-in-out both vt-slide-out;
+}
+
+::view-transition-new(.nav-forward) {
+  --vt-slide-offset: 28px;
+  animation:
+    var(--vt-duration-enter) ease-out var(--vt-duration-exit) both vt-fade-in,
+    320ms ease-in-out both vt-slide-in;
+}
+
+::view-transition-old(.nav-back) {
+  --vt-slide-offset: 28px;
+  animation:
+    var(--vt-duration-exit) ease-in both vt-fade-out,
+    320ms ease-in-out both vt-slide-out;
+}
+
+::view-transition-new(.nav-back) {
+  --vt-slide-offset: -28px;
+  animation:
+    var(--vt-duration-enter) ease-out var(--vt-duration-exit) both vt-fade-in,
+    320ms ease-in-out both vt-slide-in;
+}
+
+::view-transition-group(app-sidebar),
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: 100;
+}
+
+::view-transition-old(app-sidebar),
+::view-transition-old(site-header) {
+  display: none;
+}
+
+::view-transition-new(app-sidebar),
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
+}

@@ -161,7 +161,7 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[#efeae2] px-3 py-3 sm:px-4">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-accent-light px-3 py-3 sm:px-4">
         {!messagesLoaded && messages.length === 0 ? (
           <p className="px-2 text-sm text-muted-foreground">Loading messages...</p>
         ) : messages.length === 0 ? (

@@ -36,7 +36,7 @@ function MessageMeta({
     <span
       className={cn(
         "inline-flex items-center gap-0.5 text-[11px] leading-none",
-        onMedia ? "text-white/90" : "text-black/45",
+        onMedia ? "text-primary-foreground/90" : "text-muted-foreground",
         className,
       )}
     >
@@ -59,7 +59,7 @@ function MessageStatus({
         viewBox="0 0 16 15"
         className={cn(
           "h-[14px] w-[14px]",
-          onMedia ? "text-white/80" : "text-black/35",
+          onMedia ? "text-primary-foreground/80" : "text-muted-foreground/70",
         )}
         aria-hidden
       >
@@ -76,7 +76,7 @@ function MessageStatus({
       viewBox="0 0 16 15"
       className={cn(
         "h-[14px] w-[14px]",
-        onMedia ? "text-white/90" : "text-[#53bdeb]",
+        onMedia ? "text-primary-foreground/90" : "text-primary",
       )}
       aria-hidden
     >
@@ -113,7 +113,7 @@ export function ChatMessageBubble({
         <div className="w-8 shrink-0 self-end">
           {showAvatar ? (
             <span
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/15 text-[11px] font-semibold text-secondary"
               aria-hidden
             >
               {userInitials(message.user.firstName, message.user.lastName)}
@@ -125,7 +125,7 @@ export function ChatMessageBubble({
       <div
         className={cn(
           "relative w-fit max-w-[min(28rem,82%)] shadow-sm",
-          isOwn ? "bg-[#d9fdd3] text-[#111b21]" : "bg-white text-[#111b21]",
+          isOwn ? "bg-surface text-foreground" : "bg-card text-foreground",
           isGrouped
             ? "rounded-lg"
             : isOwn
@@ -145,7 +145,7 @@ export function ChatMessageBubble({
           )}
 
           {isText ? (
-            <div className="text-[14.2px] leading-[19px] text-[#111b21]">
+            <div className="text-[14.2px] leading-[19px] text-foreground">
               <MessageMeta
                 time={time}
                 isOwn={isOwn}
@@ -158,14 +158,14 @@ export function ChatMessageBubble({
             <div className="relative inline-block max-w-full">
               <ChatMessageContent
                 body={message.body}
-                className="text-[14.2px] leading-[19px] text-[#111b21]"
+                className="text-[14.2px] leading-[19px] text-foreground"
               />
               <MessageMeta
                 time={time}
                 isOwn={isOwn}
                 isPending={isPending}
                 onMedia
-                className="absolute bottom-1 right-1 rounded px-1 py-0.5 bg-black/35"
+                className="absolute bottom-1 right-1 rounded px-1 py-0.5 bg-foreground/45"
               />
             </div>
           )}

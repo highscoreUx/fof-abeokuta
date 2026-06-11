@@ -1,15 +1,14 @@
-/** On-brand palette for group-chat sender names (primary, secondary, success, etc.). */
 const NAME_COLORS = [
-  "#0052cc",
-  "#ea580c",
-  "#059669",
-  "#003d99",
-  "#c2410c",
-  "#2563eb",
-  "#d97706",
-  "#7c3aed",
-  "#0891b2",
-  "#dc2626",
+  "#e542a3",
+  "#ce5e82",
+  "#1fa855",
+  "#0066cc",
+  "#7d4f8c",
+  "#1f95c4",
+  "#e67e22",
+  "#9b59b6",
+  "#16a085",
+  "#c0392b",
 ] as const;
 
 export function userInitials(firstName: string, lastName: string) {

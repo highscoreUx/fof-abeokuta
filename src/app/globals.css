@@ -15,6 +15,7 @@
   --card: #ffffff;
   --surface: #eff6ff;
   --accent-light: #fff7ed;
+  --chat-background: #f3ebe3;
   --sidebar: #ffffff;
   --ring: #0052cc33;
   --success: #059669;
@@ -36,6 +37,7 @@
   --color-card: var(--card);
   --color-surface: var(--surface);
   --color-accent-light: var(--accent-light);
+  --color-chat-background: var(--chat-background);
   --color-sidebar: var(--sidebar);
   --color-success: var(--success);
   --color-danger: var(--danger);

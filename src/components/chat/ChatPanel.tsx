@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
-import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
+import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
+import { isSameMessageGroup } from "@/lib/chat-display";
 import { cn } from "@/lib/cn";
 import type { ChatContent } from "@/lib/chat-content";
 import { serializeChatContent } from "@/lib/chat-content";
@@ -160,26 +161,32 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[#efeae2] px-3 py-3 sm:px-4">
         {!messagesLoaded && messages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Loading messages...</p>
+          <p className="px-2 text-sm text-muted-foreground">Loading messages...</p>
         ) : messages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
+          <p className="px-2 text-sm text-muted-foreground">No messages yet. Say hello!</p>
         ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className={cn(
-                "rounded-lg bg-muted p-3",
-                m.id.startsWith("pending-") && "opacity-70",
-              )}
-            >
-              <p className="text-xs text-muted-foreground">
-                {m.user.firstName} {m.user.lastName}
-              </p>
-              <ChatMessageContent body={m.body} />
-            </div>
-          ))
+          messages.map((m, index) => {
+            const isOwn = m.user.username === user?.username;
+            const isGrouped = isSameMessageGroup(m, messages[index - 1]);
+            const isGroupRoom = room.category !== "private";
+            const showName = !isOwn && isGroupRoom && !isGrouped;
+            const showAvatar = !isOwn && !isGrouped;
+            const isPending = m.id.startsWith("pending-");
+
+            return (
+              <ChatMessageBubble
+                key={m.id}
+                message={m}
+                isOwn={isOwn}
+                showName={showName}
+                showAvatar={showAvatar}
+                isGrouped={isGrouped}
+                isPending={isPending}
+              />
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>

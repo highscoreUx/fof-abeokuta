@@ -13,12 +13,12 @@ export function ChatMessageContent({ body, className }: ChatMessageContentProps)
 
   if (content.type === "gif") {
     return (
-      <div className={cn("mt-1", className)}>
+      <div className={cn(className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={content.url}
           alt={content.alt ?? "GIF"}
-          className="max-h-48 max-w-full rounded-lg object-contain"
+          className="max-h-52 max-w-full rounded-md object-contain"
           loading="lazy"
         />
       </div>
@@ -27,7 +27,7 @@ export function ChatMessageContent({ body, className }: ChatMessageContentProps)
 
   if (content.type === "sticker") {
     return (
-      <div className={cn("mt-1", className)}>
+      <div className={cn(className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={content.url}
@@ -40,7 +40,7 @@ export function ChatMessageContent({ body, className }: ChatMessageContentProps)
   }
 
   return (
-    <p className={cn("whitespace-pre-wrap break-words text-foreground", className)}>
+    <p className={cn("whitespace-pre-wrap break-words", className ?? "text-foreground")}>
       {content.text}
     </p>
   );

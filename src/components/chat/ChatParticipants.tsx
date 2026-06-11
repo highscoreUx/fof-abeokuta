@@ -1,18 +1,10 @@
 "use client";
 
-import type { ChatRoom } from "@/components/chat/ChatPanel";
+import { useEffect } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { cn } from "@/lib/cn";
 import { EMPTY_CHAT_PARTICIPANTS, useChatStore } from "@/stores/chatStore";
-import { useEffect } from "react";
-
-export interface ChatParticipant {
-  id: string;
-  firstName: string;
-  lastName: string;
-  teamLetter: string | null;
-  roleName: string;
-}
+import type { ChatParticipant, ChatRoom } from "@/types/chat";
 
 interface ChatParticipantsProps {
   room: ChatRoom;

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChatPanel, type ChatRoom } from "@/components/chat/ChatPanel";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import type { ChatRoom } from "@/types/chat";
 import { ChatParticipants } from "@/components/chat/ChatParticipants";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
 import { useEventApi } from "@/hooks/useEventApi";

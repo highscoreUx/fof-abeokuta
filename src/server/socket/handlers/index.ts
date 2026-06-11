@@ -21,6 +21,7 @@ import {
   startSpinChallenge,
   submitSpinBuild,
 } from "@/server/games/spinToBuild";
+import { normalizeChatPayload } from "@/lib/chat-content";
 import { hasPermission } from "@/lib/permissions";
 import type { AccessTokenPayload } from "@/types";
 import type { Permission } from "@/lib/permissions/catalog";
@@ -67,15 +68,16 @@ export function registerSocketHandlers(io: SocketIOServer) {
     if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
     socket.join(quizRoom(slug));
 
-    socket.on("global:message", async (body: string) => {
-      if (!body?.trim()) return;
+    socket.on("global:message", async (payload: unknown) => {
+      const body = normalizeChatPayload(payload);
+      if (!body) return;
 
       const message = await prisma.message.create({
         data: {
           eventId: auth.eventId,
           teamId: null,
           userId: auth.userId,
-          body: body.trim().slice(0, 2000),
+          body,
         },
         include: {
           user: { select: { username: true, firstName: true, lastName: true } },
@@ -90,8 +92,11 @@ export function registerSocketHandlers(io: SocketIOServer) {
       });
     });
 
-    socket.on("team:message", async (body: string) => {
-      if (!auth.teamId || !body?.trim()) return;
+    socket.on("team:message", async (payload: unknown) => {
+      if (!auth.teamId) return;
+
+      const body = normalizeChatPayload(payload);
+      if (!body) return;
 
       const team = await prisma.team.findUnique({ where: { id: auth.teamId } });
       if (!team) return;
@@ -101,7 +106,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
           eventId: auth.eventId,
           teamId: auth.teamId,
           userId: auth.userId,
-          body: body.trim().slice(0, 2000),
+          body,
         },
         include: {
           user: { select: { username: true, firstName: true, lastName: true } },

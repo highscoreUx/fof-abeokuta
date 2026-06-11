@@ -1,6 +1,5 @@
 import { create } from "zustand";
-import type { ChatMessage } from "@/components/chat/ChatPanel";
-import type { ChatParticipant } from "@/components/chat/ChatParticipants";
+import type { ChatMessage, ChatParticipant } from "@/types/chat";
 
 /** Stable fallbacks for useSyncExternalStore selectors (never use inline `?? []`). */
 export const EMPTY_CHAT_MESSAGES: ChatMessage[] = [];

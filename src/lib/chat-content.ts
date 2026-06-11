@@ -1,0 +1,97 @@
+export type ChatContent =
+  | { type: "text"; text: string }
+  | { type: "gif"; url: string; alt?: string }
+  | { type: "sticker"; id: string; url: string; label?: string };
+
+const ALLOWED_GIF_HOSTS = ["media.giphy.com", "media.tenor.com", "i.giphy.com"];
+
+export function isAllowedGifUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      ALLOWED_GIF_HOSTS.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isAllowedStickerUrl(url: string): boolean {
+  return url.startsWith("/chat/stickers/") && !url.includes("..");
+}
+
+export function serializeChatContent(content: ChatContent): string {
+  if (content.type === "text") return content.text.trim();
+  return JSON.stringify(content);
+}
+
+export function parseChatContent(body: string): ChatContent {
+  const trimmed = body.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as Partial<ChatContent>;
+      if (parsed.type === "gif" && typeof parsed.url === "string" && isAllowedGifUrl(parsed.url)) {
+        return { type: "gif", url: parsed.url, alt: typeof parsed.alt === "string" ? parsed.alt : undefined };
+      }
+      if (
+        parsed.type === "sticker" &&
+        typeof parsed.url === "string" &&
+        typeof parsed.id === "string" &&
+        isAllowedStickerUrl(parsed.url)
+      ) {
+        return {
+          type: "sticker",
+          id: parsed.id,
+          url: parsed.url,
+          label: typeof parsed.label === "string" ? parsed.label : undefined,
+        };
+      }
+    } catch {
+      // plain text fallback
+    }
+  }
+  return { type: "text", text: body };
+}
+
+export function normalizeChatPayload(input: unknown): string | null {
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("{")) {
+      const content = parseChatContent(trimmed);
+      if (content.type !== "text") return serializeChatContent(content);
+    }
+    return trimmed.slice(0, 2000);
+  }
+
+  if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    if (record.type === "gif" && typeof record.url === "string" && isAllowedGifUrl(record.url)) {
+      return JSON.stringify({
+        type: "gif",
+        url: record.url,
+        alt: typeof record.alt === "string" ? record.alt.slice(0, 120) : "",
+      });
+    }
+    if (
+      record.type === "sticker" &&
+      typeof record.url === "string" &&
+      typeof record.id === "string" &&
+      isAllowedStickerUrl(record.url)
+    ) {
+      return JSON.stringify({
+        type: "sticker",
+        id: record.id.slice(0, 64),
+        url: record.url,
+        label: typeof record.label === "string" ? record.label.slice(0, 64) : "",
+      });
+    }
+    if (record.type === "text" && typeof record.text === "string") {
+      const text = record.text.trim();
+      return text ? text.slice(0, 2000) : null;
+    }
+  }
+
+  return null;
+}

@@ -3,28 +3,15 @@
 import { useEffect, useRef } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ChatComposer } from "@/components/chat/ChatComposer";
+import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { cn } from "@/lib/cn";
+import type { ChatContent } from "@/lib/chat-content";
+import { serializeChatContent } from "@/lib/chat-content";
 import { EMPTY_CHAT_MESSAGES, useChatStore } from "@/stores/chatStore";
+import type { ChatMessage, ChatRoom } from "@/types/chat";
 
-export interface ChatMessage {
-  id: string;
-  body: string;
-  createdAt: string;
-  teamId?: string;
-  user: { username: string; firstName: string; lastName: string };
-}
-
-export type ChatRoomCategory = "general" | "team" | "private";
-
-export interface ChatRoom {
-  id: string;
-  category: ChatRoomCategory;
-  label: string;
-  letter?: string;
-  name?: string;
-}
+export type { ChatMessage, ChatRoom, ChatRoomCategory } from "@/types/chat";
 
 interface ChatPanelProps {
   room: ChatRoom;
@@ -83,10 +70,12 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isActive]);
 
-  const send = () => {
-    if (!draft.trim() || !socket) return;
-    socket.emit(emitEvent, draft.trim());
-    setDraft(room.id, "");
+  const sendContent = (content: ChatContent) => {
+    if (!socket) return;
+    const payload = serializeChatContent(content);
+    if (!payload) return;
+    socket.emit(emitEvent, payload);
+    if (content.type === "text") setDraft(room.id, "");
   };
 
   const placeholder =
@@ -129,7 +118,7 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
               <p className="text-xs text-muted-foreground">
                 {m.user.firstName} {m.user.lastName}
               </p>
-              <p className="text-foreground">{m.body}</p>
+              <ChatMessageContent body={m.body} />
             </div>
           ))
         )}
@@ -137,15 +126,12 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
       </div>
 
       <div className="shrink-0 border-t border-border px-4 py-4 sm:px-6">
-        <div className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(room.id, e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={placeholder}
-          />
-          <Button onClick={send}>Send</Button>
-        </div>
+        <ChatComposer
+          draft={draft}
+          placeholder={placeholder}
+          onDraftChange={(value) => setDraft(room.id, value)}
+          onSendContent={sendContent}
+        />
       </div>
     </div>
   );

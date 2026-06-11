@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ChatRoom, ChatRoomCategory } from "@/components/chat/ChatPanel";
+import type { ChatRoom, ChatRoomCategory } from "@/types/chat";
 import { cn } from "@/lib/cn";
 
 type RoomFilter = "all" | ChatRoomCategory;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { parseAgendaTemplate } from "@/lib/agenda-templates";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -17,6 +18,7 @@ export async function GET(
   return NextResponse.json({
     youtubeVideoId: map.youtube_video_id ?? "",
     streamLive: map.stream_live === "true",
+    agendaTemplate: parseAgendaTemplate(map.agenda_template),
     sponsors,
   });
 }
@@ -44,6 +46,15 @@ export async function PATCH(
       where: { eventId_key: { eventId: ctx.event.id, key: "stream_live" } },
       create: { eventId: ctx.event.id, key: "stream_live", value: String(body.streamLive) },
       update: { value: String(body.streamLive) },
+    });
+  }
+
+  if (body.agendaTemplate !== undefined) {
+    const template = parseAgendaTemplate(body.agendaTemplate);
+    await prisma.appSetting.upsert({
+      where: { eventId_key: { eventId: ctx.event.id, key: "agenda_template" } },
+      create: { eventId: ctx.event.id, key: "agenda_template", value: template },
+      update: { value: template },
     });
   }
 

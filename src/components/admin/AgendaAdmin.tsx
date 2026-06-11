@@ -2,24 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { AddAgendaModal } from "@/components/admin/AddAgendaModal";
-import { AgendaNotebookList } from "@/components/agenda/AgendaNotebookList";
+import { ChangeAgendaTemplateModal } from "@/components/admin/ChangeAgendaTemplateModal";
+import { AgendaList } from "@/components/agenda/AgendaList";
+import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
-
-interface AgendaItem {
-  id: string;
-  title: string;
-  description: string | null;
-  startTime: string;
-  endTime: string;
-}
+import { AGENDA_TEMPLATES, DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-templates";
 
 export function AgendaAdmin() {
   const { slug, api } = useEventApi();
-  const [items, setItems] = useState<AgendaItem[]>([]);
+  const [items, setItems] = useState<AgendaListItem[]>([]);
+  const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
+  const [event, setEvent] = useState<AgendaEventMeta | undefined>();
   const [addOpen, setAddOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
-  const load = () => api<{ items: AgendaItem[] }>("/agenda").then((d) => setItems(d.items));
+  const load = () =>
+    api<{ items: AgendaListItem[]; template: AgendaTemplateId; event: AgendaEventMeta }>(
+      "/agenda",
+    ).then((d) => {
+      setItems(d.items);
+      setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
+      setEvent(d.event);
+    });
 
   useEffect(() => {
     load();
@@ -30,18 +35,40 @@ export function AgendaAdmin() {
     await load();
   };
 
+  const templateName =
+    AGENDA_TEMPLATES.find((entry) => entry.id === template)?.name ?? "Notebook";
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Event schedule ({items.length})
-        </h2>
-        <Button onClick={() => setAddOpen(true)}>Add agenda item</Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Event schedule ({items.length})
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">Template: {templateName}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setTemplateOpen(true)}>
+            Change template
+          </Button>
+          <Button onClick={() => setAddOpen(true)}>Add agenda item</Button>
+        </div>
       </div>
 
-      <AgendaNotebookList items={items} onDelete={remove} />
+      <AgendaList
+        template={template}
+        items={items}
+        event={event}
+        onDelete={remove}
+      />
 
       <AddAgendaModal open={addOpen} onClose={() => setAddOpen(false)} onCreated={load} />
+      <ChangeAgendaTemplateModal
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        currentTemplate={template}
+        onSaved={setTemplate}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { parseAgendaTemplate } from "@/lib/agenda-templates";
 import { agendaItemSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
@@ -12,15 +13,27 @@ export async function GET(
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
-  const items = await prisma.agendaItem.findMany({
-    where: {
-      eventId: ctx.event.id,
-      ...(ctx.auth.role === "PARTICIPANT" ? { visible: true } : {}),
-    },
-    orderBy: { sortOrder: "asc" },
-  });
+  const [items, templateSetting] = await Promise.all([
+    prisma.agendaItem.findMany({
+      where: {
+        eventId: ctx.event.id,
+        ...(ctx.auth.role === "PARTICIPANT" ? { visible: true } : {}),
+      },
+      orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
+    }),
+    prisma.appSetting.findUnique({
+      where: { eventId_key: { eventId: ctx.event.id, key: "agenda_template" } },
+    }),
+  ]);
 
-  return NextResponse.json({ items });
+  return NextResponse.json({
+    items,
+    template: parseAgendaTemplate(templateSetting?.value),
+    event: {
+      title: ctx.event.title,
+      date: ctx.event.date.toISOString(),
+    },
+  });
 }
 
 export async function POST(

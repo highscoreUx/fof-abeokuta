@@ -1,35 +1,11 @@
 "use client";
 
 import { agendaColorForItem } from "@/lib/agenda-colors";
+import { formatAgendaTime24, formatAgendaTimeRange } from "@/lib/agenda-format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-
-export interface AgendaListItem {
-  id: string;
-  title: string;
-  description: string | null;
-  startTime: string;
-  endTime: string;
-}
-
-interface AgendaNotebookListProps {
-  items: AgendaListItem[];
-  className?: string;
-  emptyMessage?: string;
-  onDelete?: (id: string) => void;
-}
-
-function formatTimeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
-function formatTimeRange(start: string, end: string) {
-  return `${formatTimeLabel(start)} – ${formatTimeLabel(end)}`;
-}
+import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
+import type { AgendaListProps } from "@/components/agenda/types";
 
 function SpiralRings() {
   return (
@@ -49,12 +25,12 @@ function AgendaNotebookCard({
   index,
   onDelete,
 }: {
-  item: AgendaListItem;
+  item: AgendaListProps["items"][number];
   index: number;
   onDelete?: (id: string) => void;
 }) {
   const color = agendaColorForItem(item.id, index);
-  const indexLabel = formatTimeLabel(item.startTime).replace(":", "");
+  const indexLabel = formatAgendaTime24(item.startTime).replace(":", "");
 
   return (
     <article className="group relative flex min-h-[108px]">
@@ -97,7 +73,7 @@ function AgendaNotebookCard({
               {item.title}
             </h3>
             <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-              {formatTimeRange(item.startTime, item.endTime)}
+              {formatAgendaTimeRange(item.startTime, item.endTime)}
             </p>
             {item.description && (
               <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
@@ -116,10 +92,7 @@ function AgendaNotebookCard({
             </Button>
           )}
         </div>
-        <div
-          className="w-4 shrink-0 rounded-r-md sm:w-5"
-          style={{ backgroundColor: color.main }}
-        />
+        <div className="w-4 shrink-0 rounded-r-md sm:w-5" style={{ backgroundColor: color.main }} />
       </div>
     </article>
   );
@@ -130,13 +103,9 @@ export function AgendaNotebookList({
   className,
   emptyMessage = "No agenda items yet.",
   onDelete,
-}: AgendaNotebookListProps) {
+}: AgendaListProps) {
   if (items.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border bg-muted/30 px-6 py-12 text-center text-sm text-muted-foreground">
-        {emptyMessage}
-      </div>
-    );
+    return <AgendaEmpty message={emptyMessage} />;
   }
 
   return (

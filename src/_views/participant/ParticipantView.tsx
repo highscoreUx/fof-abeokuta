@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
-import { TeamChat } from "@/components/chat/TeamChat";
+import { ParticipantChat } from "@/components/chat/ParticipantChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
@@ -37,7 +37,13 @@ export function ParticipantView() {
   return (
     <PermissionGuard permission="participant.home">
       <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={participantNav}>
-        <div className="mb-6">
+        <div
+          className={
+            tab === "chat"
+              ? "flex min-h-[calc(100dvh-10rem)] flex-col gap-6 lg:min-h-[calc(100dvh-8rem)]"
+              : "space-y-6"
+          }
+        >
           <SegmentedControl
             value={tab}
             onChange={setTab}
@@ -46,21 +52,21 @@ export function ParticipantView() {
               { value: "agenda", label: "Agenda" },
             ]}
           />
+          {tab === "chat" && <ParticipantChat className="min-h-0 flex-1" />}
+          {tab === "agenda" && (
+            <Card>
+              <CardHeader className="mb-4">
+                <CardTitle>Agenda</CardTitle>
+              </CardHeader>
+              <AgendaList
+                template={template}
+                items={agenda}
+                event={event}
+                emptyMessage="Agenda will appear here when published."
+              />
+            </Card>
+          )}
         </div>
-        {tab === "chat" && user?.teamId && <TeamChat teamId={user.teamId} />}
-        {tab === "agenda" && (
-          <Card>
-            <CardHeader className="mb-4">
-              <CardTitle>Agenda</CardTitle>
-            </CardHeader>
-            <AgendaList
-              template={template}
-              items={agenda}
-              event={event}
-              emptyMessage="Agenda will appear here when published."
-            />
-          </Card>
-        )}
       </AppShell>
     </PermissionGuard>
   );

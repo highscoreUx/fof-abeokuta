@@ -67,6 +67,29 @@ export function registerSocketHandlers(io: SocketIOServer) {
     if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
     socket.join(quizRoom(slug));
 
+    socket.on("global:message", async (body: string) => {
+      if (!body?.trim()) return;
+
+      const message = await prisma.message.create({
+        data: {
+          eventId: auth.eventId,
+          teamId: null,
+          userId: auth.userId,
+          body: body.trim().slice(0, 2000),
+        },
+        include: {
+          user: { select: { username: true, firstName: true, lastName: true } },
+        },
+      });
+
+      io.to(eventRoom(slug)).emit("global:message", {
+        id: message.id,
+        body: message.body,
+        createdAt: message.createdAt.toISOString(),
+        user: message.user,
+      });
+    });
+
     socket.on("team:message", async (body: string) => {
       if (!auth.teamId || !body?.trim()) return;
 
@@ -87,6 +110,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
 
       io.to(teamRoom(slug, team.letter)).emit("team:message", {
         id: message.id,
+        teamId: auth.teamId,
         body: message.body,
         createdAt: message.createdAt.toISOString(),
         user: message.user,

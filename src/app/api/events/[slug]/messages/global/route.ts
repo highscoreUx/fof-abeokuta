@@ -4,18 +4,14 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string; teamId: string }> },
+  { params }: { params: Promise<{ slug: string }> },
 ) {
-  const { slug, teamId } = await params;
+  const { slug } = await params;
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
-  if (ctx.auth.teamId !== teamId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   const messages = await prisma.message.findMany({
-    where: { eventId: ctx.event.id, teamId },
+    where: { eventId: ctx.event.id, teamId: null },
     include: { user: { select: { username: true, firstName: true, lastName: true } } },
     orderBy: { createdAt: "asc" },
     take: 100,

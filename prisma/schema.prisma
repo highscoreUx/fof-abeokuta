@@ -183,8 +183,8 @@ model Message {
   id        String   @id @default(cuid())
   eventId   String
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id])
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id])
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   body      String

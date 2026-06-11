@@ -2,13 +2,16 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useEventScope } from "@/contexts/EventScopeContext";
 import { useAuthStore } from "@/stores/authStore";
 import { apiFetch } from "@/lib/api-client";
+import { loginPath } from "@/lib/routes";
 import { getDefaultRouteForRole } from "@/lib/permissions";
 import type { AuthUser } from "@/types";
 
-export function useAuth(eventSlug: string) {
+export function useAuth() {
   const router = useRouter();
+  const { eventSlug, pathPrefix } = useEventScope();
   const { accessToken, user, setAuth, clearAuth } = useAuthStore();
 
   const login = useCallback(
@@ -23,9 +26,9 @@ export function useAuth(eventSlug: string) {
         },
       );
       setAuth(data.accessToken, data.user);
-      router.push(getDefaultRouteForRole(data.user.role, eventSlug));
+      router.push(getDefaultRouteForRole(data.user.role, pathPrefix));
     },
-    [router, setAuth, eventSlug],
+    [router, setAuth, eventSlug, pathPrefix],
   );
 
   const logout = useCallback(async () => {
@@ -35,8 +38,8 @@ export function useAuth(eventSlug: string) {
       // ignore
     }
     clearAuth();
-    router.push(`/${eventSlug}/login`);
-  }, [clearAuth, router, eventSlug]);
+    router.push(loginPath(pathPrefix));
+  }, [clearAuth, router, eventSlug, pathPrefix]);
 
   return { accessToken, user, login, logout, isAuthenticated: Boolean(accessToken && user) };
 }

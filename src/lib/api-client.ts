@@ -1,5 +1,6 @@
 "use client";
 
+import { getLoginRedirectFromPathname } from "@/lib/routes";
 import { useAuthStore } from "@/stores/authStore";
 import type { AuthUser } from "@/types";
 
@@ -36,7 +37,7 @@ export async function apiFetch<T>(
     }
     useAuthStore.getState().clearAuth();
     if (typeof window !== "undefined") {
-      window.location.href = `/${eventSlug}/login`;
+      window.location.href = getLoginRedirectFromPathname(window.location.pathname);
     }
     throw new Error("Session expired");
   }

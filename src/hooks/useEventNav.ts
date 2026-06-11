@@ -1,13 +1,15 @@
 "use client";
 
-import { useEventSlug } from "@/hooks/useEventSlug";
+import { useEventScope } from "@/contexts/EventScopeContext";
+import { loginPath } from "@/lib/routes";
 
 export function useEventNav() {
-  const slug = useEventSlug();
-  const prefix = `/${slug}`;
+  const { eventSlug: slug, pathPrefix } = useEventScope();
+  const prefix = pathPrefix;
 
   return {
     slug,
+    pathPrefix,
     admin: `${prefix}/admin`,
     users: `${prefix}/admin/users`,
     quiz: `${prefix}/admin/quiz`,
@@ -18,7 +20,7 @@ export function useEventNav() {
     participantActivities: `${prefix}/participant/activities`,
     staffCheckIn: `${prefix}/staff/check-in`,
     judgeScoring: `${prefix}/judge/scoring`,
-    login: `${prefix}/login`,
+    login: loginPath(pathPrefix),
     nav: [
       { href: `${prefix}/admin`, label: "Dashboard" },
       { href: `${prefix}/admin/users`, label: "Users" },

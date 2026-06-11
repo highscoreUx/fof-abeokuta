@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentEvent } from "@/lib/events";
+import { getLatestEvent } from "@/lib/events";
 
 export async function GET() {
-  const event = await getCurrentEvent();
+  const event = await getLatestEvent();
   if (!event) {
-    return NextResponse.json({ error: "No live event" }, { status: 404 });
+    return NextResponse.json({ error: "No events" }, { status: 404 });
   }
 
   return NextResponse.json({

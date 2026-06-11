@@ -1,43 +1,16 @@
-"use client";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { LandingView } from "@/_views/landing/LandingView";
+import { getLatestEvent } from "@/lib/events";
+import { serializePlatformEvent } from "@/lib/serialize-event";
+import { notFound } from "next/navigation";
 
-import { useEffect, useState } from "react";
-import { EventLanding } from "@/components/event/EventLanding";
-import type { PlatformEvent } from "@/types";
+export default async function HomePage() {
+  const event = await getLatestEvent();
+  if (!event) notFound();
 
-export default function HomePage() {
-  const [event, setEvent] = useState<PlatformEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/events/current")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setEvent(d?.event ?? null))
-      .catch(() => setEvent(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-        Loading…
-      </div>
-    );
-  }
-
-  if (!event) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <p className="text-lg font-medium text-foreground">No live event right now</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Check back soon, or browse past events at{" "}
-          <a href="/all-event" className="text-primary underline">
-            /all-event
-          </a>
-          .
-        </p>
-      </div>
-    );
-  }
-
-  return <EventLanding event={event} loginHref="/login" isCurrent />;
+  return (
+    <EventScopeProvider eventSlug={event.slug} pathPrefix="">
+      <LandingView event={serializePlatformEvent(event)} isLatest />
+    </EventScopeProvider>
+  );
 }

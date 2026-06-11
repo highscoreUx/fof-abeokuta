@@ -13,7 +13,7 @@ interface EventLoginFormProps {
 }
 
 export function EventLoginForm({ eventSlug }: EventLoginFormProps) {
-  const { login } = useAuth(eventSlug);
+  const { login } = useAuth();
   const [slides, setSlides] = useState<string[]>([...DEFAULT_LOGIN_SLIDE_PATHS]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

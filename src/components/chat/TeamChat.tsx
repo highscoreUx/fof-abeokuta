@@ -18,7 +18,7 @@ interface Message {
 export function TeamChat({ teamId }: { teamId: string }) {
   const { slug, api } = useEventApi();
   const socket = useSocket();
-  const { user } = useAuth(slug);
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
 

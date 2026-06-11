@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import { useEventSlug } from "@/hooks/useEventSlug";
 import { SponsorBars } from "@/components/layout/SponsorBars";
 
 interface NavItem {
@@ -18,8 +17,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, title, nav, showSponsors = false }: AppShellProps) {
-  const eventSlug = useEventSlug();
-  const { user, logout } = useAuth(eventSlug);
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

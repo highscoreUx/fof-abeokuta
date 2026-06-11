@@ -1,43 +1,21 @@
-"use client";
+import { notFound } from "next/navigation";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { LandingView } from "@/_views/landing/LandingView";
+import { getPublicEventBySlug } from "@/lib/events";
+import { serializePlatformEvent } from "@/lib/serialize-event";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { EventLanding } from "@/components/event/EventLanding";
-import type { PlatformEvent } from "@/types";
+export default async function EventLandingPage({
+  params,
+}: {
+  params: Promise<{ eventSlug: string }>;
+}) {
+  const { eventSlug } = await params;
+  const event = await getPublicEventBySlug(eventSlug);
+  if (!event) notFound();
 
-export default function EventLandingPage() {
-  const params = useParams();
-  const eventSlug = params.eventSlug as string;
-  const [event, setEvent] = useState<PlatformEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch(`/api/events/public/${eventSlug}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setEvent(d?.event ?? null))
-      .catch(() => setEvent(null))
-      .finally(() => setLoading(false));
-  }, [eventSlug]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-        Loading…
-      </div>
-    );
-  }
-
-  if (!event) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <p className="text-lg font-medium text-foreground">Event not found</p>
-        <Link href="/" className="mt-4 text-sm text-primary underline">
-          Go home
-        </Link>
-      </div>
-    );
-  }
-
-  return <EventLanding event={event} loginHref={`/${event.slug}/login`} />;
+  return (
+    <EventScopeProvider eventSlug={event.slug} pathPrefix={`/${event.slug}`}>
+      <LandingView event={serializePlatformEvent(event)} />
+    </EventScopeProvider>
+  );
 }

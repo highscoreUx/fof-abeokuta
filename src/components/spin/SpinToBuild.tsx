@@ -19,7 +19,7 @@ interface SpinState {
 export function SpinToBuild({ admin = false }: { admin?: boolean }) {
   const eventSlug = useEventSlug();
   const socket = useSocket();
-  const { user } = useAuth(eventSlug);
+  const { user } = useAuth();
   const [state, setState] = useState<SpinState | null>(null);
   const [buildUrl, setBuildUrl] = useState("");
 

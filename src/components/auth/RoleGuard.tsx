@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { useEventSlug } from "@/hooks/useEventSlug";
+import { useEventPathPrefix } from "@/hooks/useEventSlug";
+import { loginPath } from "@/lib/routes";
 import { getDefaultRouteForRole, hasMinimumRole } from "@/lib/permissions";
 import type { Role } from "@/types";
 
@@ -14,19 +15,19 @@ export function RoleGuard({
   children: React.ReactNode;
   minimumRole: Role;
 }) {
-  const eventSlug = useEventSlug();
-  const { user, isAuthenticated } = useAuth(eventSlug);
+  const pathPrefix = useEventPathPrefix();
+  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
-      router.replace(`/${eventSlug}/login`);
+      router.replace(loginPath(pathPrefix));
       return;
     }
     if (!hasMinimumRole(user.role, minimumRole)) {
-      router.replace(getDefaultRouteForRole(user.role, eventSlug));
+      router.replace(getDefaultRouteForRole(user.role, pathPrefix));
     }
-  }, [isAuthenticated, user, minimumRole, router, eventSlug]);
+  }, [isAuthenticated, user, minimumRole, router, pathPrefix]);
 
   if (!user || !hasMinimumRole(user.role, minimumRole)) {
     return <div className="flex min-h-screen items-center justify-center">Loading...</div>;

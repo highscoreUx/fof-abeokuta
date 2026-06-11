@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { RESERVED_EVENT_SLUGS } from "@/lib/events";
+import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
 
 const PLATFORM_PUBLIC = ["/fg-admin/login", "/api/fg-admin/auth/login", "/api/fg-admin/auth/refresh"];
 
@@ -11,6 +11,20 @@ const PUBLIC_PATHS = [
   "/api/events/public",
   "/api/events/current",
 ];
+
+const ROOT_PROTECTED_PREFIXES = [
+  "/admin",
+  "/participant",
+  "/staff",
+  "/judge",
+  "/stage",
+];
+
+function isRootEventProtected(pathname: string) {
+  return ROOT_PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -60,6 +74,10 @@ export function proxy(request: NextRequest) {
   }
 
   const hasEventRefresh = request.cookies.has("fof_refresh_token");
+
+  if (isRootEventProtected(pathname) && !hasEventRefresh && !pathname.startsWith("/api/")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   if (pathname.match(/^\/([^/]+)\//) && !hasEventRefresh && !pathname.startsWith("/api/")) {
     const slug = pathname.split("/")[1];

@@ -1,17 +1,16 @@
-"use client";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { CheckInView } from "@/_views/staff/check-in/CheckInView";
 
-import { RoleGuard } from "@/components/auth/RoleGuard";
-import { AppShell } from "@/components/layout/AppShell";
-import { CheckInPanel } from "@/components/staff/CheckInPanel";
-import { useEventNav } from "@/hooks/useEventNav";
+export default async function StaffCheckInPage({
+  params,
+}: {
+  params: Promise<{ eventSlug: string }>;
+}) {
+  const { eventSlug } = await params;
 
-export default function StaffCheckInPage() {
-  const { staffNav } = useEventNav();
   return (
-    <RoleGuard minimumRole="STAFF">
-      <AppShell title="Staff Check-in" nav={staffNav}>
-        <CheckInPanel />
-      </AppShell>
-    </RoleGuard>
+    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
+      <CheckInView />
+    </EventScopeProvider>
   );
 }

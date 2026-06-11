@@ -64,15 +64,15 @@ export function formatEmail(username: string): string {
   return `${username}@event.local`;
 }
 
-export function getDefaultRouteForRole(role: Role, eventSlug: string): string {
+export function getDefaultRouteForRole(role: Role, pathPrefix: string): string {
   switch (role) {
     case "ADMIN":
-      return `/${eventSlug}/admin`;
+      return `${pathPrefix}/admin`;
     case "STAFF":
-      return `/${eventSlug}/staff/check-in`;
+      return `${pathPrefix}/staff/check-in`;
     case "JUDGE":
-      return `/${eventSlug}/judge/scoring`;
+      return `${pathPrefix}/judge/scoring`;
     case "PARTICIPANT":
-      return `/${eventSlug}/participant`;
+      return `${pathPrefix}/participant`;
   }
 }

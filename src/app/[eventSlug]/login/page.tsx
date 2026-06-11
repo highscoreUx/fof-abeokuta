@@ -1,9 +1,16 @@
-"use client";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { LoginView } from "@/_views/login/LoginView";
 
-import { useEventSlug } from "@/hooks/useEventSlug";
-import { EventLoginForm } from "@/components/auth/EventLoginForm";
+export default async function EventLoginPage({
+  params,
+}: {
+  params: Promise<{ eventSlug: string }>;
+}) {
+  const { eventSlug } = await params;
 
-export default function EventLoginPage() {
-  const eventSlug = useEventSlug();
-  return <EventLoginForm eventSlug={eventSlug} />;
+  return (
+    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
+      <LoginView />
+    </EventScopeProvider>
+  );
 }

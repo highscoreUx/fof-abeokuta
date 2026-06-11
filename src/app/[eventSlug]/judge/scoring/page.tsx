@@ -1,23 +1,16 @@
-"use client";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { ScoringView } from "@/_views/judge/scoring/ScoringView";
 
-import { RoleGuard } from "@/components/auth/RoleGuard";
-import { AppShell } from "@/components/layout/AppShell";
-import { JudgeScoring } from "@/components/judge/JudgeScoring";
-import { Leaderboard } from "@/components/leaderboard/Leaderboard";
-import { useEventNav } from "@/hooks/useEventNav";
+export default async function JudgeScoringPage({
+  params,
+}: {
+  params: Promise<{ eventSlug: string }>;
+}) {
+  const { eventSlug } = await params;
 
-export default function JudgeScoringPage() {
-  const { judgeNav } = useEventNav();
   return (
-    <RoleGuard minimumRole="JUDGE">
-      <AppShell title="Judge Scoring" nav={judgeNav}>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <JudgeScoring />
-          </div>
-          <Leaderboard />
-        </div>
-      </AppShell>
-    </RoleGuard>
+    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
+      <ScoringView />
+    </EventScopeProvider>
   );
 }

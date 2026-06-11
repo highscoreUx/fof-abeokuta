@@ -1,17 +1,16 @@
-"use client";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { QuizView } from "@/_views/admin/quiz/QuizView";
 
-import { RoleGuard } from "@/components/auth/RoleGuard";
-import { AppShell } from "@/components/layout/AppShell";
-import { QuizAdmin } from "@/components/quiz/QuizAdmin";
-import { useEventNav } from "@/hooks/useEventNav";
+export default async function AdminQuizPage({
+  params,
+}: {
+  params: Promise<{ eventSlug: string }>;
+}) {
+  const { eventSlug } = await params;
 
-export default function AdminQuizPage() {
-  const { nav } = useEventNav();
   return (
-    <RoleGuard minimumRole="ADMIN">
-      <AppShell title="Quiz Admin" nav={nav}>
-        <QuizAdmin />
-      </AppShell>
-    </RoleGuard>
+    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
+      <QuizView />
+    </EventScopeProvider>
   );
 }

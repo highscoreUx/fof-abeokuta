@@ -1,0 +1,11 @@
+export const RESERVED_EVENT_SLUGS = new Set([
+  "fg-admin",
+  "login",
+  "all-event",
+  "admin",
+  "participant",
+  "staff",
+  "judge",
+  "stage",
+  "api",
+]);

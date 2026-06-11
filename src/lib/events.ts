@@ -1,6 +1,8 @@
 import slugify from "slugify";
 import { prisma } from "@/lib/prisma";
 
+export { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
+
 const TEAM_DATA = [
   { letter: "F", name: "Team F", color: "#F24E1E" },
   { letter: "I", name: "Team I", color: "#A259FF" },
@@ -30,47 +32,32 @@ export async function requireEventBySlug(slug: string) {
   return event;
 }
 
-/** The published event shown at `/` and `/login` */
-export async function getCurrentEvent() {
+const publicEventSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  description: true,
+  date: true,
+  status: true,
+} as const;
+
+/** Most recent event by date — shown at `/` and `/login` (any status). */
+export async function getLatestEvent() {
   return prisma.event.findFirst({
-    where: { status: "LIVE" },
     orderBy: { date: "desc" },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      date: true,
-      status: true,
-    },
+    select: publicEventSelect,
   });
 }
+
+/** @deprecated Use getLatestEvent */
+export const getCurrentEvent = getLatestEvent;
 
 export async function getPublicEventBySlug(slug: string) {
   return prisma.event.findUnique({
     where: { slug },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      date: true,
-      status: true,
-    },
+    select: publicEventSelect,
   });
 }
-
-export const RESERVED_EVENT_SLUGS = new Set([
-  "fg-admin",
-  "login",
-  "all-event",
-  "admin",
-  "participant",
-  "staff",
-  "judge",
-  "stage",
-  "api",
-]);
 
 export async function createEventWithDefaults(data: {
   title: string;

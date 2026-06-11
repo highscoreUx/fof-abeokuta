@@ -42,6 +42,8 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
     setMobilePane("chat");
   };
 
+  const activeRoom = rooms.find((room) => room.id === activeRoomId);
+
   return (
     <div
       dir="ltr"
@@ -63,14 +65,14 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
           onSelect={handleSelectRoom}
           className="min-h-0 flex-1"
         />
-        {rooms.map((room) => (
+        {activeRoom && (
           <ChatParticipants
-            key={room.id}
-            room={room}
-            isActive={room.id === activeRoomId}
+            key={activeRoom.id}
+            room={activeRoom}
+            isActive
             className="hidden md:flex"
           />
-        ))}
+        )}
       </div>
 
       <div

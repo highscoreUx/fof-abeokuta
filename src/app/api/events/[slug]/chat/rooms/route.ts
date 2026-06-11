@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
 import { dmRoomId } from "@/lib/chat-dm";
+import { STAFF_ROOM_ID } from "@/lib/chat-staff";
+import { hasPermission } from "@/lib/permissions";
 
 export async function GET(
   request: NextRequest,
@@ -13,11 +15,15 @@ export async function GET(
 
   const rooms: Array<{
     id: string;
-    category: "general" | "team" | "private";
+    category: "general" | "team" | "private" | "staff";
     label: string;
     letter?: string;
     name?: string;
   }> = [{ id: "global", category: "general", label: "General" }];
+
+  if (hasPermission(ctx.auth.permissions, "participant.staff_chat")) {
+    rooms.push({ id: STAFF_ROOM_ID, category: "staff", label: "Staff" });
+  }
 
   if (ctx.auth.teamId) {
     const team = await prisma.team.findFirst({

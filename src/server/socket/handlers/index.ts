@@ -5,6 +5,7 @@ import {
   eventRoom,
   quizRoom,
   roleRoom,
+  staffRoom,
   teamRoom,
   userRoom,
 } from "@/server/socket/rooms";
@@ -25,9 +26,14 @@ import {
   castChatPollVote,
   createDirectChatMessage,
   createGlobalChatMessage,
+  createStaffChatMessage,
   createTeamChatMessage,
 } from "@/lib/chat-messages-server";
+import { isDmRoomId } from "@/lib/chat-dm";
+import { CHAT_TYPING_EVENT } from "@/lib/chat-typing";
+import { isStaffRoomId } from "@/lib/chat-staff";
 import { hasPermission } from "@/lib/permissions";
+import { resolveTypingBroadcastRoom } from "@/server/socket/chat-typing";
 import type { AccessTokenPayload } from "@/types";
 import type { Permission } from "@/lib/permissions/catalog";
 
@@ -36,7 +42,12 @@ function socketCan(auth: AccessTokenPayload, permission: Permission): boolean {
 }
 
 interface AuthenticatedSocket extends Socket {
-  auth?: AccessTokenPayload & { username?: string; teamLetter?: string | null };
+  auth?: AccessTokenPayload & {
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    teamLetter?: string | null;
+  };
 }
 
 export function registerSocketHandlers(io: SocketIOServer) {
@@ -55,6 +66,8 @@ export function registerSocketHandlers(io: SocketIOServer) {
       socket.auth = {
         ...payload,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         teamLetter: user.team?.letter ?? null,
       };
       next();
@@ -71,6 +84,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     socket.join(roleRoom(slug, auth.eventUserRoleSlug));
     socket.join(userRoom(auth.userId));
     if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
+    if (socketCan(auth, "participant.staff_chat")) socket.join(staffRoom(slug));
     socket.join(quizRoom(slug));
 
     socket.on(
@@ -106,6 +120,30 @@ export function registerSocketHandlers(io: SocketIOServer) {
             slug,
             auth.userId,
             auth.teamId,
+            payload,
+          );
+          ack?.({ message });
+        } catch (error) {
+          ack?.({
+            error: error instanceof Error ? error.message : "Failed to send message",
+          });
+        }
+      },
+    );
+
+    socket.on(
+      "staff:message",
+      async (payload: unknown, ack?: (response: { message?: unknown; error?: string }) => void) => {
+        if (!socketCan(auth, "participant.staff_chat")) {
+          ack?.({ error: "Forbidden" });
+          return;
+        }
+
+        try {
+          const message = await createStaffChatMessage(
+            auth.eventId,
+            slug,
+            auth.userId,
             payload,
           );
           ack?.({ message });
@@ -185,6 +223,33 @@ export function registerSocketHandlers(io: SocketIOServer) {
         }
       },
     );
+
+    socket.on(CHAT_TYPING_EVENT, (data: { roomId?: string; isTyping?: boolean }) => {
+      if (!socketCan(auth, "participant.chat")) return;
+      if (!data || typeof data.roomId !== "string" || typeof data.isTyping !== "boolean") {
+        return;
+      }
+
+      if (isStaffRoomId(data.roomId) && !socketCan(auth, "participant.staff_chat")) {
+        return;
+      }
+
+      if (isDmRoomId(data.roomId) && data.isTyping) {
+        const peerId = data.roomId.slice(3);
+        if (!peerId || peerId === auth.userId) return;
+      }
+
+      const targetRoom = resolveTypingBroadcastRoom(slug, data.roomId, auth);
+      if (!targetRoom) return;
+
+      socket.to(targetRoom).emit(CHAT_TYPING_EVENT, {
+        roomId: data.roomId,
+        userId: auth.userId,
+        firstName: auth.firstName ?? "",
+        lastName: auth.lastName ?? "",
+        isTyping: data.isTyping,
+      });
+    });
 
     socket.on("quiz:answer", async (data: { sessionId: string; questionId: string; answerIndex: number }) => {
       try {

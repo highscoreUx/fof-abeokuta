@@ -190,6 +190,7 @@ model Message {
   user        User     @relation("MessageAuthor", fields: [userId], references: [id])
   recipientId String?
   recipient   User?    @relation("DirectMessageRecipient", fields: [recipientId], references: [id])
+  staffChannel Boolean @default(false)
   body        String
   createdAt   DateTime @default(now())
 

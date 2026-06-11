@@ -10,6 +10,10 @@ export function roleRoom(eventSlug: string, roleSlug: string) {
   return `event:${eventSlug}:role:${roleSlug}`;
 }
 
+export function staffRoom(eventSlug: string) {
+  return `event:${eventSlug}:staff`;
+}
+
 export function userRoom(userId: string) {
   return `user:${userId}`;
 }

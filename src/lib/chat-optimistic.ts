@@ -1,4 +1,5 @@
 import { parseDmRoomId } from "@/lib/chat-dm";
+import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import type { AuthUser } from "@/types";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
@@ -15,6 +16,7 @@ export function createOptimisticChatMessage(
     createdAt: new Date().toISOString(),
     userId: user.id,
     ...(room.category === "team" ? { teamId: room.id } : {}),
+    ...(room.id === STAFF_ROOM_ID || room.category === "staff" ? { staffChannel: true } : {}),
     ...(peerId ? { recipientId: peerId } : {}),
     user: {
       username: user.username,

@@ -48,6 +48,7 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
   "participant.home",
   "participant.activities",
   "participant.chat",
+  "participant.staff_chat",
   "participant.quiz",
   "participant.vote",
 ];
@@ -57,6 +58,9 @@ const STAFF_PERMISSIONS: Permission[] = [
   "user.check_in",
   "user.password.view",
   "stage.view",
+  "participant.home",
+  "participant.chat",
+  "participant.staff_chat",
 ];
 
 const JUDGE_PERMISSIONS: Permission[] = ["score.submit", "score.view_all", "stage.view"];

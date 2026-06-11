@@ -6,7 +6,10 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
+import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { useChatTyping } from "@/hooks/useChatTyping";
 import { parseDmRoomId } from "@/lib/chat-dm";
+import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { isSameMessageGroup } from "@/lib/chat-display";
 import { cn } from "@/lib/cn";
 import type { ChatContent } from "@/lib/chat-content";
@@ -61,11 +64,14 @@ export function ChatPanel({
   const peerId = room.category === "private" ? parseDmRoomId(room.id) : null;
   const isGeneral = room.category === "general";
   const isPrivate = room.category === "private";
+  const isStaff = room.category === "staff" || room.id === STAFF_ROOM_ID;
   const messagePath = isGeneral
     ? "/messages/global"
-    : isPrivate && peerId
-      ? `/messages/dm/${peerId}`
-      : `/messages/${room.id}`;
+    : isStaff
+      ? "/messages/staff"
+      : isPrivate && peerId
+        ? `/messages/dm/${peerId}`
+        : `/messages/${room.id}`;
 
   useEffect(() => {
     if (messagesLoaded) return;
@@ -183,6 +189,8 @@ export function ChatPanel({
               activeSocket
                 .timeout(8000)
                 .emit("dm:message", { recipientId: peerId, payload }, ackHandler);
+            } else if (isStaff) {
+              activeSocket.timeout(8000).emit("staff:message", payload, ackHandler);
             } else {
               const emitEvent = isGeneral ? "global:message" : "team:message";
               activeSocket.timeout(8000).emit(emitEvent, payload, ackHandler);
@@ -200,6 +208,7 @@ export function ChatPanel({
       appendMessage,
       isGeneral,
       isPrivate,
+      isStaff,
       peerId,
       room,
       sendViaApi,
@@ -221,11 +230,14 @@ export function ChatPanel({
   const placeholder =
     isGeneral
       ? "Message everyone..."
-      : isPrivate
-        ? "Send a private message..."
-        : `Message Team ${room.letter ?? ""}...`;
+      : isStaff
+        ? "Message staff..."
+        : isPrivate
+          ? "Send a private message..."
+          : `Message Team ${room.letter ?? ""}...`;
 
-  const allowPrivateAction = !isPrivate && Boolean(onMessagePrivately);
+  const allowPrivateAction = !isPrivate && !isStaff && Boolean(onMessagePrivately);
+  const typers = useChatTyping(room.id, isActive, draft);
 
   return (
     <div
@@ -258,6 +270,9 @@ export function ChatPanel({
             {isGeneral && (
               <p className="truncate text-sm text-muted-foreground">Event-wide conversation</p>
             )}
+            {isStaff && (
+              <p className="truncate text-sm text-muted-foreground">Staff-only group chat</p>
+            )}
             {isPrivate && (
               <p className="truncate text-sm text-muted-foreground">Direct message</p>
             )}
@@ -277,7 +292,7 @@ export function ChatPanel({
           messages.map((m, index) => {
             const isOwn = m.user.username === user?.username;
             const isGrouped = isSameMessageGroup(m, messages[index - 1]);
-            const isGroupRoom = !isPrivate;
+            const isGroupRoom = !isPrivate && !isStaff;
             const showName = !isOwn && isGroupRoom && !isGrouped;
             const showAvatar = !isOwn && !isGrouped;
             const isPending = m.id.startsWith("pending-");
@@ -306,6 +321,7 @@ export function ChatPanel({
       </div>
 
       <div className="shrink-0 border-t border-border px-3 py-2.5 sm:px-6 sm:py-4">
+        {typers.length > 0 && <TypingIndicator typers={typers} className="mb-2" />}
         <ChatComposer
           draft={draft}
           placeholder={placeholder}

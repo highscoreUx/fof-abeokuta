@@ -46,6 +46,7 @@ export function useEventNav() {
   const staffNav = useMemo(
     () =>
       [
+        navIf("participant.home", `${prefix}/home`, "Home", permissions),
         navIf("user.check_in", `${prefix}/staff/check-in`, "Check In", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],

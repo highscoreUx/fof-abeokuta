@@ -35,6 +35,7 @@ export type Permission =
   | "participant.home"
   | "participant.activities"
   | "participant.chat"
+  | "participant.staff_chat"
   | "participant.quiz"
   | "participant.vote"
   | "stage.view";
@@ -93,6 +94,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "participant.home",
   "participant.activities",
   "participant.chat",
+  "participant.staff_chat",
   "participant.quiz",
   "participant.vote",
   "stage.view",
@@ -189,6 +191,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "participant.home", label: "Participant home" },
       { permission: "participant.activities", label: "Participant activities" },
       { permission: "participant.chat", label: "Team chat" },
+      { permission: "participant.staff_chat", label: "Staff group chat" },
       { permission: "participant.quiz", label: "Play quizzes" },
       { permission: "participant.vote", label: "Cast votes" },
     ],

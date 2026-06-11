@@ -9,6 +9,7 @@ type RoomFilter = "all" | ChatRoomCategory;
 const FILTERS: Array<{ value: RoomFilter; label: string }> = [
   { value: "all", label: "All" },
   { value: "general", label: "General" },
+  { value: "staff", label: "Staff" },
   { value: "team", label: "Team" },
   { value: "private", label: "Private" },
 ];

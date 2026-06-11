@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parseDmRoomId } from "@/lib/chat-dm";
+import { STAFF_CHAT_ROLE_SLUGS, STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -28,6 +29,31 @@ export async function GET(
   if (roomId === "global") {
     const participants = await prisma.user.findMany({
       where: { eventId: ctx.event.id },
+      select: participantSelect,
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+
+    return NextResponse.json({
+      participants: participants.map((user) => ({
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        teamLetter: user.team?.letter ?? null,
+        roleName: user.eventUserRole.name,
+      })),
+    });
+  }
+
+  if (roomId === STAFF_ROOM_ID) {
+    if (!hasPermission(ctx.auth.permissions, "participant.staff_chat")) {
+      return jsonError("Forbidden", "FORBIDDEN", 403);
+    }
+
+    const participants = await prisma.user.findMany({
+      where: {
+        eventId: ctx.event.id,
+        eventUserRole: { slug: { in: [...STAFF_CHAT_ROLE_SLUGS] } },
+      },
       select: participantSelect,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });

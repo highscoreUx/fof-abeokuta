@@ -5,10 +5,11 @@ export interface ChatMessage {
   userId?: string;
   teamId?: string;
   recipientId?: string;
+  staffChannel?: boolean;
   user: { username: string; firstName: string; lastName: string };
 }
 
-export type ChatRoomCategory = "general" | "team" | "private";
+export type ChatRoomCategory = "general" | "team" | "private" | "staff";
 
 export interface ChatRoom {
   id: string;

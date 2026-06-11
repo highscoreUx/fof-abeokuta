@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
-import { createGlobalChatMessage } from "@/lib/chat-messages-server";
+import {
+  createStaffChatMessage,
+  serializeChatMessageRecord,
+} from "@/lib/chat-messages-server";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -13,19 +16,25 @@ export async function GET(
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
+  if (!hasPermission(ctx.auth.permissions, "participant.staff_chat")) {
+    return jsonError("Forbidden", "FORBIDDEN", 403);
+  }
+
   const messages = await prisma.message.findMany({
     where: {
       eventId: ctx.event.id,
+      staffChannel: true,
       teamId: null,
       recipientId: null,
-      staffChannel: false,
     },
     include: { user: { select: { username: true, firstName: true, lastName: true } } },
     orderBy: { createdAt: "asc" },
     take: 100,
   });
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({
+    messages: messages.map((message) => serializeChatMessageRecord(message)),
+  });
 }
 
 export async function POST(
@@ -36,7 +45,7 @@ export async function POST(
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
-  if (!hasPermission(ctx.auth.permissions, "participant.chat")) {
+  if (!hasPermission(ctx.auth.permissions, "participant.staff_chat")) {
     return jsonError("Forbidden", "FORBIDDEN", 403);
   }
 
@@ -44,7 +53,7 @@ export async function POST(
   const content = (body as { content?: unknown }).content ?? body;
 
   try {
-    const message = await createGlobalChatMessage(
+    const message = await createStaffChatMessage(
       ctx.event.id,
       slug,
       ctx.auth.userId,

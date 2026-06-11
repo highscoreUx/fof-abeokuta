@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getSocket, useSocket } from "@/hooks/useSocket";
 import { dmRoomIdForMessage } from "@/lib/chat-dm";
+import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { useChatStore } from "@/stores/chatStore";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
@@ -22,14 +23,23 @@ export function useChatRealtime(
     () => new Set(rooms.filter((room) => room.category === "private").map((room) => room.id)),
     [rooms],
   );
+  const hasStaffRoom = useMemo(
+    () => rooms.some((room) => room.id === STAFF_ROOM_ID),
+    [rooms],
+  );
 
   useEffect(() => {
     const instance = getSocket() ?? socket;
     if (!instance) return;
 
     const onGlobal = (msg: ChatMessage) => {
-      if (msg.recipientId) return;
+      if (msg.recipientId || msg.staffChannel) return;
       upsertMessage("global", msg);
+    };
+
+    const onStaff = (msg: ChatMessage) => {
+      if (!hasStaffRoom) return;
+      upsertMessage(STAFF_ROOM_ID, msg);
     };
 
     const onTeam = (msg: ChatMessage) => {
@@ -55,25 +65,31 @@ export function useChatRealtime(
         }
         return;
       }
+      if (msg.staffChannel && hasStaffRoom) {
+        upsertMessage(STAFF_ROOM_ID, msg);
+        return;
+      }
       if (msg.teamId && teamRoomIds.has(msg.teamId)) {
         upsertMessage(msg.teamId, msg);
         return;
       }
-      if (!msg.teamId && !msg.recipientId) {
+      if (!msg.teamId && !msg.recipientId && !msg.staffChannel) {
         upsertMessage("global", msg);
       }
     };
 
     instance.on("global:message", onGlobal);
+    instance.on("staff:message", onStaff);
     instance.on("team:message", onTeam);
     instance.on("dm:message", onDm);
     instance.on("poll:update", onPollUpdate);
 
     return () => {
       instance.off("global:message", onGlobal);
+      instance.off("staff:message", onStaff);
       instance.off("team:message", onTeam);
       instance.off("dm:message", onDm);
       instance.off("poll:update", onPollUpdate);
     };
-  }, [socket, teamRoomIds, dmRoomIds, upsertMessage, user?.id, onIncomingDm]);
+  }, [socket, teamRoomIds, dmRoomIds, hasStaffRoom, upsertMessage, user?.id, onIncomingDm]);
 }

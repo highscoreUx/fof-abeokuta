@@ -9,6 +9,7 @@ import { VotingPanel } from "@/components/voting/VotingPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
+import { AgendaNotebookList } from "@/components/agenda/AgendaNotebookList";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
@@ -55,17 +56,10 @@ export function ParticipantView() {
             <CardHeader className="mb-4">
               <CardTitle>Agenda</CardTitle>
             </CardHeader>
-            <div className="mt-4 space-y-3">
-              {agenda.map((item) => (
-                <div key={item.id} className="rounded-lg bg-muted p-3">
-                  <p className="font-medium">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(item.startTime).toLocaleTimeString()} –{" "}
-                    {new Date(item.endTime).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <AgendaNotebookList
+              items={agenda}
+              emptyMessage="Agenda will appear here when published."
+            />
           </Card>
         </div>
       </AppShell>

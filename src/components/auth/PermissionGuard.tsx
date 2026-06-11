@@ -5,31 +5,41 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventPathPrefix } from "@/hooks/useEventSlug";
 import { loginPath } from "@/lib/routes";
-import { getDefaultRouteForRole, hasMinimumRole } from "@/lib/permissions";
-import type { Role } from "@/types";
+import { hasAnyPermission, hasPermission, resolveDefaultRoute } from "@/lib/permissions";
+import type { Permission } from "@/lib/permissions/catalog";
 
-export function RoleGuard({
+export function PermissionGuard({
   children,
-  minimumRole,
+  permission,
+  anyOf,
 }: {
   children: React.ReactNode;
-  minimumRole: Role;
+  permission?: Permission;
+  anyOf?: Permission[];
 }) {
   const pathPrefix = useEventPathPrefix();
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
+
+  const allowed = user
+    ? permission
+      ? hasPermission(user.permissions, permission)
+      : anyOf
+        ? hasAnyPermission(user.permissions, anyOf)
+        : true
+    : false;
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
       router.replace(loginPath(pathPrefix));
       return;
     }
-    if (!hasMinimumRole(user.role, minimumRole)) {
-      router.replace(getDefaultRouteForRole(user.role, pathPrefix));
+    if (!allowed) {
+      router.replace(resolveDefaultRoute(user.permissions, pathPrefix));
     }
-  }, [isAuthenticated, user, minimumRole, router, pathPrefix]);
+  }, [isAuthenticated, user, allowed, router, pathPrefix]);
 
-  if (!user || !hasMinimumRole(user.role, minimumRole)) {
+  if (!user || !allowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

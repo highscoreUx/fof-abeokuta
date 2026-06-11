@@ -7,13 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  ADMIN
-  STAFF
-  JUDGE
-  PARTICIPANT
-}
-
 enum EventStatus {
   DRAFT
   LIVE
@@ -65,10 +58,12 @@ model Event {
   title       String
   description String?
   date        DateTime
-  status      EventStatus @default(DRAFT)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  status             EventStatus @default(DRAFT)
+  permissionsVersion Int         @default(1)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
+  eventUserRoles  EventUserRole[]
   teams           Team[]
   users           User[]
   agendaItems     AgendaItem[]
@@ -99,11 +94,29 @@ model Team {
   @@unique([eventId, letter])
 }
 
+model EventUserRole {
+  id                 String   @id @default(cuid())
+  eventId            String
+  event              Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String
+  permissions        Json     @default("[]")
+  permissionsVersion Int      @default(0)
+  isSystem           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  users              User[]
+
+  @@unique([eventId, slug])
+}
+
 model User {
   id          String    @id @default(cuid())
   eventId     String
   event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  role        Role
+  eventUserRoleId String
+  eventUserRole   EventUserRole @relation(fields: [eventUserRoleId], references: [id], onDelete: Restrict)
+  authVersion Int       @default(0)
   pinHash     String
   pinDisplay  String?
   loginPhrase String?

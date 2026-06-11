@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AddUserModal } from "@/components/admin/AddUserModal";
 import { BulkImportModal } from "@/components/admin/BulkImportModal";
 import { UsersTable } from "@/components/admin/UsersTable";
@@ -22,7 +22,7 @@ export function UsersView() {
   };
 
   return (
-    <RoleGuard minimumRole="ADMIN">
+    <PermissionGuard permission="user.list">
       <AppShell title="User Management" nav={nav}>
         <div className="space-y-4">
           {toast && (
@@ -57,12 +57,12 @@ export function UsersView() {
           onClose={() => setAddOpen(false)}
           onCreated={(credentials) =>
             showToast(
-              `Created ${credentials.username} (${credentials.role}) — password: ${credentials.password}`,
+              `Created ${credentials.username} (${credentials.eventUserRoleName}) — password: ${credentials.password}`,
             )
           }
         />
         <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
       </AppShell>
-    </RoleGuard>
+    </PermissionGuard>
   );
 }

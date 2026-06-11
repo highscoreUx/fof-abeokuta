@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@/types";
 
 export const TEAM_ASSIGN_ALGORITHMS = [
   "balanced_random",
@@ -32,9 +31,12 @@ const SETTING_KEYS = {
   includeStaff: "team_assign_include_staff",
 } as const;
 
-export function assignableTeamRoles(includeStaff: boolean): Role[] {
-  return includeStaff ? ["PARTICIPANT", "STAFF"] : ["PARTICIPANT"];
+export function assignableTeamRoleSlugs(includeStaff: boolean): string[] {
+  return includeStaff ? ["participant", "staff"] : ["participant"];
 }
+
+/** @deprecated use assignableTeamRoleSlugs */
+export const assignableTeamRoles = assignableTeamRoleSlugs;
 
 export function isTeamAssignAlgorithm(value: string): value is TeamAssignAlgorithm {
   return (TEAM_ASSIGN_ALGORITHMS as readonly string[]).includes(value);
@@ -125,7 +127,7 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
   const algorithm = options.algorithm ?? settings.algorithm;
   const onlyUnassigned = options.onlyUnassigned ?? settings.onlyUnassigned;
   const includeStaff = options.includeStaff ?? settings.includeStaff;
-  const roles = assignableTeamRoles(includeStaff);
+  const roleSlugs = assignableTeamRoleSlugs(includeStaff);
 
   const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
   if (teams.length === 0) throw new Error("No teams configured");
@@ -133,7 +135,7 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
   const users = await prisma.user.findMany({
     where: {
       eventId,
-      role: { in: roles },
+      eventUserRole: { slug: { in: roleSlugs } },
       ...(options.userIds ? { id: { in: options.userIds } } : {}),
       ...(onlyUnassigned ? { teamId: null } : {}),
     },

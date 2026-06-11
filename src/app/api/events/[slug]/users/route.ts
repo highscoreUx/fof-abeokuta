@@ -1,50 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
-import { canViewPassword } from "@/lib/permissions";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { createUserSchema } from "@/lib/validators/auth";
 import { buildUsersOrderBy, buildUsersWhere } from "@/lib/users-query";
-import { createUserFromRow } from "@/lib/users";
-import type { Role } from "@/types";
-
-function serializeUserRow(
-  user: {
-    id: string;
-    role: Role;
-    firstName: string;
-    lastName: string;
-    username: string;
-    teamId: string | null;
-    checkedInAt: Date | null;
-    createdAt: Date;
-    loginPhrase: string | null;
-    pinDisplay: string | null;
-    team: { letter: string } | null;
-  },
-  viewerRole: Role,
-) {
-  return {
-    id: user.id,
-    role: user.role,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    username: user.username,
-    teamId: user.teamId,
-    teamLetter: user.team?.letter ?? null,
-    checkedInAt: user.checkedInAt?.toISOString() ?? null,
-    createdAt: user.createdAt.toISOString(),
-    loginPhrase: user.loginPhrase,
-    password: canViewPassword(viewerRole, user.role, user.pinDisplay) ? user.pinDisplay : undefined,
-  };
-}
+import { createUserFromRow, serializeUserRow } from "@/lib/users";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "STAFF");
+  const ctx = await requireEventPermission(request, slug, "user.list");
   if (ctx instanceof NextResponse) return ctx;
 
   const { searchParams } = new URL(request.url);
@@ -54,7 +21,7 @@ export async function GET(
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      include: { team: true },
+      include: { team: true, eventUserRole: true },
       orderBy: buildUsersOrderBy(query.sortBy, query.sortOrder),
       skip: query.skip,
       take: query.limit,
@@ -64,7 +31,7 @@ export async function GET(
 
   return NextResponse.json(
     toPaginatedResponse(
-      users.map((user) => serializeUserRow(user, ctx.auth.role)),
+      users.map((user) => serializeUserRow(user, ctx.auth.permissions)),
       total,
       query.page,
       query.limit,
@@ -77,7 +44,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "user.create");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();
@@ -90,10 +57,7 @@ export async function POST(
     const user = await createUserFromRow(ctx.event.id, parsed.data);
     return NextResponse.json(
       {
-        user: serializeUserRow(
-          { ...user, team: user.team },
-          ctx.auth.role,
-        ),
+        user: serializeUserRow({ ...user, team: user.team }, ctx.auth.permissions),
       },
       { status: 201 },
     );

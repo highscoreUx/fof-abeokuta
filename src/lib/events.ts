@@ -1,5 +1,6 @@
 import slugify from "slugify";
 import { FIGMA_TEAMS } from "@/lib/figma-teams";
+import { seedDefaultEventUserRoles } from "@/lib/event-user-roles";
 import { prisma } from "@/lib/prisma";
 
 export { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
@@ -66,7 +67,7 @@ export async function createEventWithDefaults(data: {
     slug = `${baseSlug}-${counter++}`;
   }
 
-  return prisma.event.create({
+  const event = await prisma.event.create({
     data: {
       slug,
       title: data.title,
@@ -98,4 +99,8 @@ export async function createEventWithDefaults(data: {
     },
     include: { teams: true },
   });
+
+  await seedDefaultEventUserRoles(event.id);
+
+  return event;
 }

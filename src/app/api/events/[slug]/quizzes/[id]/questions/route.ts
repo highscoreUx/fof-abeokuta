@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { quizQuestionSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
@@ -11,7 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
   const { slug, id: quizId } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "quiz.manage");
   if (ctx instanceof NextResponse) return ctx;
 
   const quiz = await prisma.quiz.findFirst({ where: { id: quizId, eventId: ctx.event.id } });

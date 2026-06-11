@@ -21,7 +21,13 @@ import {
   startSpinChallenge,
   submitSpinBuild,
 } from "@/server/games/spinToBuild";
+import { hasPermission } from "@/lib/permissions";
 import type { AccessTokenPayload } from "@/types";
+import type { Permission } from "@/lib/permissions/catalog";
+
+function socketCan(auth: AccessTokenPayload, permission: Permission): boolean {
+  return hasPermission(auth.permissions, permission);
+}
 
 interface AuthenticatedSocket extends Socket {
   auth?: AccessTokenPayload & { username?: string; teamLetter?: string | null };
@@ -56,7 +62,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     const slug = auth.eventSlug;
 
     socket.join(eventRoom(slug));
-    socket.join(roleRoom(slug, auth.role));
+    socket.join(roleRoom(slug, auth.eventUserRoleSlug));
     socket.join(userRoom(auth.userId));
     if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
     socket.join(quizRoom(slug));
@@ -106,24 +112,24 @@ export function registerSocketHandlers(io: SocketIOServer) {
     });
 
     socket.on("quiz:admin:start", async (quizId: string) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "quiz.run")) return;
       const session = await startQuizSession(io, quizId);
       socket.emit("sync:toast", { type: "success", message: "Quiz session started" });
       await broadcastQuizState(io, session.id);
     });
 
     socket.on("quiz:admin:next", async (sessionId: string) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "quiz.run")) return;
       await adminStartNextQuestion(io, sessionId);
     });
 
     socket.on("quiz:admin:end", async (sessionId: string) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "quiz.run")) return;
       await endQuizGame(io, sessionId);
     });
 
     socket.on("spin:admin:start", async (title?: string) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "spin.run")) return;
       await startSpinChallenge(io, auth.eventId, title);
     });
 
@@ -134,12 +140,12 @@ export function registerSocketHandlers(io: SocketIOServer) {
     });
 
     socket.on("spin:admin:complete", async (challengeId: string) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "spin.run")) return;
       await completeSpinChallenge(io, challengeId, slug);
     });
 
     socket.on("stream:admin:toggle", async (data: { live: boolean; videoId?: string }) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "settings.broadcasting")) return;
       if (data.videoId) {
         await prisma.appSetting.upsert({
           where: { eventId_key: { eventId: auth.eventId, key: "youtube_video_id" } },
@@ -164,7 +170,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     });
 
     socket.on("vote:admin:open", async (voteId: string) => {
-      if (auth.role !== "ADMIN") return;
+      if (!socketCan(auth, "vote.manage")) return;
       const vote = await prisma.vote.updateMany({
         where: { id: voteId, eventId: auth.eventId },
         data: { open: true },
@@ -192,7 +198,10 @@ export async function emitCheckInUpdate(
     checkedInAt: Date | null;
   },
 ) {
-  io.to(roleRoom(eventSlug, "STAFF")).to(roleRoom(eventSlug, "ADMIN")).emit("checkin:updated", {
+  io.to(roleRoom(eventSlug, "staff"))
+    .to(roleRoom(eventSlug, "event_admin"))
+    .to(roleRoom(eventSlug, "coordinator"))
+    .emit("checkin:updated", {
     id: user.id,
     firstName: user.firstName,
     lastName: user.lastName,

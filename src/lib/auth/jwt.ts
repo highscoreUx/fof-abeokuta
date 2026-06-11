@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
-import type { AccessTokenPayload, Role } from "@/types";
+import type { AccessTokenPayload } from "@/types";
+import type { Permission } from "@/lib/permissions/catalog";
 
 const ACCESS_TTL = "15m";
 const REFRESH_TTL = "24h";
@@ -16,7 +17,9 @@ function getRefreshSecret() {
   return secret;
 }
 
-export function signAccessToken(payload: Omit<AccessTokenPayload, "type">): string {
+export type AccessTokenInput = Omit<AccessTokenPayload, "type">;
+
+export function signAccessToken(payload: AccessTokenInput): string {
   return jwt.sign({ ...payload, type: "event" }, getAccessSecret(), { expiresIn: ACCESS_TTL });
 }
 
@@ -26,19 +29,35 @@ export function signRefreshToken(userId: string, eventId: string): string {
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
   const decoded = jwt.verify(token, getAccessSecret());
+  if (typeof decoded === "string" || decoded.type !== "event") {
+    throw new Error("Invalid access token");
+  }
+
+  const permissions = decoded.permissions;
   if (
-    typeof decoded === "string" ||
-    decoded.type !== "event" ||
     !decoded.userId ||
-    !decoded.role ||
     !decoded.eventId ||
-    !decoded.eventSlug
+    !decoded.eventSlug ||
+    !decoded.eventUserRoleId ||
+    !decoded.eventUserRoleSlug ||
+    !Array.isArray(permissions) ||
+    typeof decoded.authVersion !== "number" ||
+    typeof decoded.permissionsVersion !== "number" ||
+    typeof decoded.rolePermissionsVersion !== "number" ||
+    typeof decoded.permissionsFingerprint !== "string"
   ) {
     throw new Error("Invalid access token");
   }
+
   return {
     userId: decoded.userId as string,
-    role: decoded.role as Role,
+    permissions: permissions as Permission[],
+    eventUserRoleId: decoded.eventUserRoleId as string,
+    eventUserRoleSlug: decoded.eventUserRoleSlug as string,
+    authVersion: decoded.authVersion as number,
+    permissionsVersion: decoded.permissionsVersion as number,
+    rolePermissionsVersion: decoded.rolePermissionsVersion as number,
+    permissionsFingerprint: decoded.permissionsFingerprint as string,
     teamId: (decoded.teamId as string | null | undefined) ?? null,
     eventId: decoded.eventId as string,
     eventSlug: decoded.eventSlug as string,

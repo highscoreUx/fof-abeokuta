@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
+import { hasPermission } from "@/lib/permissions";
 import { scoreSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
 import { getIO } from "@/server/socket/io";
@@ -14,10 +15,11 @@ export async function GET(
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
-  const judgeId =
-    ctx.auth.role === "JUDGE"
+  const judgeId = hasPermission(ctx.auth.permissions, "score.view_all")
+    ? new URL(request.url).searchParams.get("judgeId") ?? undefined
+    : hasPermission(ctx.auth.permissions, "score.submit")
       ? ctx.auth.userId
-      : new URL(request.url).searchParams.get("judgeId");
+      : undefined;
 
   const scores = await prisma.score.findMany({
     where: {
@@ -35,7 +37,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "JUDGE");
+  const ctx = await requireEventPermission(request, slug, "score.submit");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();

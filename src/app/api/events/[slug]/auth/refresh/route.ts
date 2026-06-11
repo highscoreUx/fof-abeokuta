@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyRefreshToken, signAccessToken } from "@/lib/auth/jwt";
+import { verifyRefreshToken } from "@/lib/auth/jwt";
 import {
   getRefreshTokenFromCookies,
   getRefreshCookieOptions,
@@ -8,9 +8,10 @@ import {
 } from "@/lib/auth/cookies";
 import { isRefreshTokenValid, rotateRefreshToken } from "@/lib/auth/refresh";
 import { prisma } from "@/lib/prisma";
-import { serializeUser } from "@/lib/users";
+import { serializeUser, buildAccessTokenForUser } from "@/lib/users";
 import { jsonError } from "@/lib/auth/middleware";
 import { requireEventBySlug } from "@/lib/events";
+import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
 
 export async function POST(
   _request: Request,
@@ -49,7 +50,7 @@ export async function POST(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
 
   if (!user) {
@@ -57,17 +58,12 @@ export async function POST(
   }
 
   const newRefreshToken = await rotateRefreshToken(refreshToken, userId, event.id);
-  const accessToken = signAccessToken({
-    userId: user.id,
-    role: user.role,
-    teamId: user.teamId,
-    eventId: event.id,
-    eventSlug: slug,
-  });
+  const accessToken = await buildAccessTokenForUser(user.id, slug);
+  const permissions = resolvePermissionsFromRole(user.eventUserRole);
 
   const response = NextResponse.json({
     accessToken,
-    user: serializeUser(user, slug),
+    user: serializeUser(user, slug, permissions),
   });
 
   response.cookies.set(REFRESH_COOKIE_NAME, newRefreshToken, getRefreshCookieOptions());

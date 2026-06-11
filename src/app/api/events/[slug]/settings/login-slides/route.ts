@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { LOGIN_SLIDES_SETTING_KEY, parseLoginSlides } from "@/lib/login-slides";
 import { prisma } from "@/lib/prisma";
 
@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "customize.branding");
   if (ctx instanceof NextResponse) return ctx;
 
   const setting = await prisma.appSetting.findUnique({
@@ -31,7 +31,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "customize.branding");
   if (ctx instanceof NextResponse) return ctx;
 
   const form = await request.formData();
@@ -83,7 +83,7 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "customize.branding");
   if (ctx instanceof NextResponse) return ctx;
 
   await prisma.appSetting.deleteMany({

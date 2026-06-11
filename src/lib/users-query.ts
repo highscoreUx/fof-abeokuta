@@ -4,7 +4,6 @@ const SORT_FIELDS = new Set([
   "firstName",
   "lastName",
   "username",
-  "role",
   "createdAt",
   "checkedInAt",
 ]);
@@ -16,7 +15,7 @@ export function buildUsersWhere(
   return {
     eventId,
     ...(params.role
-      ? { role: params.role as "ADMIN" | "STAFF" | "JUDGE" | "PARTICIPANT" }
+      ? { eventUserRole: { slug: params.role } }
       : {}),
     ...(params.teamId ? { teamId: params.teamId } : {}),
     ...(params.checkedIn === "yes" ? { checkedInAt: { not: null } } : {}),

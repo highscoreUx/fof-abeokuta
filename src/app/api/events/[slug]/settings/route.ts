@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
 import { parseAgendaTemplate } from "@/lib/agenda-templates";
 import { prisma } from "@/lib/prisma";
 
@@ -28,7 +28,7 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "settings.broadcasting");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();

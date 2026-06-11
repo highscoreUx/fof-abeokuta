@@ -1,8 +1,11 @@
-export type Role = "ADMIN" | "STAFF" | "JUDGE" | "PARTICIPANT";
+import type { Permission } from "@/lib/permissions/catalog";
 
 export interface AuthUser {
   id: string;
-  role: Role;
+  permissions: Permission[];
+  eventUserRoleId: string;
+  eventUserRoleSlug: string;
+  eventUserRoleName: string;
   username: string;
   email: string;
   firstName: string;
@@ -16,11 +19,31 @@ export interface AuthUser {
 
 export interface AccessTokenPayload {
   userId: string;
-  role: Role;
+  permissions: Permission[];
+  eventUserRoleId: string;
+  eventUserRoleSlug: string;
+  authVersion: number;
+  permissionsVersion: number;
+  rolePermissionsVersion: number;
+  permissionsFingerprint: string;
   teamId?: string | null;
   eventId: string;
   eventSlug: string;
   type: "event";
+}
+
+export interface EventUserRoleRecord {
+  id: string;
+  eventId: string;
+  name: string;
+  slug: string;
+  permissions: Array<Permission | "*">;
+  permissionsVersion: number;
+  isSystem: boolean;
+  isEditable: boolean;
+  isDeletable: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApiError {

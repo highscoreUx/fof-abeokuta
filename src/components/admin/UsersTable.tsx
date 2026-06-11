@@ -18,10 +18,8 @@ import {
   useUsersTableStore,
   type UsersSortField,
 } from "@/stores/usersTableStore";
+import { useEventUserRolesQuery } from "@/hooks/useEventUserRolesQuery";
 import type { EventUserRow } from "@/types/users";
-import type { Role } from "@/types";
-
-const ROLES: Array<Role | "all"> = ["all", "ADMIN", "STAFF", "JUDGE", "PARTICIPANT"];
 
 function SortableHeader({
   field,
@@ -57,6 +55,7 @@ function SortableHeader({
 export function UsersTable() {
   const { data, isLoading, isFetching, error } = useUsersQuery();
   const { data: teamsData } = useTeamsQuery();
+  const { data: rolesData } = useEventUserRolesQuery();
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
@@ -77,6 +76,7 @@ export function UsersTable() {
 
   const users = data?.data ?? [];
   const teams = teamsData?.teams ?? [];
+  const accessProfiles = rolesData?.roles ?? [];
 
   const toggleCheckIn = async (user: EventUserRow) => {
     setTogglingId(user.id);
@@ -103,10 +103,11 @@ export function UsersTable() {
             placeholder="Search name or username…"
           />
         </div>
-        <Select value={role} onChange={(e) => setRole(e.target.value as Role | "all")}>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r === "all" ? "All roles" : r}
+        <Select value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="all">All profiles</option>
+          {accessProfiles.map((profile) => (
+            <option key={profile.id} value={profile.slug}>
+              {profile.name}
             </option>
           ))}
         </Select>
@@ -163,7 +164,9 @@ export function UsersTable() {
               <tr>
                 <SortableHeader field="firstName" label="Name" />
                 <SortableHeader field="username" label="Username" />
-                <SortableHeader field="role" label="Role" />
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Access
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Team
                 </th>
@@ -213,8 +216,8 @@ export function UsersTable() {
                       {user.username}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant="muted" className="uppercase">
-                        {user.role}
+                      <Badge variant="muted" className="max-w-[10rem] truncate uppercase">
+                        {user.eventUserRoleName}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>

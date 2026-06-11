@@ -1,21 +1,27 @@
-import type { Role } from "@/types";
 import { prisma } from "@/lib/prisma";
 import { hashPin } from "@/lib/auth/bcrypt";
 import { shufflePhrases } from "@/lib/design-phrases";
 import {
   formatEmail,
-  getPinRangeForRole,
-  isPinInRoleRange,
+  getPinRangeForRoleSlug,
+  isPinInRoleSlugRange,
   slugifyFirstName,
+  canViewPassword,
 } from "@/lib/permissions";
+import {
+  getEventUserRoleBySlug,
+  getEventUserRoleIdForLegacyRole,
+} from "@/lib/event-user-roles";
+import { loadSessionAuthContext } from "@/lib/auth/session";
+import { signAccessToken } from "@/lib/auth/jwt";
 import type { AuthUser } from "@/types";
+import type { Permission } from "@/lib/permissions/catalog";
 
 const TEAM_LETTERS = ["F", "I", "G", "M", "A"];
 
 export function serializeUser(
   user: {
     id: string;
-    role: Role;
     username: string;
     email: string;
     firstName: string;
@@ -26,12 +32,22 @@ export function serializeUser(
     loginPhrase?: string | null;
     team?: { letter: string } | null;
     pinDisplay?: string | null;
+    eventUserRole: {
+      id: string;
+      slug: string;
+      name: string;
+      permissions: unknown;
+    };
   },
   eventSlug: string,
+  permissions: Permission[],
 ): AuthUser & { loginPhrase?: string | null; passwordDisplay?: string | null } {
   return {
     id: user.id,
-    role: user.role,
+    permissions,
+    eventUserRoleId: user.eventUserRole.id,
+    eventUserRoleSlug: user.eventUserRole.slug,
+    eventUserRoleName: user.eventUserRole.name,
     username: user.username,
     email: user.email,
     firstName: user.firstName,
@@ -46,6 +62,25 @@ export function serializeUser(
   };
 }
 
+export async function buildAccessTokenForUser(userId: string, eventSlug: string) {
+  const session = await loadSessionAuthContext(userId);
+  if (!session) throw new Error("User not found");
+
+  return signAccessToken({
+    userId: session.userId,
+    permissions: session.permissions,
+    eventUserRoleId: session.eventUserRoleId,
+    eventUserRoleSlug: session.eventUserRoleSlug,
+    authVersion: session.authVersion,
+    permissionsVersion: session.permissionsVersion,
+    rolePermissionsVersion: session.rolePermissionsVersion,
+    permissionsFingerprint: session.permissionsFingerprint,
+    teamId: session.teamId,
+    eventId: session.eventId,
+    eventSlug,
+  });
+}
+
 export async function findUserByCredentials(
   eventId: string,
   username: string,
@@ -54,7 +89,7 @@ export async function findUserByCredentials(
   const normalized = username.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { eventId_username: { eventId, username: normalized } },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
 
   if (!user) return null;
@@ -63,7 +98,10 @@ export async function findUserByCredentials(
   if (!(await verifyPin(password, user.pinHash))) return null;
 
   const passwordNum = parseInt(password, 10);
-  if (!Number.isNaN(passwordNum) && !isPinInRoleRange(passwordNum, user.role)) {
+  if (
+    !Number.isNaN(passwordNum) &&
+    !isPinInRoleSlugRange(passwordNum, user.eventUserRole.slug)
+  ) {
     return null;
   }
 
@@ -97,17 +135,16 @@ export async function allocateLoginIdentity(eventId: string, firstName: string) 
 
 export async function generateNextPassword(
   eventId: string,
-  role: Role,
+  roleSlug: string,
   usedPasswords: Set<string>,
 ): Promise<string> {
-  const { min, max } = getPinRangeForRole(role);
+  const { min, max } = getPinRangeForRoleSlug(roleSlug);
   for (let i = 0; i < 5000; i++) {
     const password = String(Math.floor(Math.random() * (max - min + 1)) + min).padStart(4, "0");
     if (!usedPasswords.has(password)) return password;
   }
-  throw new Error(`No available passwords for role ${role}`);
+  throw new Error(`No available passwords for access profile ${roleSlug}`);
 }
-
 
 export async function createUserFromRow(
   eventId: string,
@@ -115,11 +152,32 @@ export async function createUserFromRow(
     firstName: string;
     lastName: string;
     middleName?: string;
-    role: Role;
+    eventUserRoleId?: string;
+    role?: string;
     password?: string;
   },
 ) {
   const { username, phrase, email } = await allocateLoginIdentity(eventId, row.firstName);
+
+  let eventUserRoleId = row.eventUserRoleId;
+  let roleSlug: string;
+
+  if (eventUserRoleId) {
+    const role = await prisma.eventUserRole.findFirst({
+      where: { id: eventUserRoleId, eventId },
+    });
+    if (!role) throw new Error("Access profile not found");
+    roleSlug = role.slug;
+  } else if (row.role) {
+    eventUserRoleId = await getEventUserRoleIdForLegacyRole(eventId, row.role);
+    const role = await prisma.eventUserRole.findUnique({
+      where: { id: eventUserRoleId },
+    });
+    roleSlug = role?.slug ?? "participant";
+  } else {
+    eventUserRoleId = await getEventUserRoleIdForLegacyRole(eventId, "PARTICIPANT");
+    roleSlug = "participant";
+  }
 
   const usedPasswords = new Set(
     (
@@ -132,10 +190,10 @@ export async function createUserFromRow(
       .filter(Boolean),
   );
 
-  const password = row.password ?? (await generateNextPassword(eventId, row.role, usedPasswords));
+  const password = row.password ?? (await generateNextPassword(eventId, roleSlug, usedPasswords));
   const passwordNum = parseInt(password, 10);
-  if (!isPinInRoleRange(passwordNum, row.role)) {
-    throw new Error(`Password ${password} is not valid for role ${row.role}`);
+  if (!isPinInRoleSlugRange(passwordNum, roleSlug)) {
+    throw new Error(`Password ${password} is not valid for this access profile`);
   }
 
   const pinHash = await hashPin(password);
@@ -143,7 +201,7 @@ export async function createUserFromRow(
   return prisma.user.create({
     data: {
       eventId,
-      role: row.role,
+      eventUserRoleId: eventUserRoleId!,
       pinHash,
       pinDisplay: password,
       loginPhrase: phrase,
@@ -153,8 +211,43 @@ export async function createUserFromRow(
       username,
       email,
     },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
+}
+
+export function serializeUserRow(
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    teamId: string | null;
+    checkedInAt: Date | null;
+    createdAt: Date;
+    loginPhrase: string | null;
+    pinDisplay: string | null;
+    team: { letter: string } | null;
+    eventUserRole: { id: string; slug: string; name: string };
+  },
+  viewerPermissions: Permission[],
+) {
+  return {
+    id: user.id,
+    eventUserRoleId: user.eventUserRole.id,
+    eventUserRoleSlug: user.eventUserRole.slug,
+    eventUserRoleName: user.eventUserRole.name,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    username: user.username,
+    teamId: user.teamId,
+    teamLetter: user.team?.letter ?? null,
+    checkedInAt: user.checkedInAt?.toISOString() ?? null,
+    createdAt: user.createdAt.toISOString(),
+    loginPhrase: user.loginPhrase,
+    password: canViewPassword(viewerPermissions, user.eventUserRole.slug, user.pinDisplay)
+      ? user.pinDisplay
+      : undefined,
+  };
 }
 
 export { TEAM_LETTERS };

@@ -1,11 +1,11 @@
-import type { Role } from "@/types";
-
 export interface EventUserRow {
   id: string;
   firstName: string;
   lastName: string;
   username: string;
-  role: Role;
+  eventUserRoleId: string;
+  eventUserRoleSlug: string;
+  eventUserRoleName: string;
   teamLetter: string | null;
   teamId: string | null;
   loginPhrase?: string | null;

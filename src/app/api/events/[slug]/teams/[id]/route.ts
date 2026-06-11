@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { deleteTeam } from "@/lib/teams";
 import { prisma } from "@/lib/prisma";
 import { normalizeTeamCode, validateTeamCode } from "@/lib/team-codes";
@@ -20,7 +20,7 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
   const { slug, id } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "team.manage");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = (await request.json()) as {
@@ -77,7 +77,7 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
   const { slug, id } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "team.manage");
   if (ctx instanceof NextResponse) return ctx;
 
   try {

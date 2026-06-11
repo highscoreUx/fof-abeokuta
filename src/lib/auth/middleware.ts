@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/auth/jwt";
-import { hasMinimumRole } from "@/lib/permissions";
-import type { AccessTokenPayload, Role } from "@/types";
+import { hasPermission } from "@/lib/permissions";
+import type { AccessTokenPayload } from "@/types";
+import type { Permission } from "@/lib/permissions/catalog";
 
 export function getBearerToken(request: NextRequest): string | null {
   const header = request.headers.get("authorization");
@@ -29,14 +30,14 @@ export function requireAuth(
   return { auth };
 }
 
-export function requireRole(
+export function requirePermission(
   request: NextRequest,
-  minimumRole: Role,
+  permission: Permission,
 ): { auth: AccessTokenPayload } | NextResponse {
   const result = requireAuth(request);
   if (result instanceof NextResponse) return result;
 
-  if (!hasMinimumRole(result.auth.role, minimumRole)) {
+  if (!hasPermission(result.auth.permissions, permission)) {
     return NextResponse.json({ error: "Forbidden", code: "FORBIDDEN" }, { status: 403 });
   }
 

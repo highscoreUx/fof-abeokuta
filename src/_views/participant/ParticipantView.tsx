@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { TeamChat } from "@/components/chat/TeamChat";
 import { QuizPlayer } from "@/components/quiz/QuizPlayer";
@@ -37,7 +37,7 @@ export function ParticipantView() {
   }, [api]);
 
   return (
-    <RoleGuard minimumRole="PARTICIPANT">
+    <PermissionGuard permission="participant.home">
       <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={participantNav} showSponsors>
         <div className="mb-6">
           <SegmentedControl
@@ -69,6 +69,6 @@ export function ParticipantView() {
           </Card>
         </div>
       </AppShell>
-    </RoleGuard>
+    </PermissionGuard>
   );
 }

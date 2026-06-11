@@ -9,7 +9,6 @@ import type { PaginatedResponse } from "@/lib/pagination";
 import { useUsersTableStore } from "@/stores/usersTableStore";
 import type { CheckInUserPayload } from "@/lib/check-in";
 import type { EventUserRow } from "@/types/users";
-import type { Role } from "@/types";
 
 export const usersQueryKey = (eventSlug: string, params: Record<string, unknown>) =>
   ["event-users", eventSlug, params] as const;
@@ -70,7 +69,8 @@ export function useCreateUserMutation() {
       firstName: string;
       lastName: string;
       middleName?: string;
-      role: Role;
+      eventUserRoleId?: string;
+      role?: string;
       password?: string;
     }) => apiFetch<{ user: EventUserRow }>(eventSlug, "/users", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {

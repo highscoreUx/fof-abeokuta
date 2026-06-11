@@ -1,30 +1,40 @@
 "use client";
 
-import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { YouTubeEmbed } from "@/components/stage/YouTubeEmbed";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventNav } from "@/hooks/useEventNav";
+import { hasAdminShellAccess, hasPermission, resolveDefaultRoute } from "@/lib/permissions";
 
 export function StageView() {
-  const { admin, staffCheckIn, judgeScoring, participant, stage } = useEventNav();
+  const { pathPrefix, stage } = useEventNav();
   const { user } = useAuth();
 
+  const backHref = user ? resolveDefaultRoute(user.permissions, pathPrefix) : pathPrefix;
+  const backLabel = user
+    ? hasAdminShellAccess(user.permissions)
+      ? "Admin"
+      : hasPermission(user.permissions, "user.check_in")
+        ? "Check In"
+        : hasPermission(user.permissions, "score.submit")
+          ? "Scoring"
+          : "Home"
+    : "Home";
+
   const nav = [
-    ...(user?.role === "ADMIN"
-      ? [{ href: admin, label: "Admin" }]
-      : user?.role === "STAFF"
-        ? [{ href: staffCheckIn, label: "Check In" }]
-        : user?.role === "JUDGE"
-          ? [{ href: judgeScoring, label: "Scoring" }]
-          : [{ href: participant, label: "Home" }]),
+    { href: backHref, label: backLabel },
     { href: stage, label: "Main Stage" },
   ];
 
   return (
-    <RoleGuard minimumRole="PARTICIPANT">
-      <AppShell title="Main Stage" nav={nav} showSponsors={user?.role === "PARTICIPANT"}>
+    <PermissionGuard permission="stage.view">
+      <AppShell
+        title="Main Stage"
+        nav={nav}
+        showSponsors={user ? hasPermission(user.permissions, "participant.home") : false}
+      >
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <YouTubeEmbed />
@@ -32,6 +42,6 @@ export function StageView() {
           <Leaderboard />
         </div>
       </AppShell>
-    </RoleGuard>
+    </PermissionGuard>
   );
 }

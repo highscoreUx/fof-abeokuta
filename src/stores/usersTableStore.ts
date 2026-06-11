@@ -1,11 +1,9 @@
 import { create } from "zustand";
-import type { Role } from "@/types";
 
 export type UsersSortField =
   | "firstName"
   | "lastName"
   | "username"
-  | "role"
   | "createdAt"
   | "checkedInAt";
 
@@ -16,7 +14,7 @@ interface UsersTableState {
   page: number;
   limit: number;
   search: string;
-  role: Role | "all";
+  role: string | "all";
   checkedIn: CheckedInFilter;
   teamId: string | "all";
   sortBy: UsersSortField;
@@ -24,7 +22,7 @@ interface UsersTableState {
   setPage: (page: number) => void;
   setLimit: (limit: number) => void;
   setSearch: (search: string) => void;
-  setRole: (role: Role | "all") => void;
+  setRole: (role: string | "all") => void;
   setCheckedIn: (checkedIn: CheckedInFilter) => void;
   setTeamId: (teamId: string | "all") => void;
   toggleSort: (field: UsersSortField) => void;

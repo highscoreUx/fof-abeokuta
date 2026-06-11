@@ -1,5 +1,3 @@
-import type { Role } from "@/types";
-
 export function eventRoom(eventSlug: string) {
   return `event:${eventSlug}`;
 }
@@ -8,8 +6,8 @@ export function teamRoom(eventSlug: string, letter: string) {
   return `event:${eventSlug}:team:${letter}`;
 }
 
-export function roleRoom(eventSlug: string, role: Role) {
-  return `event:${eventSlug}:role:${role}`;
+export function roleRoom(eventSlug: string, roleSlug: string) {
+  return `event:${eventSlug}:role:${roleSlug}`;
 }
 
 export function userRoom(userId: string) {

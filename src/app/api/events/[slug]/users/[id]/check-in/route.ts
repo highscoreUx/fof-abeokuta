@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { serializeCheckInUser } from "@/lib/check-in";
 import { prisma } from "@/lib/prisma";
 import { assignTeams } from "@/lib/team-assign";
@@ -12,19 +12,19 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
   const { slug, id } = await params;
-  const ctx = await requireEventRole(request, slug, "STAFF");
+  const ctx = await requireEventPermission(request, slug, "user.check_in");
   if (ctx instanceof NextResponse) return ctx;
 
   const user = await prisma.user.findFirst({
     where: { id, eventId: ctx.event.id },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
 
   if (!user) return jsonError("User not found", "NOT_FOUND", 404);
 
   if (user.checkedInAt) {
     return NextResponse.json({
-      user: serializeCheckInUser(user, ctx.auth.role),
+      user: serializeCheckInUser(user, ctx.auth.permissions),
       alreadyCheckedIn: true,
     });
   }
@@ -32,12 +32,15 @@ export async function PATCH(
   let updated = await prisma.user.update({
     where: { id },
     data: { checkedInAt: new Date(), checkedInBy: ctx.auth.userId },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
 
-  if (!updated.teamId && updated.role === "PARTICIPANT") {
+  if (!updated.teamId && updated.eventUserRole.slug === "participant") {
     await assignTeams(ctx.event.id, { userIds: [updated.id], onlyUnassigned: true });
-    updated = await prisma.user.findUniqueOrThrow({ where: { id }, include: { team: true } });
+    updated = await prisma.user.findUniqueOrThrow({
+      where: { id },
+      include: { team: true, eventUserRole: true },
+    });
   }
 
   try {
@@ -47,7 +50,7 @@ export async function PATCH(
   }
 
   return NextResponse.json({
-    user: serializeCheckInUser(updated, ctx.auth.role),
+    user: serializeCheckInUser(updated, ctx.auth.permissions),
   });
 }
 
@@ -56,19 +59,19 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
   const { slug, id } = await params;
-  const ctx = await requireEventRole(request, slug, "STAFF");
+  const ctx = await requireEventPermission(request, slug, "user.check_in");
   if (ctx instanceof NextResponse) return ctx;
 
   const user = await prisma.user.findFirst({
     where: { id, eventId: ctx.event.id },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
 
   if (!user) return jsonError("User not found", "NOT_FOUND", 404);
 
   if (!user.checkedInAt) {
     return NextResponse.json({
-      user: serializeCheckInUser(user, ctx.auth.role),
+      user: serializeCheckInUser(user, ctx.auth.permissions),
       alreadyUnchecked: true,
     });
   }
@@ -76,7 +79,7 @@ export async function DELETE(
   const updated = await prisma.user.update({
     where: { id },
     data: { checkedInAt: null, checkedInBy: null },
-    include: { team: true },
+    include: { team: true, eventUserRole: true },
   });
 
   try {
@@ -86,6 +89,6 @@ export async function DELETE(
   }
 
   return NextResponse.json({
-    user: serializeCheckInUser(updated, ctx.auth.role),
+    user: serializeCheckInUser(updated, ctx.auth.permissions),
   });
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
+import { hasPermission } from "@/lib/permissions";
 import { parseAgendaTemplate } from "@/lib/agenda-templates";
 import { agendaItemSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +18,7 @@ export async function GET(
     prisma.agendaItem.findMany({
       where: {
         eventId: ctx.event.id,
-        ...(ctx.auth.role === "PARTICIPANT" ? { visible: true } : {}),
+        ...(!hasPermission(ctx.auth.permissions, "agenda.list") ? { visible: true } : {}),
       },
       orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
     }),
@@ -41,7 +42,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "agenda.create");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();

@@ -66,7 +66,7 @@ export function UserCheckInModal({ open, onClose, user }: UserCheckInModalProps)
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-foreground">{fullName}</p>
           <Badge variant="muted" className="uppercase">
-            {details.role}
+            {details.eventUserRoleName}
           </Badge>
           {isCheckedIn ? (
             <Badge variant="success">Checked in</Badge>

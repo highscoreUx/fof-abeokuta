@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import {
   getTeamAssignSettings,
   isTeamAssignAlgorithm,
@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "settings.auto_assign");
   if (ctx instanceof NextResponse) return ctx;
 
   const settings = await getTeamAssignSettings(ctx.event.id);
@@ -23,7 +23,7 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "settings.auto_assign");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = (await request.json()) as {

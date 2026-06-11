@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
+import { hasPermission } from "@/lib/permissions";
 import { voteConfigSchema } from "@/lib/validators/auth";
 import { prisma } from "@/lib/prisma";
 import { getIO } from "@/server/socket/io";
@@ -15,7 +16,7 @@ export async function GET(
 
   const votes = await prisma.vote.findMany({
     where: { eventId: ctx.event.id },
-    include: { ballots: ctx.auth.role === "ADMIN" },
+    include: { ballots: hasPermission(ctx.auth.permissions, "vote.manage") },
     orderBy: { createdAt: "desc" },
   });
 
@@ -27,7 +28,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "vote.create");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();
@@ -48,7 +49,7 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "vote.manage");
   if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json();

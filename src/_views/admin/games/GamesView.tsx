@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { SpinToBuild } from "@/components/spin/SpinToBuild";
 import { QuizAdmin } from "@/components/quiz/QuizAdmin";
@@ -16,7 +16,7 @@ export function GamesView() {
   const [tab, setTab] = useState<GamesTab>("quiz");
 
   return (
-    <RoleGuard minimumRole="ADMIN">
+    <PermissionGuard anyOf={["quiz.manage", "spin.manage"]}>
       <AppShell title="Games & Activities" nav={nav}>
         <div className="space-y-6">
           <Card>
@@ -39,6 +39,6 @@ export function GamesView() {
           {tab === "quiz" ? <QuizAdmin /> : <SpinToBuild admin />}
         </div>
       </AppShell>
-    </RoleGuard>
+    </PermissionGuard>
   );
 }

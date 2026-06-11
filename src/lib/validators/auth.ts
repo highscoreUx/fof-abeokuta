@@ -9,13 +9,19 @@ export const loginSchema = z.object({
   password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits"),
 });
 
-export const createUserSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  middleName: z.string().optional(),
-  role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]),
-  password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits").optional(),
-});
+export const createUserSchema = z
+  .object({
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    middleName: z.string().optional(),
+    eventUserRoleId: z.string().optional(),
+    role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]).optional(),
+    password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits").optional(),
+  })
+  .refine((data) => Boolean(data.eventUserRoleId || data.role), {
+    message: "Access profile is required",
+    path: ["eventUserRoleId"],
+  });
 
 export const userImportRowSchema = z.object({
   firstName: z.string().min(1),

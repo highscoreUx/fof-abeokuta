@@ -1,33 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useCreateUserMutation } from "@/hooks/useUsersQuery";
-import type { Role } from "@/types";
+import { useEventUserRolesQuery } from "@/hooks/useEventUserRolesQuery";
 
 interface AddUserModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated?: (credentials: { username: string; password: string; role: Role }) => void;
+  onCreated?: (credentials: {
+    username: string;
+    password: string;
+    eventUserRoleName: string;
+  }) => void;
 }
-
-const ROLES: Role[] = ["PARTICIPANT", "STAFF", "JUDGE", "ADMIN"];
 
 export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
   const createUser = useCreateUserMutation();
+  const { data: rolesData } = useEventUserRolesQuery(open);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState<Role>("PARTICIPANT");
+  const [eventUserRoleId, setEventUserRoleId] = useState("");
   const [error, setError] = useState("");
+
+  const roles = rolesData?.roles ?? [];
+
+  useEffect(() => {
+    if (!eventUserRoleId && roles.length > 0) {
+      const participant = roles.find((r) => r.slug === "participant");
+      setEventUserRoleId(participant?.id ?? roles[0].id);
+    }
+  }, [roles, eventUserRoleId]);
 
   const reset = () => {
     setFirstName("");
     setLastName("");
-    setRole("PARTICIPANT");
+    setEventUserRoleId(roles.find((r) => r.slug === "participant")?.id ?? "");
     setError("");
   };
 
@@ -43,12 +55,12 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
       const result = await createUser.mutateAsync({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        role,
+        eventUserRoleId,
       });
       onCreated?.({
         username: result.user.username,
         password: result.user.password ?? "—",
-        role: result.user.role,
+        eventUserRoleName: result.user.eventUserRoleName,
       });
       handleClose();
     } catch (err) {
@@ -85,16 +97,16 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
           </div>
         </div>
         <div>
-          <Label htmlFor="role">Role</Label>
+          <Label htmlFor="eventUserRoleId">Access profile</Label>
           <Select
-            id="role"
+            id="eventUserRoleId"
             className="w-full"
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
+            value={eventUserRoleId}
+            onChange={(e) => setEventUserRoleId(e.target.value)}
           >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
               </option>
             ))}
           </Select>
@@ -104,7 +116,7 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={createUser.isPending}>
+          <Button type="submit" disabled={createUser.isPending || !eventUserRoleId}>
             {createUser.isPending ? "Creating…" : "Create user"}
           </Button>
         </div>

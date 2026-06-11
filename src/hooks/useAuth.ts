@@ -6,7 +6,7 @@ import { useEventScope } from "@/contexts/EventScopeContext";
 import { useAuthStore } from "@/stores/authStore";
 import { apiFetch } from "@/lib/api-client";
 import { loginPath } from "@/lib/routes";
-import { getDefaultRouteForRole } from "@/lib/permissions";
+import { resolveDefaultRoute } from "@/lib/permissions";
 import type { AuthUser } from "@/types";
 
 export function useAuth() {
@@ -26,7 +26,7 @@ export function useAuth() {
         },
       );
       setAuth(data.accessToken, data.user);
-      router.push(getDefaultRouteForRole(data.user.role, pathPrefix));
+      router.push(resolveDefaultRoute(data.user.permissions, pathPrefix));
     },
     [router, setAuth, eventSlug, pathPrefix],
   );

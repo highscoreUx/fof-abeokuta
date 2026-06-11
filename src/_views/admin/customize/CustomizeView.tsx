@@ -1,6 +1,6 @@
 "use client";
 
-import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoginSlideAdmin } from "@/components/admin/LoginSlideAdmin";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ export function CustomizeView() {
   const { nav } = useEventNav();
 
   return (
-    <RoleGuard minimumRole="ADMIN">
+    <PermissionGuard permission="customize.branding">
       <AppShell title="Customize" nav={nav}>
         <div className="space-y-6">
           <Card>
@@ -24,6 +24,6 @@ export function CustomizeView() {
           <LoginSlideAdmin />
         </div>
       </AppShell>
-    </RoleGuard>
+    </PermissionGuard>
   );
 }

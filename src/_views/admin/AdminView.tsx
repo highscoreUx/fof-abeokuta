@@ -1,6 +1,6 @@
 "use client";
 
-import { RoleGuard } from "@/components/auth/RoleGuard";
+import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { YouTubeEmbed } from "@/components/stage/YouTubeEmbed";
@@ -10,7 +10,7 @@ export function AdminView() {
   const { nav } = useEventNav();
 
   return (
-    <RoleGuard minimumRole="ADMIN">
+    <PermissionGuard permission="dashboard.view">
       <AppShell title="Dashboard" nav={nav}>
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -19,6 +19,6 @@ export function AdminView() {
           <Leaderboard />
         </div>
       </AppShell>
-    </RoleGuard>
+    </PermissionGuard>
   );
 }

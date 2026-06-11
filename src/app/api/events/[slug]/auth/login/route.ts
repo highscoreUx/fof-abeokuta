@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loginSchema } from "@/lib/validators/auth";
-import { findUserByCredentials, serializeUser } from "@/lib/users";
-import { signAccessToken } from "@/lib/auth/jwt";
+import { findUserByCredentials, serializeUser, buildAccessTokenForUser } from "@/lib/users";
 import { createRefreshToken } from "@/lib/auth/refresh";
 import {
   EVENT_SLUG_COOKIE,
@@ -10,6 +9,7 @@ import {
 } from "@/lib/auth/cookies";
 import { jsonError } from "@/lib/auth/middleware";
 import { requireEventBySlug } from "@/lib/events";
+import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
 
 export async function POST(
   request: NextRequest,
@@ -35,19 +35,13 @@ export async function POST(
     return jsonError("Invalid username or password", "INVALID_CREDENTIALS", 401);
   }
 
-  const accessToken = signAccessToken({
-    userId: user.id,
-    role: user.role,
-    teamId: user.teamId,
-    eventId: event.id,
-    eventSlug: slug,
-  });
-
+  const permissions = resolvePermissionsFromRole(user.eventUserRole);
+  const accessToken = await buildAccessTokenForUser(user.id, slug);
   const refreshToken = await createRefreshToken(user.id, event.id);
 
   const response = NextResponse.json({
     accessToken,
-    user: serializeUser(user, slug),
+    user: serializeUser(user, slug, permissions),
   });
 
   response.cookies.set(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());

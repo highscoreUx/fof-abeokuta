@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcrypt";
 import { createEventWithDefaults } from "../src/lib/events";
+import { getEventUserRoleBySlug } from "../src/lib/event-user-roles";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -46,6 +47,12 @@ async function main() {
     });
   }
 
+  const { seedDefaultEventUserRoles } = await import("../src/lib/event-user-roles");
+  await seedDefaultEventUserRoles(event.id);
+
+  const eventAdminRole = await getEventUserRoleBySlug(event.id, "event_admin");
+  if (!eventAdminRole) throw new Error("Missing event_admin role");
+
   const adminPassword = "0001";
   const adminHash = await bcrypt.hash(adminPassword, 10);
 
@@ -57,10 +64,11 @@ async function main() {
       pinHash: adminHash,
       pinDisplay: adminPassword,
       loginPhrase: "portal",
+      eventUserRoleId: eventAdminRole.id,
     },
     create: {
       eventId: event.id,
-      role: "ADMIN",
+      eventUserRoleId: eventAdminRole.id,
       pinHash: adminHash,
       pinDisplay: adminPassword,
       loginPhrase: "portal",

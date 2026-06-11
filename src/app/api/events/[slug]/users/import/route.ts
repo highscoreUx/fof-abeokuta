@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { requireEventRole } from "@/lib/auth/event-middleware";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
-import { assignTeams, assignableTeamRoles, getTeamAssignSettings } from "@/lib/team-assign";
+import { assignTeams, assignableTeamRoleSlugs, getTeamAssignSettings } from "@/lib/team-assign";
 import { createUserFromRow } from "@/lib/users";
 import { jsonError } from "@/lib/auth/middleware";
-import type { Role } from "@/types";
 
 function parseFile(buffer: Buffer, filename: string) {
   if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
@@ -25,7 +24,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-  const ctx = await requireEventRole(request, slug, "ADMIN");
+  const ctx = await requireEventPermission(request, slug, "user.import");
   if (ctx instanceof NextResponse) return ctx;
 
   const formData = await request.formData();
@@ -36,8 +35,8 @@ export async function POST(
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const rows = parseFile(buffer, file.name);
-  const created: Array<{ username: string; password: string; role: string }> = [];
-  const createdAssigneeIds: Array<{ id: string; role: Role }> = [];
+  const created: Array<{ username: string; password: string; eventUserRoleName: string }> = [];
+  const createdAssigneeIds: Array<{ id: string; eventUserRoleSlug: string }> = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -60,15 +59,15 @@ export async function POST(
         firstName: parsed.data.firstName,
         lastName: parsed.data.lastName,
         middleName: parsed.data.middleName,
-        role: parsed.data.role as Role,
+        role: parsed.data.role,
         password: parsed.data.password ?? parsed.data.pin,
       });
       created.push({
         username: user.username,
         password: user.pinDisplay!,
-        role: user.role,
+        eventUserRoleName: user.eventUserRole.name,
       });
-      createdAssigneeIds.push({ id: user.id, role: user.role });
+      createdAssigneeIds.push({ id: user.id, eventUserRoleSlug: user.eventUserRole.slug });
     } catch (error) {
       errors.push({
         row: i + 2,
@@ -78,9 +77,9 @@ export async function POST(
   }
 
   const assignSettings = await getTeamAssignSettings(ctx.event.id);
-  const assignableRoles = assignableTeamRoles(assignSettings.includeStaff);
+  const assignableSlugs = assignableTeamRoleSlugs(assignSettings.includeStaff);
   const importedAssigneeIds = createdAssigneeIds
-    .filter((user) => assignableRoles.includes(user.role))
+    .filter((user) => assignableSlugs.includes(user.eventUserRoleSlug))
     .map((user) => user.id);
 
   if (autoAssignTeams) {

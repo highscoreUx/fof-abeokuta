@@ -3,11 +3,10 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { requireEventRole } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
-import { assignTeams, getTeamAssignSettings } from "@/lib/team-assign";
+import { assignTeams, assignableTeamRoles, getTeamAssignSettings } from "@/lib/team-assign";
 import { createUserFromRow } from "@/lib/users";
 import { jsonError } from "@/lib/auth/middleware";
 import type { Role } from "@/types";
-import { prisma } from "@/lib/prisma";
 
 function parseFile(buffer: Buffer, filename: string) {
   if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
@@ -38,7 +37,7 @@ export async function POST(
   const buffer = Buffer.from(await file.arrayBuffer());
   const rows = parseFile(buffer, file.name);
   const created: Array<{ username: string; password: string; role: string }> = [];
-  const createdParticipantIds: string[] = [];
+  const createdAssigneeIds: Array<{ id: string; role: Role }> = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -69,9 +68,7 @@ export async function POST(
         password: user.pinDisplay!,
         role: user.role,
       });
-      if (user.role === "PARTICIPANT") {
-        createdParticipantIds.push(user.id);
-      }
+      createdAssigneeIds.push({ id: user.id, role: user.role });
     } catch (error) {
       errors.push({
         row: i + 2,
@@ -81,14 +78,18 @@ export async function POST(
   }
 
   const assignSettings = await getTeamAssignSettings(ctx.event.id);
+  const assignableRoles = assignableTeamRoles(assignSettings.includeStaff);
+  const importedAssigneeIds = createdAssigneeIds
+    .filter((user) => assignableRoles.includes(user.role))
+    .map((user) => user.id);
+
   if (autoAssignTeams) {
-    const participants = await prisma.user.findMany({
-      where: { eventId: ctx.event.id, role: "PARTICIPANT" },
-      select: { id: true },
+    await assignTeams(ctx.event.id, { includeStaff: assignSettings.includeStaff });
+  } else if (assignSettings.autoAssignOnImport && importedAssigneeIds.length > 0) {
+    await assignTeams(ctx.event.id, {
+      userIds: importedAssigneeIds,
+      includeStaff: assignSettings.includeStaff,
     });
-    await assignTeams(ctx.event.id, { userIds: participants.map((p) => p.id) });
-  } else if (assignSettings.autoAssignOnImport && createdParticipantIds.length > 0) {
-    await assignTeams(ctx.event.id, { userIds: createdParticipantIds });
   }
 
   return NextResponse.json({

@@ -13,13 +13,19 @@ export async function POST(
   const body = await request.json().catch(() => ({}));
   const userIds = Array.isArray(body.userIds) ? body.userIds : undefined;
   const onlyUnassigned = typeof body.onlyUnassigned === "boolean" ? body.onlyUnassigned : undefined;
+  const includeStaff = typeof body.includeStaff === "boolean" ? body.includeStaff : undefined;
   const algorithm =
     typeof body.algorithm === "string" && isTeamAssignAlgorithm(body.algorithm)
       ? body.algorithm
       : undefined;
 
   try {
-    const users = await assignTeams(ctx.event.id, { userIds, onlyUnassigned, algorithm });
+    const users = await assignTeams(ctx.event.id, {
+      userIds,
+      onlyUnassigned,
+      includeStaff,
+      algorithm,
+    });
     return NextResponse.json({
       assigned: users.length,
       users: users.map((u) => ({

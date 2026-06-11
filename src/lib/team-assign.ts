@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Role } from "@/types";
 
 export const TEAM_ASSIGN_ALGORITHMS = [
   "balanced_random",
@@ -14,19 +15,26 @@ export interface TeamAssignSettings {
   algorithm: TeamAssignAlgorithm;
   autoAssignOnImport: boolean;
   onlyUnassigned: boolean;
+  includeStaff: boolean;
 }
 
 const DEFAULT_SETTINGS: TeamAssignSettings = {
   algorithm: "balanced_random",
   autoAssignOnImport: true,
   onlyUnassigned: false,
+  includeStaff: false,
 };
 
 const SETTING_KEYS = {
   algorithm: "team_assign_algorithm",
   autoAssignOnImport: "team_auto_assign_on_import",
   onlyUnassigned: "team_assign_only_unassigned",
+  includeStaff: "team_assign_include_staff",
 } as const;
+
+export function assignableTeamRoles(includeStaff: boolean): Role[] {
+  return includeStaff ? ["PARTICIPANT", "STAFF"] : ["PARTICIPANT"];
+}
 
 export function isTeamAssignAlgorithm(value: string): value is TeamAssignAlgorithm {
   return (TEAM_ASSIGN_ALGORITHMS as readonly string[]).includes(value);
@@ -46,6 +54,7 @@ export async function getTeamAssignSettings(eventId: string): Promise<TeamAssign
     algorithm: algorithm && isTeamAssignAlgorithm(algorithm) ? algorithm : DEFAULT_SETTINGS.algorithm,
     autoAssignOnImport: map[SETTING_KEYS.autoAssignOnImport] !== "false",
     onlyUnassigned: map[SETTING_KEYS.onlyUnassigned] === "true",
+    includeStaff: map[SETTING_KEYS.includeStaff] === "true",
   };
 }
 
@@ -84,6 +93,14 @@ export async function saveTeamAssignSettings(
     });
   }
 
+  if (settings.includeStaff !== undefined) {
+    await prisma.appSetting.upsert({
+      where: { eventId_key: { eventId, key: SETTING_KEYS.includeStaff } },
+      create: { eventId, key: SETTING_KEYS.includeStaff, value: String(settings.includeStaff) },
+      update: { value: String(settings.includeStaff) },
+    });
+  }
+
   return getTeamAssignSettings(eventId);
 }
 
@@ -91,6 +108,7 @@ interface AssignOptions {
   userIds?: string[];
   algorithm?: TeamAssignAlgorithm;
   onlyUnassigned?: boolean;
+  includeStaff?: boolean;
 }
 
 function pickBalancedTeam<T extends { id: string }>(
@@ -106,6 +124,8 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
   const settings = await getTeamAssignSettings(eventId);
   const algorithm = options.algorithm ?? settings.algorithm;
   const onlyUnassigned = options.onlyUnassigned ?? settings.onlyUnassigned;
+  const includeStaff = options.includeStaff ?? settings.includeStaff;
+  const roles = assignableTeamRoles(includeStaff);
 
   const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
   if (teams.length === 0) throw new Error("No teams configured");
@@ -113,7 +133,7 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
   const users = await prisma.user.findMany({
     where: {
       eventId,
-      role: "PARTICIPANT",
+      role: { in: roles },
       ...(options.userIds ? { id: { in: options.userIds } } : {}),
       ...(onlyUnassigned ? { teamId: null } : {}),
     },

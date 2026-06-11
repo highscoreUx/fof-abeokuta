@@ -93,9 +93,10 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
         body: JSON.stringify({
           algorithm: settings.algorithm,
           onlyUnassigned: settings.onlyUnassigned,
+          includeStaff: settings.includeStaff,
         }),
       });
-      onMessage?.(`Assigned ${result.assigned} participant(s) to teams.`);
+      onMessage?.(`Assigned ${result.assigned} user(s) to teams.`);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to run auto-assign");
@@ -159,13 +160,25 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
           <label className="flex cursor-pointer items-start gap-2.5 text-sm">
             <input
               type="checkbox"
+              checked={settings.includeStaff}
+              onChange={(e) =>
+                setSettings((prev) => (prev ? { ...prev, includeStaff: e.target.checked } : prev))
+              }
+              className="mt-0.5 h-4 w-4 rounded border-border"
+            />
+            <span>Include staff when auto-assigning teams</span>
+          </label>
+
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+            <input
+              type="checkbox"
               checked={settings.onlyUnassigned}
               onChange={(e) =>
                 setSettings((prev) => (prev ? { ...prev, onlyUnassigned: e.target.checked } : prev))
               }
               className="mt-0.5 h-4 w-4 rounded border-border"
             />
-            <span>Only assign participants without a team (when running manually)</span>
+            <span>Only assign users without a team (when running manually)</span>
           </label>
 
           {error && <p className="text-sm text-danger">{error}</p>}

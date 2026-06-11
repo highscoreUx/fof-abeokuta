@@ -30,6 +30,7 @@ export async function PATCH(
     algorithm?: string;
     autoAssignOnImport?: boolean;
     onlyUnassigned?: boolean;
+    includeStaff?: boolean;
   };
 
   if (body.algorithm !== undefined && !isTeamAssignAlgorithm(body.algorithm)) {
@@ -43,6 +44,7 @@ export async function PATCH(
         ? { autoAssignOnImport: body.autoAssignOnImport }
         : {}),
       ...(body.onlyUnassigned !== undefined ? { onlyUnassigned: body.onlyUnassigned } : {}),
+      ...(body.includeStaff !== undefined ? { includeStaff: body.includeStaff } : {}),
     });
     return NextResponse.json({ settings });
   } catch (error) {

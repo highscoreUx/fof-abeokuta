@@ -104,7 +104,7 @@ export function ChatPollMessage({ messageId, body, roomId, className }: ChatPoll
   const locked = isPending || voting || expired || (stats.hasVoted && !canSwitch);
 
   return (
-    <div className={cn("min-w-[14rem]", className)}>
+    <div className={cn("max-w-full", className)}>
       <p className="mb-2 text-[14px] font-semibold leading-snug text-foreground">
         📊 {poll.question}
       </p>

@@ -126,7 +126,7 @@ function ReplyQuote({
       onTouchMove={(event) => event.stopPropagation()}
       onTouchEnd={(event) => event.stopPropagation()}
       className={cn(
-        "mb-1.5 block w-full rounded-md border-l-[3px] px-2 py-1 text-left text-xs",
+        "mb-1.5 block max-w-full rounded-md border-l-[3px] px-2 py-1 text-left text-xs",
         isOwn
           ? "border-primary/60 bg-muted/40"
           : "border-secondary bg-muted/30",
@@ -135,13 +135,40 @@ function ReplyQuote({
       )}
     >
       <p
-        className="font-semibold leading-tight"
+        className="truncate font-semibold leading-tight"
         style={{ color: nameColorForUser(colorUsername) }}
       >
         {displayName}
       </p>
-      <p className="mt-0.5 line-clamp-2 text-muted-foreground">{preview}</p>
+      <p className="mt-0.5 truncate text-muted-foreground">{preview}</p>
     </button>
+  );
+}
+
+function TextMessageBody({
+  text,
+  time,
+  isOwn,
+  isPending,
+}: {
+  text: string;
+  time: string;
+  isOwn: boolean;
+  isPending: boolean;
+}) {
+  return (
+    <div className="relative text-[14.2px] leading-[19px] text-foreground">
+      <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</span>
+      <span className="invisible inline-flex select-none text-[11px]" aria-hidden>
+        {time}
+      </span>
+      <MessageMeta
+        time={time}
+        isOwn={isOwn}
+        isPending={isPending}
+        className="absolute bottom-0 right-0"
+      />
+    </div>
   );
 }
 
@@ -184,6 +211,7 @@ export function ChatMessageBubble({
   const content = parseChatContent(message.body);
   const isText = content.type === "text";
   const isPoll = content.type === "poll" && !hidePolls;
+  const hasReply = isText && Boolean(content.replyTo);
   const showActions = !isOwn && (onReply || onMessagePrivately);
 
   const [swipeX, setSwipeX] = useState(0);
@@ -263,7 +291,12 @@ export function ChatMessageBubble({
         </div>
       )}
 
-      <div className="relative max-w-[min(28rem,calc(100%-2.5rem))]">
+      <div
+        className={cn(
+          "relative min-w-0",
+          isOwn ? "max-w-[min(28rem,85%)]" : "max-w-[min(28rem,calc(100%-2.5rem))]",
+        )}
+      >
         {!isOwn && swipeX > 8 && (
           <div
             className="pointer-events-none absolute inset-y-0 -left-8 flex items-center text-muted-foreground"
@@ -280,10 +313,9 @@ export function ChatMessageBubble({
 
         <div
           className={cn(
-            "relative w-fit shadow-sm transition-transform duration-75",
-            isOwn
-              ? "max-w-[min(28rem,85%)]"
-              : "max-w-[min(28rem,calc(100%-2.5rem))]",
+            "relative max-w-full shadow-sm transition-transform duration-75",
+            hasReply ? "inline-block w-max" : "inline-block",
+            isPoll && "w-full min-w-[14rem]",
             isOwn ? "bg-surface text-foreground" : "bg-card text-foreground",
             isGrouped
               ? "rounded-lg"
@@ -320,15 +352,12 @@ export function ChatMessageBubble({
             )}
 
             {isText ? (
-              <div className="text-[14.2px] leading-[19px] text-foreground">
-                <MessageMeta
-                  time={time}
-                  isOwn={isOwn}
-                  isPending={isPending}
-                  className="float-right ml-2.5 mt-1 h-[15px] translate-y-px"
-                />
-                <span className="whitespace-pre-wrap break-words">{content.text}</span>
-              </div>
+              <TextMessageBody
+                text={content.text}
+                time={time}
+                isOwn={isOwn}
+                isPending={isPending}
+              />
             ) : isPoll ? (
               <div>
                 <ChatPollMessage
@@ -341,15 +370,12 @@ export function ChatMessageBubble({
                 </div>
               </div>
             ) : content.type === "poll" && hidePolls ? (
-              <div className="text-[14.2px] leading-[19px] text-muted-foreground italic">
-                <MessageMeta
-                  time={time}
-                  isOwn={isOwn}
-                  isPending={isPending}
-                  className="float-right ml-2.5 mt-1 h-[15px] translate-y-px"
-                />
-                Poll (not available in direct messages)
-              </div>
+              <TextMessageBody
+                text="Poll (not available in direct messages)"
+                time={time}
+                isOwn={isOwn}
+                isPending={isPending}
+              />
             ) : (
               <div className="relative inline-block max-w-full">
                 <ChatMessageContent
@@ -414,19 +440,15 @@ export function ChatMessageBubble({
           </>
         )}
 
-        {showActions && !menuOpen && (
-          <div className="absolute -right-1 top-1 hidden gap-0.5 group-hover:flex md:flex">
-            {onReply && (
-              <button
-                type="button"
-                onClick={triggerReply}
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Reply"
-              >
-                <ReplyIcon className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+        {showActions && !menuOpen && onReply && (
+          <button
+            type="button"
+            onClick={triggerReply}
+            className="absolute left-full top-1/2 ml-1.5 hidden -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 md:inline-flex"
+            aria-label="Reply"
+          >
+            <ReplyIcon className="h-4 w-4" />
+          </button>
         )}
       </div>
     </div>

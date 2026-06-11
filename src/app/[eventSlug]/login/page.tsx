@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventSlug } from "@/hooks/useEventSlug";
+import { LoginCard } from "@/components/auth/LoginCard";
 import { LoginPageLayout } from "@/components/auth/LoginPageLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardTitle } from "@/components/ui/card";
 import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
 
 export default function EventLoginPage() {
@@ -46,36 +45,30 @@ export default function EventLoginPage() {
 
   return (
     <LoginPageLayout slides={slides}>
-      <Card className="w-full max-w-md">
-        <CardTitle className="text-center text-2xl">Event Sign In</CardTitle>
-        <p className="mt-2 text-center text-sm text-muted-foreground">
-          Friends of Figma Abeokuta
-        </p>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+      <LoginCard title="Event sign in" backHref="/" backLabel="Back to all events">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium">Enter your PIN</label>
+            <label htmlFor="pin" className="mb-2 block text-sm font-medium text-foreground">
+              PIN
+            </label>
             <Input
+              id="pin"
               type="password"
               inputMode="numeric"
               maxLength={4}
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-              placeholder="0000"
-              className="text-center text-2xl tracking-[0.5em]"
+              placeholder="• • • •"
+              className="text-center text-xl tracking-[0.4em]"
               autoFocus
             />
           </div>
-          {error && <p className="text-center text-sm text-red-600">{error}</p>}
-          <Button type="submit" className="w-full" disabled={pin.length !== 4 || loading}>
-            {loading ? "Signing in..." : "Sign In"}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <Button type="submit" size="lg" className="w-full" disabled={pin.length !== 4 || loading}>
+            {loading ? "Signing in…" : "Continue"}
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm">
-          <Link href="/" className="text-primary underline">
-            Back to all events
-          </Link>
-        </p>
-      </Card>
+      </LoginCard>
     </LoginPageLayout>
   );
 }

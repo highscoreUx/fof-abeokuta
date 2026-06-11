@@ -36,7 +36,7 @@ export function ParticipantView() {
 
   return (
     <PermissionGuard permission="participant.home">
-      <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={participantNav} showSponsors>
+      <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={participantNav}>
         <div className="mb-6">
           <SegmentedControl
             value={tab}

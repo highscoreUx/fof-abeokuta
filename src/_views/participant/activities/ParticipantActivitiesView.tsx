@@ -10,7 +10,7 @@ export function ParticipantActivitiesView() {
   const { participantNav } = useEventNav();
   return (
     <PermissionGuard permission="participant.activities">
-      <AppShell title="Activities" nav={participantNav} showSponsors>
+      <AppShell title="Activities" nav={participantNav}>
         <div className="space-y-6">
           <SpinToBuild />
           <QuizPlayer />

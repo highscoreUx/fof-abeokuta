@@ -3,25 +3,52 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
-import { useEventSlug } from "@/hooks/useEventSlug";
+import { useEventApi } from "@/hooks/useEventApi";
+import { userCanAccessActivityInstance } from "@/lib/activities/catalog";
+import { ACTIVITY_SPIN_TO_BUILD } from "@/lib/activities/catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
+
+interface ActivityConfig {
+  slug: string;
+  allowGeneral: boolean;
+  allowGroup: boolean;
+}
 
 interface SpinState {
   challengeId: string;
   title: string;
   prompt?: string;
   state: string;
+  allowGeneralParticipants?: boolean;
+  allowGroupParticipants?: boolean;
   submissions: Array<{ teamLetter: string; username: string; payload: Record<string, unknown> }>;
 }
 
 export function SpinToBuild({ admin = false }: { admin?: boolean }) {
-  const eventSlug = useEventSlug();
+  const { api } = useEventApi();
   const socket = useSocket();
   const { user } = useAuth();
   const [state, setState] = useState<SpinState | null>(null);
   const [buildUrl, setBuildUrl] = useState("");
+  const [activityConfig, setActivityConfig] = useState<ActivityConfig | null>(null);
+  const [allowGeneral, setAllowGeneral] = useState(false);
+  const [allowGroup, setAllowGroup] = useState(true);
+
+  useEffect(() => {
+    if (!admin) return;
+    api<{ activities: ActivityConfig[] }>("/activities")
+      .then((d) => {
+        const config = d.activities.find((a) => a.slug === ACTIVITY_SPIN_TO_BUILD) ?? null;
+        setActivityConfig(config);
+        if (config?.allowGroup && !config.allowGeneral) {
+          setAllowGroup(true);
+          setAllowGeneral(false);
+        }
+      })
+      .catch(() => setActivityConfig(null));
+  }, [admin, api]);
 
   useEffect(() => {
     if (!socket) return;
@@ -30,6 +57,13 @@ export function SpinToBuild({ admin = false }: { admin?: boolean }) {
       socket.off("spin:state", setState);
     };
   }, [socket]);
+
+  const startSession = () => {
+    socket?.emit("spin:admin:start", {
+      allowGeneralParticipants: allowGeneral,
+      allowGroupParticipants: allowGroup,
+    });
+  };
 
   const submit = () => {
     if (!state || !buildUrl.trim()) return;
@@ -40,37 +74,80 @@ export function SpinToBuild({ admin = false }: { admin?: boolean }) {
     setBuildUrl("");
   };
 
+  const canParticipate =
+    state &&
+    user &&
+    userCanAccessActivityInstance(user, {
+      allowGeneralParticipants: Boolean(state.allowGeneralParticipants),
+      allowGroupParticipants: Boolean(state.allowGroupParticipants),
+    });
+
   return (
     <div className="space-y-4">
       {admin && (
         <Card>
-          <CardTitle>Spin-to-Build Admin</CardTitle>
-          <div className="mt-4 flex gap-2">
-            <Button onClick={() => socket?.emit("spin:admin:start")}>Start Challenge</Button>
-            {state?.challengeId && (
-              <Button
-                variant="secondary"
-                onClick={() => socket?.emit("spin:admin:complete", state.challengeId)}
-              >
-                Complete
-              </Button>
-            )}
+          <CardTitle>Spin to Build</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Start a timed design challenge for participants.
+          </p>
+          <div className="mt-4 space-y-3">
+            <div className="space-y-2 text-sm">
+              <p className="text-muted-foreground">Who can participate?</p>
+              <div className="flex flex-wrap gap-4">
+                {activityConfig?.allowGeneral && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={allowGeneral}
+                      onChange={(e) => setAllowGeneral(e.target.checked)}
+                    />
+                    Whole event
+                  </label>
+                )}
+                {activityConfig?.allowGroup && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={allowGroup}
+                      onChange={(e) => setAllowGroup(e.target.checked)}
+                    />
+                    Team scoped
+                  </label>
+                )}
+              </div>
+              {allowGroup && (
+                <p className="text-xs text-muted-foreground">
+                  Each team participates separately. All teams with assigned members can join.
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={startSession}>Start activity</Button>
+              {state?.challengeId && (
+                <Button
+                  variant="secondary"
+                  onClick={() => socket?.emit("spin:admin:complete", state.challengeId)}
+                >
+                  Complete
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
       )}
 
-      {state?.state === "ACTIVE" && (
+      {state?.state === "ACTIVE" && (admin || canParticipate) && (
         <Card>
           <CardTitle>{state.title}</CardTitle>
           <p className="mt-2 text-lg font-medium text-primary">{state.prompt}</p>
-          {!admin && user?.teamLetter && (
+          {!admin && canParticipate && user?.teamLetter && (
             <div className="mt-4 flex gap-2">
               <Input
                 value={buildUrl}
                 onChange={(e) => setBuildUrl(e.target.value)}
                 placeholder="Figma file URL..."
               />
-              <Button onClick={submit}>Submit Build</Button>
+              <Button onClick={submit}>Submit build</Button>
             </div>
           )}
         </Card>

@@ -33,6 +33,12 @@ import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { isDmRoomId } from "@/lib/chat-dm";
 import { CHAT_TYPING_EVENT } from "@/lib/chat-typing";
 import { isStaffRoomId } from "@/lib/chat-staff";
+import { isActivityEnabledForEvent } from "@/lib/activities/event-activities";
+import {
+  ACTIVITY_KAHOOT,
+  ACTIVITY_SPIN_TO_BUILD,
+  userCanAccessActivityInstance,
+} from "@/lib/activities/catalog";
 import { hasPermission } from "@/lib/permissions";
 import { resolveTypingBroadcastRoom } from "@/server/socket/chat-typing";
 import type { AccessTokenPayload } from "@/types";
@@ -259,6 +265,25 @@ export function registerSocketHandlers(io: SocketIOServer) {
 
     socket.on("quiz:answer", async (data: { sessionId: string; questionId: string; answerIndex: number }) => {
       try {
+        const session = await prisma.quizSession.findUnique({
+          where: { id: data.sessionId },
+          include: { quiz: true },
+        });
+        if (!session || session.quiz.eventId !== auth.eventId) return;
+
+        const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
+        if (!kahootEnabled) return;
+
+        if (
+          !userCanAccessActivityInstance(auth, {
+            allowGeneralParticipants: session.quiz.allowGeneralParticipants,
+            allowGroupParticipants: session.quiz.allowGroupParticipants,
+          }) &&
+          !socketCan(auth, "quiz.run")
+        ) {
+          return;
+        }
+
         await submitQuizAnswer(
           io,
           data.sessionId,
@@ -277,27 +302,59 @@ export function registerSocketHandlers(io: SocketIOServer) {
 
     socket.on("quiz:admin:start", async (quizId: string) => {
       if (!socketCan(auth, "quiz.run")) return;
+      const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
+      if (!kahootEnabled) return;
       const session = await startQuizSession(io, quizId);
-      socket.emit("sync:toast", { type: "success", message: "Quiz session started" });
+      socket.emit("sync:toast", { type: "success", message: "Activity session started" });
       await broadcastQuizState(io, session.id);
     });
 
     socket.on("quiz:admin:next", async (sessionId: string) => {
       if (!socketCan(auth, "quiz.run")) return;
+      const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
+      if (!kahootEnabled) return;
       await adminStartNextQuestion(io, sessionId);
     });
 
     socket.on("quiz:admin:end", async (sessionId: string) => {
       if (!socketCan(auth, "quiz.run")) return;
+      const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
+      if (!kahootEnabled) return;
       await endQuizGame(io, sessionId);
     });
 
-    socket.on("spin:admin:start", async (title?: string) => {
-      if (!socketCan(auth, "spin.run")) return;
-      await startSpinChallenge(io, auth.eventId, title);
-    });
+    socket.on(
+      "spin:admin:start",
+      async (data?: {
+        title?: string;
+        allowGeneralParticipants?: boolean;
+        allowGroupParticipants?: boolean;
+      }) => {
+        if (!socketCan(auth, "spin.run")) return;
+        const spinEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPIN_TO_BUILD);
+        if (!spinEnabled) return;
+        await startSpinChallenge(io, auth.eventId, data);
+      },
+    );
 
     socket.on("spin:submit", async (data: { challengeId: string; payload: Record<string, unknown> }) => {
+      const spinEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPIN_TO_BUILD);
+      if (!spinEnabled) return;
+
+      const challenge = await prisma.spinChallenge.findFirst({
+        where: { id: data.challengeId, eventId: auth.eventId },
+      });
+      if (!challenge || challenge.state !== "ACTIVE") return;
+
+      if (
+        !userCanAccessActivityInstance(auth, {
+          allowGeneralParticipants: challenge.allowGeneralParticipants,
+          allowGroupParticipants: challenge.allowGroupParticipants,
+        })
+      ) {
+        return;
+      }
+
       if (!auth.teamId) return;
       await submitSpinBuild(data.challengeId, auth.teamId, auth.userId, data.payload);
       await broadcastSpinState(io, slug);
@@ -305,6 +362,8 @@ export function registerSocketHandlers(io: SocketIOServer) {
 
     socket.on("spin:admin:complete", async (challengeId: string) => {
       if (!socketCan(auth, "spin.run")) return;
+      const spinEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPIN_TO_BUILD);
+      if (!spinEnabled) return;
       await completeSpinChallenge(io, challengeId, slug);
     });
 

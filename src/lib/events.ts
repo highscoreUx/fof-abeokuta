@@ -1,6 +1,7 @@
 import slugify from "slugify";
 import { FIGMA_TEAMS } from "@/lib/figma-teams";
 import { seedDefaultEventUserRoles } from "@/lib/event-user-roles";
+import { ensureEventActivityRows, seedActivityTypes } from "@/lib/activities/event-activities";
 import { prisma } from "@/lib/prisma";
 
 export { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
@@ -101,6 +102,8 @@ export async function createEventWithDefaults(data: {
   });
 
   await seedDefaultEventUserRoles(event.id);
+  await seedActivityTypes();
+  await ensureEventActivityRows(event.id);
 
   return event;
 }

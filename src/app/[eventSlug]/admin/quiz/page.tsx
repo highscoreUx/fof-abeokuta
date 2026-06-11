@@ -6,5 +6,5 @@ export default async function AdminQuizRedirect({
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-  redirect(`/${eventSlug}/admin/games`);
+  redirect(`/${eventSlug}/admin/activities`);
 }

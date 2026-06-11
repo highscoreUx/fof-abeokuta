@@ -20,16 +20,27 @@ export async function getActiveSpinChallenge(eventId: string) {
   });
 }
 
-export async function startSpinChallenge(io: SocketIOServer, eventId: string, title?: string) {
+export async function startSpinChallenge(
+  io: SocketIOServer,
+  eventId: string,
+  options?: {
+    title?: string;
+    allowGeneralParticipants?: boolean;
+    allowGroupParticipants?: boolean;
+  },
+) {
   const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
   const prompt = SPIN_PROMPTS[Math.floor(Math.random() * SPIN_PROMPTS.length)];
 
   const challenge = await prisma.spinChallenge.create({
     data: {
       eventId,
-      title: title ?? "Spin-to-Build Challenge",
+      title: options?.title ?? "Spin to Build",
       config: { prompt },
       state: "ACTIVE",
+      allowGeneralParticipants: options?.allowGeneralParticipants ?? false,
+      allowGroupParticipants: options?.allowGroupParticipants ?? true,
+      teamId: null,
     },
   });
 
@@ -38,6 +49,8 @@ export async function startSpinChallenge(io: SocketIOServer, eventId: string, ti
     title: challenge.title,
     prompt,
     state: challenge.state,
+    allowGeneralParticipants: challenge.allowGeneralParticipants,
+    allowGroupParticipants: challenge.allowGroupParticipants,
     submissions: [],
   });
 
@@ -72,6 +85,8 @@ export async function broadcastSpinState(io: SocketIOServer, eventSlug: string) 
     title: challenge.title,
     prompt: (challenge.config as { prompt?: string }).prompt,
     state: challenge.state,
+    allowGeneralParticipants: challenge.allowGeneralParticipants,
+    allowGroupParticipants: challenge.allowGroupParticipants,
     submissions: challenge.submissions.map((s) => ({
       id: s.id,
       teamLetter: s.team.letter,

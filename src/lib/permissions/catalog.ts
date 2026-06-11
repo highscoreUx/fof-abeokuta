@@ -145,10 +145,10 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
     id: "games",
     label: "Activities",
     permissions: [
-      { permission: "quiz.manage", label: "Manage quizzes" },
-      { permission: "quiz.run", label: "Run quiz sessions" },
-      { permission: "spin.manage", label: "Manage spin challenges" },
-      { permission: "spin.run", label: "Run spin challenges" },
+      { permission: "quiz.manage", label: "Manage live trivia activities" },
+      { permission: "quiz.run", label: "Run live trivia sessions" },
+      { permission: "spin.manage", label: "Manage spin to build activities" },
+      { permission: "spin.run", label: "Run spin to build sessions" },
     ],
   },
   {
@@ -192,7 +192,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "participant.activities", label: "Participant activities" },
       { permission: "participant.chat", label: "Team chat" },
       { permission: "participant.staff_chat", label: "Staff group chat" },
-      { permission: "participant.quiz", label: "Play quizzes" },
+      { permission: "participant.quiz", label: "Join live trivia activities" },
       { permission: "participant.vote", label: "Cast votes" },
     ],
   },

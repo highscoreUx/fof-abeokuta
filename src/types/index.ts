@@ -1,4 +1,5 @@
 import type { Permission } from "@/lib/permissions/catalog";
+import type { EnabledActivitySnapshot } from "@/lib/activities/catalog";
 
 export interface AuthUser {
   id: string;
@@ -15,6 +16,7 @@ export interface AuthUser {
   teamLetter?: string | null;
   eventId: string;
   eventSlug: string;
+  enabledActivities?: EnabledActivitySnapshot[];
 }
 
 export interface AccessTokenPayload {
@@ -29,6 +31,7 @@ export interface AccessTokenPayload {
   teamId?: string | null;
   eventId: string;
   eventSlug: string;
+  enabledActivities: EnabledActivitySnapshot[];
   type: "event";
 }
 

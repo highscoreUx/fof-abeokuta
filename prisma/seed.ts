@@ -14,6 +14,9 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Seeding database...");
 
+  const { seedActivityTypes } = await import("../src/lib/activities/event-activities");
+  await seedActivityTypes();
+
   const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@fofabeokuta.com";
   const platformPassword = process.env.PLATFORM_ADMIN_PASSWORD ?? "fofadmin123";
   const passwordHash = await bcrypt.hash(platformPassword, 10);
@@ -49,6 +52,24 @@ async function main() {
 
   const { seedDefaultEventUserRoles } = await import("../src/lib/event-user-roles");
   await seedDefaultEventUserRoles(event.id);
+
+  const { ensureEventActivityRows } = await import("../src/lib/activities/event-activities");
+  await ensureEventActivityRows(event.id);
+
+  const kahootType = await prisma.activityType.findUnique({ where: { slug: "kahoot" } });
+  const spinType = await prisma.activityType.findUnique({ where: { slug: "spin_to_build" } });
+  if (kahootType) {
+    await prisma.eventActivity.update({
+      where: { eventId_activityTypeId: { eventId: event.id, activityTypeId: kahootType.id } },
+      data: { enabled: true, allowGeneral: true, allowGroup: true },
+    });
+  }
+  if (spinType) {
+    await prisma.eventActivity.update({
+      where: { eventId_activityTypeId: { eventId: event.id, activityTypeId: spinType.id } },
+      data: { enabled: true, allowGeneral: false, allowGroup: true },
+    });
+  }
 
   const eventAdminRole = await getEventUserRoleBySlug(event.id, "event_admin");
   if (!eventAdminRole) throw new Error("Missing event_admin role");

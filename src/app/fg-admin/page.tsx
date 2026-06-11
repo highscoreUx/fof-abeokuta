@@ -9,6 +9,7 @@ import type { PlatformEvent } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
+import { EventActivitiesPanel } from "@/components/platform/EventActivitiesPanel";
 
 export default function PlatformAdminPage() {
   const router = useRouter();
@@ -108,36 +109,39 @@ export default function PlatformAdminPage() {
             {events.map((event) => (
               <div
                 key={event.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
+                className="space-y-4 rounded-lg border border-border p-4"
               >
-                <div>
-                  <p className="font-semibold">{event.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    /{event.slug} · {new Date(event.date).toLocaleDateString()} · {event.status}
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{event.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      /{event.slug} · {new Date(event.date).toLocaleDateString()} · {event.status}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/${event.slug}/home`}>
+                      <Button size="sm" variant="secondary">
+                        Event Admin
+                      </Button>
+                    </Link>
+                    <Link href={`/${event.slug}/login`}>
+                      <Button size="sm" variant="ghost">
+                        Login
+                      </Button>
+                    </Link>
+                    {event.status !== "LIVE" && (
+                      <Button size="sm" onClick={() => updateStatus(event.id, "LIVE")}>
+                        Go Live
+                      </Button>
+                    )}
+                    {event.status === "LIVE" && (
+                      <Button size="sm" variant="secondary" onClick={() => updateStatus(event.id, "ARCHIVED")}>
+                        Archive
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/${event.slug}/home`}>
-                    <Button size="sm" variant="secondary">
-                      Event Admin
-                    </Button>
-                  </Link>
-                  <Link href={`/${event.slug}/login`}>
-                    <Button size="sm" variant="ghost">
-                      Login
-                    </Button>
-                  </Link>
-                  {event.status !== "LIVE" && (
-                    <Button size="sm" onClick={() => updateStatus(event.id, "LIVE")}>
-                      Go Live
-                    </Button>
-                  )}
-                  {event.status === "LIVE" && (
-                    <Button size="sm" variant="secondary" onClick={() => updateStatus(event.id, "ARCHIVED")}>
-                      Archive
-                    </Button>
-                  )}
-                </div>
+                <EventActivitiesPanel eventId={event.id} />
               </div>
             ))}
           </div>

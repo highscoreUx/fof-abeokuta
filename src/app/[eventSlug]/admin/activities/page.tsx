@@ -1,10 +1,16 @@
-import { redirect } from "next/navigation";
+import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { ActivitiesView } from "@/_views/admin/activities/ActivitiesView";
 
-export default async function AdminActivitiesRedirect({
+export default async function AdminActivitiesPage({
   params,
 }: {
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-  redirect(`/${eventSlug}/admin/games`);
+
+  return (
+    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
+      <ActivitiesView />
+    </EventScopeProvider>
+  );
 }

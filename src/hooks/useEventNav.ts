@@ -28,7 +28,7 @@ export function useEventNav() {
         : null,
       navIf("user.list", `${prefix}/admin/users`, "Users", permissions),
       hasPermission(permissions, "quiz.manage") || hasPermission(permissions, "spin.manage")
-        ? { href: `${prefix}/admin/games`, label: "Activities" }
+        ? { href: `${prefix}/admin/activities`, label: "Activities" }
         : null,
       navIf("agenda.list", `${prefix}/admin/agenda`, "Agenda", permissions),
       navIf("customize.branding", `${prefix}/admin/customize`, "Customize", permissions),
@@ -77,7 +77,9 @@ export function useEventNav() {
     pathPrefix,
     admin: `${prefix}/admin`,
     users: `${prefix}/admin/users`,
-    games: `${prefix}/admin/games`,
+    activities: `${prefix}/admin/activities`,
+    /** @deprecated use activities */
+    games: `${prefix}/admin/activities`,
     agenda: `${prefix}/admin/agenda`,
     customize: `${prefix}/admin/customize`,
     settings: `${prefix}/admin/settings`,

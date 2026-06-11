@@ -73,8 +73,34 @@ model Event {
   votes           Vote[]
   scoreCriteria   ScoreCriterion[]
   spinChallenges  SpinChallenge[]
+  eventActivities EventActivity[]
   appSettings     AppSetting[]
   auditLogs       AuditLog[]
+}
+
+model ActivityType {
+  id              String          @id @default(cuid())
+  slug            String          @unique
+  name            String
+  description     String?
+  sortOrder       Int             @default(0)
+  eventActivities EventActivity[]
+}
+
+model EventActivity {
+  id             String       @id @default(cuid())
+  eventId        String
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  activityTypeId String
+  activityType   ActivityType @relation(fields: [activityTypeId], references: [id], onDelete: Cascade)
+  enabled        Boolean      @default(false)
+  allowGeneral   Boolean      @default(false)
+  allowGroup     Boolean      @default(false)
+  allowStaff     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([eventId, activityTypeId])
 }
 
 model Team {
@@ -90,6 +116,8 @@ model Team {
   quizAnswers QuizAnswer[]
   spinSubmissions SpinSubmission[]
   voteBallots VoteBallot[]
+  quizzes       Quiz[]
+  spinChallenges SpinChallenge[]
 
   @@unique([eventId, letter])
 }
@@ -198,14 +226,18 @@ model Message {
 }
 
 model Quiz {
-  id        String         @id @default(cuid())
-  eventId   String
-  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  title     String
-  active    Boolean        @default(false)
-  questions QuizQuestion[]
-  sessions  QuizSession[]
-  createdAt DateTime       @default(now())
+  id                       String         @id @default(cuid())
+  eventId                  String
+  event                    Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title                    String
+  active                   Boolean        @default(false)
+  allowGeneralParticipants Boolean        @default(true)
+  allowGroupParticipants   Boolean        @default(false)
+  teamId                   String?
+  team                     Team?          @relation(fields: [teamId], references: [id])
+  questions                QuizQuestion[]
+  sessions                 QuizSession[]
+  createdAt                DateTime       @default(now())
 }
 
 model QuizQuestion {
@@ -303,15 +335,19 @@ model Score {
 }
 
 model SpinChallenge {
-  id          String             @id @default(cuid())
-  eventId     String
-  event       Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  title       String
-  config      Json
-  state       SpinChallengeState @default(IDLE)
-  submissions SpinSubmission[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id                       String             @id @default(cuid())
+  eventId                  String
+  event                    Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title                    String
+  config                   Json
+  state                    SpinChallengeState @default(IDLE)
+  allowGeneralParticipants Boolean            @default(false)
+  allowGroupParticipants   Boolean            @default(true)
+  teamId                   String?
+  team                     Team?              @relation(fields: [teamId], references: [id])
+  submissions              SpinSubmission[]
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 }
 
 model SpinSubmission {

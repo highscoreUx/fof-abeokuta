@@ -44,7 +44,8 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
     typeof decoded.authVersion !== "number" ||
     typeof decoded.permissionsVersion !== "number" ||
     typeof decoded.rolePermissionsVersion !== "number" ||
-    typeof decoded.permissionsFingerprint !== "string"
+    typeof decoded.permissionsFingerprint !== "string" ||
+    !Array.isArray(decoded.enabledActivities)
   ) {
     throw new Error("Invalid access token");
   }
@@ -61,6 +62,7 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
     teamId: (decoded.teamId as string | null | undefined) ?? null,
     eventId: decoded.eventId as string,
     eventSlug: decoded.eventSlug as string,
+    enabledActivities: decoded.enabledActivities as AccessTokenPayload["enabledActivities"],
     type: "event",
   };
 }

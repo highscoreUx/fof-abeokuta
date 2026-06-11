@@ -10,6 +10,7 @@ import {
 import { jsonError } from "@/lib/auth/middleware";
 import { requireEventBySlug } from "@/lib/events";
 import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
+import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 
 export async function POST(
   request: NextRequest,
@@ -36,12 +37,13 @@ export async function POST(
   }
 
   const permissions = resolvePermissionsFromRole(user.eventUserRole);
+  const enabledActivities = await loadEnabledActivitiesSnapshot(event.id);
   const accessToken = await buildAccessTokenForUser(user.id, slug);
   const refreshToken = await createRefreshToken(user.id, event.id);
 
   const response = NextResponse.json({
     accessToken,
-    user: serializeUser(user, slug, permissions),
+    user: serializeUser(user, slug, permissions, enabledActivities),
   });
 
   response.cookies.set(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());

@@ -54,17 +54,17 @@ export function QuizPlayer() {
   };
 
   if (!state) {
-    return <Card><p className="text-foreground/60">Waiting for quiz to start...</p></Card>;
+    return <Card><p className="text-foreground/60">Waiting for an activity session to start...</p></Card>;
   }
 
   if (state.state === "LOBBY") {
-    return <Card><p className="text-lg font-medium">Get ready! Quiz starting soon...</p></Card>;
+    return <Card><p className="text-lg font-medium">Get ready! Activity starting soon...</p></Card>;
   }
 
   if (state.state === "FINISHED") {
     return (
       <Card>
-        <h3 className="mb-4 text-xl font-bold">Quiz Finished</h3>
+        <h3 className="mb-4 text-xl font-bold">Activity finished</h3>
         <div className="space-y-2">
           {state.leaderboard.map((entry) => (
             <div

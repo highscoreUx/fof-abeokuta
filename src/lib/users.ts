@@ -13,9 +13,11 @@ import {
   getEventUserRoleIdForLegacyRole,
 } from "@/lib/event-user-roles";
 import { loadSessionAuthContext } from "@/lib/auth/session";
+import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { signAccessToken } from "@/lib/auth/jwt";
 import type { AuthUser } from "@/types";
 import type { Permission } from "@/lib/permissions/catalog";
+import type { EnabledActivitySnapshot } from "@/lib/activities/catalog";
 
 const TEAM_LETTERS = ["F", "I", "G", "M", "A"];
 
@@ -41,6 +43,7 @@ export function serializeUser(
   },
   eventSlug: string,
   permissions: Permission[],
+  enabledActivities: EnabledActivitySnapshot[] = [],
 ): AuthUser & { loginPhrase?: string | null; passwordDisplay?: string | null } {
   return {
     id: user.id,
@@ -57,6 +60,7 @@ export function serializeUser(
     teamLetter: user.team?.letter ?? null,
     eventId: user.eventId,
     eventSlug,
+    enabledActivities,
     loginPhrase: user.loginPhrase,
     passwordDisplay: user.pinDisplay,
   };
@@ -65,6 +69,8 @@ export function serializeUser(
 export async function buildAccessTokenForUser(userId: string, eventSlug: string) {
   const session = await loadSessionAuthContext(userId);
   if (!session) throw new Error("User not found");
+
+  const enabledActivities = await loadEnabledActivitiesSnapshot(session.eventId);
 
   return signAccessToken({
     userId: session.userId,
@@ -78,6 +84,7 @@ export async function buildAccessTokenForUser(userId: string, eventSlug: string)
     teamId: session.teamId,
     eventId: session.eventId,
     eventSlug,
+    enabledActivities,
   });
 }
 

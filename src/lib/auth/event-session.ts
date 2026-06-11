@@ -3,6 +3,7 @@ import { isRefreshTokenValid, rotateRefreshToken } from "@/lib/auth/refresh";
 import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
 import { requireEventBySlug } from "@/lib/events";
 import { buildAccessTokenForUser, serializeUser } from "@/lib/users";
+import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { prisma } from "@/lib/prisma";
 
 export class EventSessionRefreshError extends Error {
@@ -56,11 +57,12 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
   const newRefreshToken = await rotateRefreshToken(refreshToken, userId, event.id);
   const accessToken = await buildAccessTokenForUser(user.id, slug);
   const permissions = resolvePermissionsFromRole(user.eventUserRole);
+  const enabledActivities = await loadEnabledActivitiesSnapshot(event.id);
 
   return {
     slug,
     accessToken,
     refreshToken: newRefreshToken,
-    user: serializeUser(user, slug, permissions),
+    user: serializeUser(user, slug, permissions, enabledActivities),
   };
 }

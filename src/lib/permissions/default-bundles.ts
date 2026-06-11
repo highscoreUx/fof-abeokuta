@@ -45,6 +45,11 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
   "settings.auto_assign",
   "customize.branding",
   "stage.view",
+  "participant.home",
+  "participant.activities",
+  "participant.chat",
+  "participant.quiz",
+  "participant.vote",
 ];
 
 const STAFF_PERMISSIONS: Permission[] = [

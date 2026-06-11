@@ -87,13 +87,17 @@ export function hasAdminShellAccess(permissions: RolePermission[]): boolean {
   return hasWildcardAccess(permissions) || hasAnyPermission(permissions, ADMIN_ENTRY_PERMISSIONS);
 }
 
+export function hasParticipantHomeAccess(permissions: RolePermission[]): boolean {
+  return hasPermission(permissions, "participant.home") || hasAdminShellAccess(permissions);
+}
+
 export function resolveDefaultRoute(permissions: RolePermission[], pathPrefix: string): string {
-  if (hasAdminShellAccess(permissions)) return `${pathPrefix}/admin`;
+  if (hasAdminShellAccess(permissions)) return `${pathPrefix}/home`;
   if (hasPermission(permissions, "user.check_in")) return `${pathPrefix}/staff/check-in`;
   if (hasPermission(permissions, "score.submit")) return `${pathPrefix}/judge/scoring`;
-  if (hasPermission(permissions, "participant.home")) return `${pathPrefix}/participant`;
+  if (hasPermission(permissions, "participant.home")) return `${pathPrefix}/home`;
   if (hasPermission(permissions, "stage.view")) return `${pathPrefix}/stage`;
-  return `${pathPrefix}/participant`;
+  return `${pathPrefix}/home`;
 }
 
 /** @deprecated use resolveDefaultRoute */

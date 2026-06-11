@@ -1,16 +1,10 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { AdminView } from "@/_views/admin/AdminView";
+import { redirect } from "next/navigation";
 
 export default async function AdminPage({
   params,
 }: {
-  params: Promise<{ eventSlug: string }>;
+  params: Promise< { eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <AdminView />
-    </EventScopeProvider>
-  );
+  redirect(`/${eventSlug}/home`);
 }

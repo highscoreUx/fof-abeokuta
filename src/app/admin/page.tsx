@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { AdminView } from "@/_views/admin/AdminView";
+import { redirect } from "next/navigation";
 
-export default async function AdminPage() {
-  return (
-    <LatestEventScope>
-      <AdminView />
-    </LatestEventScope>
-  );
+export default function AdminPage() {
+  redirect("/home");
 }

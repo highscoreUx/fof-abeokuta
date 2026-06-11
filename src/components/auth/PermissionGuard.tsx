@@ -5,28 +5,32 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventPathPrefix } from "@/hooks/useEventSlug";
 import { loginPath } from "@/lib/routes";
-import { hasAnyPermission, hasPermission, resolveDefaultRoute } from "@/lib/permissions";
+import { hasAnyPermission, hasAdminShellAccess, hasPermission, resolveDefaultRoute } from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions/catalog";
 
 export function PermissionGuard({
   children,
   permission,
   anyOf,
+  allowAdminShell = false,
 }: {
   children: React.ReactNode;
   permission?: Permission;
   anyOf?: Permission[];
+  allowAdminShell?: boolean;
 }) {
   const pathPrefix = useEventPathPrefix();
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
 
   const allowed = user
-    ? permission
-      ? hasPermission(user.permissions, permission)
-      : anyOf
-        ? hasAnyPermission(user.permissions, anyOf)
-        : true
+    ? allowAdminShell && hasAdminShellAccess(user.permissions)
+      ? true
+      : permission
+        ? hasPermission(user.permissions, permission)
+        : anyOf
+          ? hasAnyPermission(user.permissions, anyOf)
+          : true
     : false;
 
   useEffect(() => {

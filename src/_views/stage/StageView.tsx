@@ -15,7 +15,7 @@ export function StageView() {
   const backHref = user ? resolveDefaultRoute(user.permissions, pathPrefix) : pathPrefix;
   const backLabel = user
     ? hasAdminShellAccess(user.permissions)
-      ? "Admin"
+      ? "Home"
       : hasPermission(user.permissions, "user.check_in")
         ? "Check In"
         : hasPermission(user.permissions, "score.submit")

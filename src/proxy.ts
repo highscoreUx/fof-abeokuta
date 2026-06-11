@@ -14,6 +14,7 @@ const PUBLIC_PATHS = [
 
 const ROOT_PROTECTED_PREFIXES = [
   "/admin",
+  "/home",
   "/participant",
   "/staff",
   "/judge",

@@ -7,6 +7,7 @@ import { ParticipantChat } from "@/components/chat/ParticipantChat";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
+import { hasAdminShellAccess } from "@/lib/permissions";
 import { AgendaList } from "@/components/agenda/AgendaList";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-templates";
@@ -14,9 +15,10 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
 export function ParticipantView() {
-  const { participantNav } = useEventNav();
+  const { nav, participantNav } = useEventNav();
   const { api } = useEventApi();
   const { user } = useAuth();
+  const shellNav = user && hasAdminShellAccess(user.permissions) ? nav : participantNav;
   const [agenda, setAgenda] = useState<AgendaListItem[]>([]);
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
@@ -35,8 +37,8 @@ export function ParticipantView() {
   }, [api]);
 
   return (
-    <PermissionGuard permission="participant.home">
-      <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={participantNav}>
+    <PermissionGuard permission="participant.home" allowAdminShell>
+      <AppShell title={`Team ${user?.teamLetter ?? "?"}`} nav={shellNav}>
         <div
           className={
             tab === "chat"

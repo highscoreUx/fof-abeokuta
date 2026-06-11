@@ -3,6 +3,7 @@ export const RESERVED_EVENT_SLUGS = new Set([
   "login",
   "all-event",
   "admin",
+  "home",
   "participant",
   "staff",
   "judge",

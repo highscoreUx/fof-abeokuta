@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { ParticipantView } from "@/_views/participant/ParticipantView";
+import { redirect } from "next/navigation";
 
-export default async function ParticipantPage() {
-  return (
-    <LatestEventScope>
-      <ParticipantView />
-    </LatestEventScope>
-  );
+export default function ParticipantPage() {
+  redirect("/home");
 }

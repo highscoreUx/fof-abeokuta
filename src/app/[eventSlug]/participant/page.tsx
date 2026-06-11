@@ -1,5 +1,4 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { ParticipantView } from "@/_views/participant/ParticipantView";
+import { redirect } from "next/navigation";
 
 export default async function ParticipantPage({
   params,
@@ -7,10 +6,5 @@ export default async function ParticipantPage({
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <ParticipantView />
-    </EventScopeProvider>
-  );
+  redirect(`/${eventSlug}/home`);
 }

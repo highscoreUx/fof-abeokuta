@@ -117,7 +117,7 @@ export default function PlatformAdminPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Link href={`/${event.slug}/admin`}>
+                  <Link href={`/${event.slug}/home`}>
                     <Button size="sm" variant="secondary">
                       Event Admin
                     </Button>

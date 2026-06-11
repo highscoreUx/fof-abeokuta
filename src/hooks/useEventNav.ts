@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useEventScope } from "@/contexts/EventScopeContext";
 import { selectUserPermissions, useAuthStore } from "@/stores/authStore";
-import { hasPermission } from "@/lib/permissions";
+import { hasAdminShellAccess, hasPermission } from "@/lib/permissions";
 import { loginPath } from "@/lib/routes";
 import type { Permission } from "@/lib/permissions/catalog";
 
@@ -23,7 +23,9 @@ export function useEventNav() {
 
   const nav = useMemo(() => {
     const items = [
-      navIf("dashboard.view", `${prefix}/admin`, "Dashboard", permissions),
+      hasAdminShellAccess(permissions)
+        ? { href: `${prefix}/home`, label: "Home" }
+        : null,
       navIf("user.list", `${prefix}/admin/users`, "Users", permissions),
       hasPermission(permissions, "quiz.manage") || hasPermission(permissions, "spin.manage")
         ? { href: `${prefix}/admin/games`, label: "Games & Activities" }
@@ -62,8 +64,8 @@ export function useEventNav() {
   const participantNav = useMemo(
     () =>
       [
-        navIf("participant.home", `${prefix}/participant`, "Home", permissions),
-        navIf("participant.activities", `${prefix}/participant/activities`, "Activities", permissions),
+        navIf("participant.home", `${prefix}/home`, "Home", permissions),
+        navIf("participant.activities", `${prefix}/home/activities`, "Activities", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
@@ -79,8 +81,12 @@ export function useEventNav() {
     customize: `${prefix}/admin/customize`,
     settings: `${prefix}/admin/settings`,
     stage: `${prefix}/stage`,
-    participant: `${prefix}/participant`,
-    participantActivities: `${prefix}/participant/activities`,
+    home: `${prefix}/home`,
+    homeActivities: `${prefix}/home/activities`,
+    /** @deprecated use home */
+    participant: `${prefix}/home`,
+    /** @deprecated use homeActivities */
+    participantActivities: `${prefix}/home/activities`,
     staffCheckIn: `${prefix}/staff/check-in`,
     judgeScoring: `${prefix}/judge/scoring`,
     login: loginPath(pathPrefix),

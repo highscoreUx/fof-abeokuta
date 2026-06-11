@@ -21,17 +21,13 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
   const createUser = useCreateUserMutation();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [middleName, setMiddleName] = useState("");
   const [role, setRole] = useState<Role>("PARTICIPANT");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const reset = () => {
     setFirstName("");
     setLastName("");
-    setMiddleName("");
     setRole("PARTICIPANT");
-    setPassword("");
     setError("");
   };
 
@@ -47,9 +43,7 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
       const result = await createUser.mutateAsync({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        middleName: middleName.trim() || undefined,
         role,
-        password: password || undefined,
       });
       onCreated?.({
         username: result.user.username,
@@ -91,35 +85,19 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
           </div>
         </div>
         <div>
-          <Label htmlFor="middleName">Middle name (optional)</Label>
-          <Input
-            id="middleName"
-            value={middleName}
-            onChange={(e) => setMiddleName(e.target.value)}
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="role">Role</Label>
-            <Select id="role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="password">Password (optional)</Label>
-            <Input
-              id="password"
-              inputMode="numeric"
-              maxLength={4}
-              value={password}
-              onChange={(e) => setPassword(e.target.value.replace(/\D/g, ""))}
-              placeholder="Auto if empty"
-            />
-          </div>
+          <Label htmlFor="role">Role</Label>
+          <Select
+            id="role"
+            className="w-full"
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </Select>
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">

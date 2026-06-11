@@ -225,7 +225,9 @@ export function ChatMessageBubble({
   const isText = content.type === "text";
   const isPoll = content.type === "poll" && !hidePolls;
   const hasReply = isText && Boolean(content.replyTo);
-  const showActions = !isOwn && (onReply || onMessagePrivately);
+  const canReply = Boolean(onReply);
+  const canMessagePrivately = Boolean(onMessagePrivately);
+  const canOpenMenu = canReply || canMessagePrivately;
 
   const [swipeX, setSwipeX] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -244,20 +246,22 @@ export function ChatMessageBubble({
   }, [message, onMessagePrivately]);
 
   const handleTouchStart = (event: React.TouchEvent) => {
-    if (!onReply || isOwn) return;
+    if (!canReply) return;
     startXRef.current = event.touches[0].clientX;
     swipingRef.current = true;
     longPressRef.current = setTimeout(() => setMenuOpen(true), 500);
   };
 
   const handleTouchMove = (event: React.TouchEvent) => {
-    if (!swipingRef.current || !onReply || isOwn) return;
+    if (!swipingRef.current || !canReply) return;
     if (longPressRef.current) {
       clearTimeout(longPressRef.current);
       longPressRef.current = null;
     }
     const delta = event.touches[0].clientX - startXRef.current;
-    if (delta > 0) {
+    if (isOwn) {
+      if (delta < 0) setSwipeX(Math.max(delta, -SWIPE_MAX));
+    } else if (delta > 0) {
       setSwipeX(Math.min(delta, SWIPE_MAX));
     }
   };
@@ -267,7 +271,8 @@ export function ChatMessageBubble({
       clearTimeout(longPressRef.current);
       longPressRef.current = null;
     }
-    if (swipeX >= SWIPE_THRESHOLD) {
+    const swipeDistance = isOwn ? -swipeX : swipeX;
+    if (swipeDistance >= SWIPE_THRESHOLD) {
       triggerReply();
     }
     setSwipeX(0);
@@ -275,7 +280,7 @@ export function ChatMessageBubble({
   };
 
   const handleContextMenu = (event: React.MouseEvent) => {
-    if (!showActions) return;
+    if (!canOpenMenu) return;
     event.preventDefault();
     setMenuOpen(true);
   };
@@ -323,6 +328,19 @@ export function ChatMessageBubble({
             />
           </div>
         )}
+        {isOwn && swipeX < -8 && (
+          <div
+            className="pointer-events-none absolute inset-y-0 -right-8 flex items-center text-muted-foreground"
+            aria-hidden
+          >
+            <ReplyIcon
+              className={cn(
+                "h-5 w-5 transition-opacity",
+                -swipeX >= SWIPE_THRESHOLD ? "text-primary opacity-100" : "opacity-60",
+              )}
+            />
+          </div>
+        )}
 
         <div
           className={cn(
@@ -337,7 +355,7 @@ export function ChatMessageBubble({
                 : "rounded-lg rounded-tl-none",
             isPending && "opacity-80",
           )}
-          style={!isOwn && swipeX > 0 ? { transform: `translateX(${swipeX}px)` } : undefined}
+          style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)` } : undefined}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -407,7 +425,7 @@ export function ChatMessageBubble({
           </div>
         </div>
 
-        {showActions && menuOpen && (
+        {canOpenMenu && menuOpen && (
           <>
             <button
               type="button"
@@ -416,7 +434,7 @@ export function ChatMessageBubble({
               onClick={() => setMenuOpen(false)}
             />
             <div className="absolute right-0 top-0 z-30 min-w-[10rem] overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg">
-              {onReply && (
+              {canReply && (
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
@@ -426,7 +444,7 @@ export function ChatMessageBubble({
                   Reply
                 </button>
               )}
-              {onMessagePrivately && (
+              {canMessagePrivately && (
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
@@ -453,11 +471,14 @@ export function ChatMessageBubble({
           </>
         )}
 
-        {showActions && !menuOpen && onReply && (
+        {canReply && !menuOpen && (
           <button
             type="button"
             onClick={triggerReply}
-            className="absolute left-full top-1/2 ml-1.5 hidden -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 md:inline-flex"
+            className={cn(
+              "absolute top-1/2 hidden -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 md:inline-flex",
+              isOwn ? "right-full mr-1.5" : "left-full ml-1.5",
+            )}
             aria-label="Reply"
           >
             <ReplyIcon className="h-4 w-4" />

@@ -295,8 +295,8 @@ export function ChatPanel({
                 highlighted={highlightedMessageId === m.id}
                 hidePolls={isPrivate}
                 registerRef={(element) => registerMessageRef(m.id, element)}
-                onReply={!isOwn ? handleReply : undefined}
-                onMessagePrivately={allowPrivateAction ? onMessagePrivately : undefined}
+                onReply={handleReply}
+                onMessagePrivately={allowPrivateAction && !isOwn ? onMessagePrivately : undefined}
                 onScrollToReply={scrollToMessage}
               />
             );

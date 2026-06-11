@@ -41,7 +41,7 @@ export default function PlatformLoginPage() {
   };
 
   return (
-    <LoginPageLayout slides={[...DEFAULT_LOGIN_SLIDES]}>
+    <LoginPageLayout slides={DEFAULT_LOGIN_SLIDES}>
       <Card className="w-full max-w-md">
         <CardTitle className="text-center text-2xl">Platform Admin</CardTitle>
         <p className="mt-2 text-center text-sm text-muted-foreground">

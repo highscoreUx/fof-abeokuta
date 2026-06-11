@@ -83,9 +83,9 @@ export function ChangeAgendaTemplateModal({
       onClose={onClose}
       title="Change agenda template"
       description="Pick how the schedule looks for admins and participants. Notebook is the default."
-      className="max-w-4xl"
+      className="max-w-6xl"
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {AGENDA_TEMPLATES.map((template) => {
           const isSelected = selected === template.id;
           return (
@@ -109,8 +109,8 @@ export function ChangeAgendaTemplateModal({
                 )}
               </div>
               <p className="mb-3 text-xs text-muted-foreground">{template.description}</p>
-              <div className="pointer-events-none max-h-44 overflow-hidden rounded-lg border border-border bg-muted/20 p-2">
-                <div className="origin-top-left scale-[0.55] sm:scale-[0.65]">
+              <div className="pointer-events-none max-h-52 overflow-hidden rounded-lg border border-border bg-muted/20 p-2">
+                <div className="origin-top-left scale-[0.62] sm:scale-[0.72]">
                   <AgendaList
                     template={template.id}
                     items={PREVIEW_ITEMS}

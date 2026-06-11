@@ -14,6 +14,8 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, description, children, className }: ModalProps) {
+  const hasCustomMaxWidth = className != null && /\bmax-w-/.test(className);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -42,7 +44,8 @@ export function Modal({ open, onClose, title, description, children, className }
         aria-modal="true"
         aria-labelledby="modal-title"
         className={cn(
-          "relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl",
+          "relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl",
+          !hasCustomMaxWidth && "max-w-lg",
           className,
         )}
       >

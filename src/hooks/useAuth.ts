@@ -12,7 +12,7 @@ import type { AuthUser } from "@/types";
 export function useAuth() {
   const router = useRouter();
   const { eventSlug, pathPrefix } = useEventScope();
-  const { accessToken, user, setAuth, clearAuth } = useAuthStore();
+  const { accessToken, user, setAuth, clearAuth, isHydrated } = useAuthStore();
 
   const login = useCallback(
     async (username: string, password: string) => {
@@ -41,5 +41,12 @@ export function useAuth() {
     router.push(loginPath(pathPrefix));
   }, [clearAuth, router, eventSlug, pathPrefix]);
 
-  return { accessToken, user, login, logout, isAuthenticated: Boolean(accessToken && user) };
+  return {
+    accessToken,
+    user,
+    login,
+    logout,
+    isHydrated,
+    isAuthenticated: Boolean(accessToken && user),
+  };
 }

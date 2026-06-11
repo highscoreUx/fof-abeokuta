@@ -20,7 +20,7 @@ export function PermissionGuard({
   allowAdminShell?: boolean;
 }) {
   const pathPrefix = useEventPathPrefix();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isHydrated } = useAuth();
   const router = useRouter();
 
   const allowed = user
@@ -34,6 +34,8 @@ export function PermissionGuard({
     : false;
 
   useEffect(() => {
+    if (!isHydrated) return;
+
     if (!isAuthenticated || !user) {
       router.replace(loginPath(pathPrefix));
       return;
@@ -41,9 +43,9 @@ export function PermissionGuard({
     if (!allowed) {
       router.replace(resolveDefaultRoute(user.permissions, pathPrefix));
     }
-  }, [isAuthenticated, user, allowed, router, pathPrefix]);
+  }, [isHydrated, isAuthenticated, user, allowed, router, pathPrefix]);
 
-  if (!user || !allowed) {
+  if (!isHydrated || !user || !allowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

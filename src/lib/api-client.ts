@@ -1,10 +1,14 @@
 "use client";
 
+import type { AxiosRequestConfig } from "axios";
+import { axiosRequest, refreshAccessToken } from "@/lib/axios";
 import { getLoginRedirectFromPathname } from "@/lib/routes";
 import { useAuthStore } from "@/stores/authStore";
-import type { AuthUser } from "@/types";
 
-interface FetchOptions extends RequestInit {
+interface FetchOptions {
+  method?: string;
+  body?: string;
+  headers?: Record<string, string>;
   skipAuth?: boolean;
 }
 
@@ -17,53 +21,32 @@ export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {},
 ): Promise<T> {
-  const { skipAuth, headers, ...rest } = options;
-  const token = useAuthStore.getState().accessToken;
+  const { skipAuth = false, body, headers, method = "GET" } = options;
 
-  const response = await fetch(eventApiPath(eventSlug, path), {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      ...(!skipAuth && token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    credentials: "include",
-  });
+  const config: AxiosRequestConfig = {
+    url: eventApiPath(eventSlug, path),
+    method,
+    headers,
+    data: body ? JSON.parse(body) : undefined,
+  };
 
-  if (response.status === 401 && !skipAuth) {
-    const refreshed = await refreshAccessToken(eventSlug);
-    if (refreshed) {
-      return apiFetch<T>(eventSlug, path, { ...options, skipAuth: false });
-    }
-    useAuthStore.getState().clearAuth();
-    if (typeof window !== "undefined") {
-      window.location.href = getLoginRedirectFromPathname(window.location.pathname);
-    }
-    throw new Error("Session expired");
-  }
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.error || "Request failed");
-  }
-
-  return data as T;
-}
-
-export async function refreshAccessToken(eventSlug: string): Promise<boolean> {
   try {
-    const response = await fetch(eventApiPath(eventSlug, "/auth/refresh"), {
-      method: "POST",
-      credentials: "include",
-    });
+    return await axiosRequest<T>(config, { skipAuth });
+  } catch (error) {
+    const status = (error as { response?: { status?: number } }).response?.status;
+    if (status === 401 && !skipAuth) {
+      useAuthStore.getState().clearAuth();
+      if (typeof window !== "undefined") {
+        window.location.href = getLoginRedirectFromPathname(window.location.pathname);
+      }
+      throw new Error("Session expired");
+    }
 
-    if (!response.ok) return false;
-
-    const data = (await response.json()) as { accessToken: string; user: AuthUser };
-    useAuthStore.getState().setAuth(data.accessToken, data.user);
-    return true;
-  } catch {
-    return false;
+    const message =
+      (error as { response?: { data?: { error?: string } } }).response?.data?.error ??
+      (error instanceof Error ? error.message : "Request failed");
+    throw new Error(message);
   }
 }
+
+export { refreshAccessToken };

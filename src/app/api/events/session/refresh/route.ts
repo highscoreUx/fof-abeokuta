@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
 import {
-  getRefreshTokenFromCookies,
-  getRefreshCookieOptions,
-  REFRESH_COOKIE_NAME,
   EVENT_SLUG_COOKIE,
+  getEventSlugFromCookies,
+  getRefreshCookieOptions,
+  getRefreshTokenFromCookies,
+  REFRESH_COOKIE_NAME,
 } from "@/lib/auth/cookies";
 import { EventSessionRefreshError, refreshEventSession } from "@/lib/auth/event-session";
 import { jsonError } from "@/lib/auth/middleware";
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ slug: string }> },
-) {
-  const { slug } = await params;
-
+export async function POST() {
   const refreshToken = await getRefreshTokenFromCookies();
   if (!refreshToken) {
     return jsonError("No refresh token", "NO_REFRESH_TOKEN", 401);
+  }
+
+  const slug = await getEventSlugFromCookies();
+  if (!slug) {
+    return jsonError("No event session", "NO_EVENT_SESSION", 401);
   }
 
   try {

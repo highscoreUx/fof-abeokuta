@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
+import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
+import { buildTeamsOrderBy, buildTeamsWhere } from "@/lib/teams-query";
 import { prisma } from "@/lib/prisma";
 import { normalizeTeamCode, validateTeamCode } from "@/lib/team-codes";
 import { parseTeamInput, seedFigmaTeams } from "@/lib/teams";
+
+function serializeTeam(team: {
+  id: string;
+  letter: string;
+  name: string;
+  color: string;
+  _count: { users: number };
+}) {
+  const { _count, ...rest } = team;
+  return { ...rest, memberCount: _count.users };
+}
 
 export async function GET(
   request: NextRequest,
@@ -12,18 +25,35 @@ export async function GET(
   const ctx = await requireEventContext(request, slug);
   if (ctx instanceof NextResponse) return ctx;
 
+  const { searchParams } = new URL(request.url);
+
+  if (searchParams.has("page")) {
+    const query = parsePaginationParams(searchParams);
+    const where = buildTeamsWhere(ctx.event.id, query);
+
+    const [teams, total] = await Promise.all([
+      prisma.team.findMany({
+        where,
+        orderBy: buildTeamsOrderBy(query.sortBy, query.sortOrder),
+        skip: query.skip,
+        take: query.limit,
+        include: { _count: { select: { users: true } } },
+      }),
+      prisma.team.count({ where }),
+    ]);
+
+    return NextResponse.json(
+      toPaginatedResponse(teams.map(serializeTeam), total, query.page, query.limit),
+    );
+  }
+
   const teams = await prisma.team.findMany({
     where: { eventId: ctx.event.id },
     orderBy: { letter: "asc" },
     include: { _count: { select: { users: true } } },
   });
 
-  return NextResponse.json({
-    teams: teams.map(({ _count, ...team }) => ({
-      ...team,
-      memberCount: _count.users,
-    })),
-  });
+  return NextResponse.json({ teams: teams.map(serializeTeam) });
 }
 
 export async function POST(
@@ -52,8 +82,9 @@ export async function POST(
 
     const team = await prisma.team.create({
       data: { eventId: ctx.event.id, letter, name, color },
+      include: { _count: { select: { users: true } } },
     });
-    return NextResponse.json({ team }, { status: 201 });
+    return NextResponse.json({ team: serializeTeam(team) }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Invalid team" },
@@ -117,10 +148,5 @@ export async function PATCH(
     include: { _count: { select: { users: true } } },
   });
 
-  return NextResponse.json({
-    teams: teams.map(({ _count, ...team }) => ({
-      ...team,
-      memberCount: _count.users,
-    })),
-  });
+  return NextResponse.json({ teams: teams.map(serializeTeam) });
 }

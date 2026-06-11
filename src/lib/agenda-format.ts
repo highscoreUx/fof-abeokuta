@@ -1,3 +1,10 @@
+/** Format an ISO datetime for `<input type="datetime-local" />` in local time. */
+export function toDatetimeLocal(iso: string) {
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatAgendaTime(iso: string, hour12 = true) {
   return new Date(iso).toLocaleTimeString(undefined, {
     hour: "numeric",

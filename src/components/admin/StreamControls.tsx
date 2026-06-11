@@ -5,13 +5,16 @@ import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function StreamControls() {
   const { slug, api } = useEventApi();
   const socket = useSocket();
   const [videoId, setVideoId] = useState("");
   const [live, setLive] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     api<{ youtubeVideoId: string; streamLive: boolean }>("/settings").then((d) => {
@@ -21,26 +24,57 @@ export function StreamControls() {
   }, [slug]);
 
   const save = async () => {
-    await api("/settings", {
-      method: "PATCH",
-      body: JSON.stringify({ youtubeVideoId: videoId, streamLive: live }),
-    });
-    socket?.emit("stream:admin:toggle", { live, videoId });
+    setSaving(true);
+    setMessage("");
+    try {
+      await api("/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ youtubeVideoId: videoId, streamLive: live }),
+      });
+      socket?.emit("stream:admin:toggle", { live, videoId });
+      setMessage("Broadcast settings saved.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to save broadcast settings");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Card>
-      <CardTitle>Stream Controls</CardTitle>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Stream via OBS to YouTube, then paste the video ID here.
-      </p>
-      <div className="mt-4 space-y-3">
-        <Input value={videoId} onChange={(e) => setVideoId(e.target.value)} placeholder="YouTube Video ID" />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
-          Show LIVE badge
+      <CardHeader>
+        <CardTitle>Broadcasting</CardTitle>
+        <CardDescription>
+          Stream via OBS to YouTube, then paste the video ID below. Toggle the live badge when you
+          go on air.
+        </CardDescription>
+      </CardHeader>
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="youtube-video-id">YouTube video ID</Label>
+          <Input
+            id="youtube-video-id"
+            value={videoId}
+            onChange={(e) => setVideoId(e.target.value)}
+            placeholder="dQw4w9WgXcQ"
+            className="mt-1.5 font-mono"
+          />
+        </div>
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            checked={live}
+            onChange={(e) => setLive(e.target.checked)}
+            className="h-4 w-4 rounded border-border"
+          />
+          Show LIVE badge on the main stage
         </label>
-        <Button onClick={save}>Save & Broadcast</Button>
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <Button onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save & broadcast"}
+          </Button>
+          {message && <p className="text-sm text-muted-foreground">{message}</p>}
+        </div>
       </div>
     </Card>
   );

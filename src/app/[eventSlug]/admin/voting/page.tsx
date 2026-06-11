@@ -6,5 +6,5 @@ export default async function AdminVotingRedirect({
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-  redirect(`/${eventSlug}/admin/settings`);
+  redirect(`/${eventSlug}/admin/settings?tab=voting`);
 }

@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
-import { StreamingView } from "@/_views/admin/streaming/StreamingView";
+import { redirect } from "next/navigation";
 
-export default async function AdminStreamingPage() {
-  return (
-    <LatestEventScope>
-      <StreamingView />
-    </LatestEventScope>
-  );
+export default function AdminStreamingRedirect() {
+  redirect("/admin/settings?tab=broadcasting");
 }

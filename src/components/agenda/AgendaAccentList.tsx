@@ -2,7 +2,7 @@
 
 import { agendaColorForItem } from "@/lib/agenda-colors";
 import { formatAgendaTimeRange } from "@/lib/agenda-format";
-import { Button } from "@/components/ui/button";
+import { AgendaItemActions } from "@/components/agenda/AgendaItemActions";
 import { cn } from "@/lib/cn";
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
 import type { AgendaListProps } from "@/components/agenda/types";
@@ -11,6 +11,7 @@ export function AgendaAccentList({
   items,
   className,
   emptyMessage = "No agenda items yet.",
+  onEdit,
   onDelete,
 }: AgendaListProps) {
   if (items.length === 0) {
@@ -42,16 +43,7 @@ export function AgendaAccentList({
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
                 )}
               </div>
-              {onDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 text-danger opacity-0 transition group-hover:opacity-100"
-                  onClick={() => onDelete(item.id)}
-                >
-                  Delete
-                </Button>
-              )}
+              <AgendaItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
             </div>
           </article>
         );

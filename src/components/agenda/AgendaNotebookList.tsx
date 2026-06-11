@@ -2,7 +2,7 @@
 
 import { agendaColorForItem } from "@/lib/agenda-colors";
 import { formatAgendaTime24, formatAgendaTimeRange } from "@/lib/agenda-format";
-import { Button } from "@/components/ui/button";
+import { AgendaItemActions } from "@/components/agenda/AgendaItemActions";
 import { cn } from "@/lib/cn";
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
 import type { AgendaListProps } from "@/components/agenda/types";
@@ -23,11 +23,13 @@ function SpiralRings() {
 function AgendaNotebookCard({
   item,
   index,
+  onEdit,
   onDelete,
 }: {
   item: AgendaListProps["items"][number];
   index: number;
-  onDelete?: (id: string) => void;
+  onEdit?: AgendaListProps["onEdit"];
+  onDelete?: AgendaListProps["onDelete"];
 }) {
   const color = agendaColorForItem(item.id, index);
   const indexLabel = formatAgendaTime24(item.startTime).replace(":", "");
@@ -81,16 +83,7 @@ function AgendaNotebookCard({
               </p>
             )}
           </div>
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0 text-danger opacity-0 transition group-hover:opacity-100"
-              onClick={() => onDelete(item.id)}
-            >
-              Delete
-            </Button>
-          )}
+          <AgendaItemActions item={item} onEdit={onEdit} onDelete={onDelete} />
         </div>
         <div className="w-4 shrink-0 rounded-r-md sm:w-5" style={{ backgroundColor: color.main }} />
       </div>
@@ -102,6 +95,7 @@ export function AgendaNotebookList({
   items,
   className,
   emptyMessage = "No agenda items yet.",
+  onEdit,
   onDelete,
 }: AgendaListProps) {
   if (items.length === 0) {
@@ -111,7 +105,13 @@ export function AgendaNotebookList({
   return (
     <div className={cn("space-y-5", className)}>
       {items.map((item, index) => (
-        <AgendaNotebookCard key={item.id} item={item} index={index} onDelete={onDelete} />
+        <AgendaNotebookCard
+          key={item.id}
+          item={item}
+          index={index}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AddAgendaModal } from "@/components/admin/AddAgendaModal";
+import { AgendaItemModal } from "@/components/admin/AgendaItemModal";
 import { ChangeAgendaTemplateModal } from "@/components/admin/ChangeAgendaTemplateModal";
 import { AgendaList } from "@/components/agenda/AgendaList";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
@@ -14,7 +14,8 @@ export function AgendaAdmin() {
   const [items, setItems] = useState<AgendaListItem[]>([]);
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
-  const [addOpen, setAddOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<AgendaListItem | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = () =>
@@ -35,6 +36,21 @@ export function AgendaAdmin() {
     await load();
   };
 
+  const openAdd = () => {
+    setEditingItem(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (item: AgendaListItem) => {
+    setEditingItem(item);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingItem(null);
+  };
+
   const templateName =
     AGENDA_TEMPLATES.find((entry) => entry.id === template)?.name ?? "Notebook";
 
@@ -51,7 +67,7 @@ export function AgendaAdmin() {
           <Button variant="outline" onClick={() => setTemplateOpen(true)}>
             Change template
           </Button>
-          <Button onClick={() => setAddOpen(true)}>Add agenda item</Button>
+          <Button onClick={openAdd}>Add agenda item</Button>
         </div>
       </div>
 
@@ -59,10 +75,16 @@ export function AgendaAdmin() {
         template={template}
         items={items}
         event={event}
+        onEdit={openEdit}
         onDelete={remove}
       />
 
-      <AddAgendaModal open={addOpen} onClose={() => setAddOpen(false)} onCreated={load} />
+      <AgendaItemModal
+        open={formOpen}
+        onClose={closeForm}
+        item={editingItem}
+        onSaved={load}
+      />
       <ChangeAgendaTemplateModal
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}

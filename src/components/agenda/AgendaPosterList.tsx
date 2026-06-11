@@ -7,7 +7,7 @@ import {
   formatEventDateDots,
   formatEventDay,
 } from "@/lib/agenda-format";
-import { Button } from "@/components/ui/button";
+import { AgendaItemActions } from "@/components/agenda/AgendaItemActions";
 import { cn } from "@/lib/cn";
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
 import type { AgendaListProps } from "@/components/agenda/types";
@@ -16,6 +16,7 @@ export function AgendaPosterList({
   items,
   className,
   emptyMessage = "No agenda items yet.",
+  onEdit,
   onDelete,
   event,
 }: AgendaListProps) {
@@ -84,16 +85,13 @@ export function AgendaPosterList({
                   <span className="text-sm font-bold" style={{ color: color.main }}>
                     {formatAgendaTime(item.startTime)}
                   </span>
-                  {onDelete && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto px-2 py-1 text-xs text-danger opacity-0 transition group-hover:opacity-100"
-                      onClick={() => onDelete(item.id)}
-                    >
-                      Delete
-                    </Button>
-                  )}
+                  <AgendaItemActions
+                    item={item}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    size="xs"
+                    className="flex-col items-end"
+                  />
                 </div>
               </article>
             );

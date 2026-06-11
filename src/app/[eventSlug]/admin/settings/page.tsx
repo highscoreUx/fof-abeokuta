@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { EventScopeProvider } from "@/contexts/EventScopeContext";
 import { SettingsView } from "@/_views/admin/settings/SettingsView";
 
@@ -10,7 +11,9 @@ export default async function AdminSettingsPage({
 
   return (
     <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <SettingsView />
+      <Suspense fallback={null}>
+        <SettingsView />
+      </Suspense>
     </EventScopeProvider>
   );
 }

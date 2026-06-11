@@ -1,16 +1,10 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { StreamingView } from "@/_views/admin/streaming/StreamingView";
+import { redirect } from "next/navigation";
 
-export default async function AdminStreamingPage({
+export default async function AdminStreamingRedirect({
   params,
 }: {
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <StreamingView />
-    </EventScopeProvider>
-  );
+  redirect(`/${eventSlug}/admin/settings?tab=broadcasting`);
 }

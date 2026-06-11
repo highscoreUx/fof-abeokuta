@@ -1,15 +1,8 @@
 import slugify from "slugify";
+import { FIGMA_TEAMS } from "@/lib/figma-teams";
 import { prisma } from "@/lib/prisma";
 
 export { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
-
-const TEAM_DATA = [
-  { letter: "F", name: "Team F", color: "#F24E1E" },
-  { letter: "I", name: "Team I", color: "#A259FF" },
-  { letter: "G", name: "Team G", color: "#0ACF83" },
-  { letter: "M", name: "Team M", color: "#1ABCFE" },
-  { letter: "A", name: "Team A", color: "#FF7262" },
-];
 
 const CRITERIA = [
   { name: "Innovation", maxPoints: 25, sortOrder: 1 },
@@ -80,7 +73,7 @@ export async function createEventWithDefaults(data: {
       description: data.description,
       date: data.date,
       status: data.status ?? "DRAFT",
-      teams: { create: TEAM_DATA },
+      teams: { create: [...FIGMA_TEAMS] },
       scoreCriteria: { create: CRITERIA },
       sponsors: {
         create: [

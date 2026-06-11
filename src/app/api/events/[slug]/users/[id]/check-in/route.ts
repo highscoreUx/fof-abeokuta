@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventRole } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
-import { assignTeamsBalanced } from "@/lib/users";
+import { assignTeams } from "@/lib/team-assign";
 import { getIO } from "@/server/socket/io";
 import { emitCheckInUpdate } from "@/server/socket/handlers";
 import { jsonError } from "@/lib/auth/middleware";
@@ -35,7 +35,7 @@ export async function PATCH(
   });
 
   if (!updated.teamId && updated.role === "PARTICIPANT") {
-    await assignTeamsBalanced(ctx.event.id, [updated.id]);
+    await assignTeams(ctx.event.id, { userIds: [updated.id], onlyUnassigned: true });
     updated = await prisma.user.findUniqueOrThrow({ where: { id }, include: { team: true } });
   }
 

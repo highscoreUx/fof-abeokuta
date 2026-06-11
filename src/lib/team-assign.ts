@@ -1,0 +1,189 @@
+import { prisma } from "@/lib/prisma";
+
+export const TEAM_ASSIGN_ALGORITHMS = [
+  "balanced_random",
+  "round_robin",
+  "alphabetical_round_robin",
+  "checked_in_balanced",
+  "random",
+] as const;
+
+export type TeamAssignAlgorithm = (typeof TEAM_ASSIGN_ALGORITHMS)[number];
+
+export interface TeamAssignSettings {
+  algorithm: TeamAssignAlgorithm;
+  autoAssignOnImport: boolean;
+  onlyUnassigned: boolean;
+}
+
+const DEFAULT_SETTINGS: TeamAssignSettings = {
+  algorithm: "balanced_random",
+  autoAssignOnImport: true,
+  onlyUnassigned: false,
+};
+
+const SETTING_KEYS = {
+  algorithm: "team_assign_algorithm",
+  autoAssignOnImport: "team_auto_assign_on_import",
+  onlyUnassigned: "team_assign_only_unassigned",
+} as const;
+
+export function isTeamAssignAlgorithm(value: string): value is TeamAssignAlgorithm {
+  return (TEAM_ASSIGN_ALGORITHMS as readonly string[]).includes(value);
+}
+
+export async function getTeamAssignSettings(eventId: string): Promise<TeamAssignSettings> {
+  const rows = await prisma.appSetting.findMany({
+    where: {
+      eventId,
+      key: { in: Object.values(SETTING_KEYS) },
+    },
+  });
+  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+  const algorithm = map[SETTING_KEYS.algorithm];
+  return {
+    algorithm: algorithm && isTeamAssignAlgorithm(algorithm) ? algorithm : DEFAULT_SETTINGS.algorithm,
+    autoAssignOnImport: map[SETTING_KEYS.autoAssignOnImport] !== "false",
+    onlyUnassigned: map[SETTING_KEYS.onlyUnassigned] === "true",
+  };
+}
+
+export async function saveTeamAssignSettings(
+  eventId: string,
+  settings: Partial<TeamAssignSettings>,
+): Promise<TeamAssignSettings> {
+  if (settings.algorithm !== undefined) {
+    if (!isTeamAssignAlgorithm(settings.algorithm)) {
+      throw new Error("Invalid team assignment algorithm");
+    }
+    await prisma.appSetting.upsert({
+      where: { eventId_key: { eventId, key: SETTING_KEYS.algorithm } },
+      create: { eventId, key: SETTING_KEYS.algorithm, value: settings.algorithm },
+      update: { value: settings.algorithm },
+    });
+  }
+
+  if (settings.autoAssignOnImport !== undefined) {
+    await prisma.appSetting.upsert({
+      where: { eventId_key: { eventId, key: SETTING_KEYS.autoAssignOnImport } },
+      create: {
+        eventId,
+        key: SETTING_KEYS.autoAssignOnImport,
+        value: String(settings.autoAssignOnImport),
+      },
+      update: { value: String(settings.autoAssignOnImport) },
+    });
+  }
+
+  if (settings.onlyUnassigned !== undefined) {
+    await prisma.appSetting.upsert({
+      where: { eventId_key: { eventId, key: SETTING_KEYS.onlyUnassigned } },
+      create: { eventId, key: SETTING_KEYS.onlyUnassigned, value: String(settings.onlyUnassigned) },
+      update: { value: String(settings.onlyUnassigned) },
+    });
+  }
+
+  return getTeamAssignSettings(eventId);
+}
+
+interface AssignOptions {
+  userIds?: string[];
+  algorithm?: TeamAssignAlgorithm;
+  onlyUnassigned?: boolean;
+}
+
+function pickBalancedTeam<T extends { id: string }>(
+  teams: T[],
+  teamCounts: Map<string, number>,
+): T {
+  return teams.reduce((min, team) =>
+    (teamCounts.get(team.id) ?? 0) < (teamCounts.get(min.id) ?? 0) ? team : min,
+  );
+}
+
+export async function assignTeams(eventId: string, options: AssignOptions = {}) {
+  const settings = await getTeamAssignSettings(eventId);
+  const algorithm = options.algorithm ?? settings.algorithm;
+  const onlyUnassigned = options.onlyUnassigned ?? settings.onlyUnassigned;
+
+  const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
+  if (teams.length === 0) throw new Error("No teams configured");
+
+  const users = await prisma.user.findMany({
+    where: {
+      eventId,
+      role: "PARTICIPANT",
+      ...(options.userIds ? { id: { in: options.userIds } } : {}),
+      ...(onlyUnassigned ? { teamId: null } : {}),
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (users.length === 0) {
+    return [];
+  }
+
+  const teamCounts = new Map(teams.map((t) => [t.id, 0]));
+
+  const assignUser = async (userId: string, teamId: string) => {
+    await prisma.user.update({ where: { id: userId }, data: { teamId } });
+    teamCounts.set(teamId, (teamCounts.get(teamId) ?? 0) + 1);
+  };
+
+  switch (algorithm) {
+    case "random": {
+      for (const user of users) {
+        const team = teams[Math.floor(Math.random() * teams.length)];
+        await assignUser(user.id, team.id);
+      }
+      break;
+    }
+    case "round_robin": {
+      for (let i = 0; i < users.length; i++) {
+        await assignUser(users[i].id, teams[i % teams.length].id);
+      }
+      break;
+    }
+    case "alphabetical_round_robin": {
+      const sorted = [...users].sort((a, b) => {
+        const last = a.lastName.localeCompare(b.lastName);
+        return last !== 0 ? last : a.firstName.localeCompare(b.firstName);
+      });
+      for (let i = 0; i < sorted.length; i++) {
+        await assignUser(sorted[i].id, teams[i % teams.length].id);
+      }
+      break;
+    }
+    case "checked_in_balanced": {
+      const checkedIn = users
+        .filter((u) => u.checkedInAt)
+        .sort((a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0));
+      const notCheckedIn = users.filter((u) => !u.checkedInAt);
+      const ordered = [...checkedIn, ...notCheckedIn];
+
+      for (const user of ordered) {
+        const team = pickBalancedTeam(teams, teamCounts);
+        await assignUser(user.id, team.id);
+      }
+      break;
+    }
+    case "balanced_random":
+    default: {
+      const shuffled = [...users].sort(() => Math.random() - 0.5);
+      for (const user of shuffled) {
+        const team = pickBalancedTeam(teams, teamCounts);
+        await assignUser(user.id, team.id);
+      }
+      break;
+    }
+  }
+
+  return prisma.user.findMany({
+    where: { id: { in: users.map((u) => u.id) } },
+    include: { team: true },
+  });
+}
+
+/** @deprecated Use assignTeams */
+export const assignTeamsBalanced = assignTeams;

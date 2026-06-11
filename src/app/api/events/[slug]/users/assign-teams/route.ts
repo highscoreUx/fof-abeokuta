@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventRole } from "@/lib/auth/event-middleware";
-import { assignTeamsBalanced } from "@/lib/users";
+import { assignTeams, isTeamAssignAlgorithm } from "@/lib/team-assign";
 
 export async function POST(
   request: NextRequest,
@@ -12,13 +12,26 @@ export async function POST(
 
   const body = await request.json().catch(() => ({}));
   const userIds = Array.isArray(body.userIds) ? body.userIds : undefined;
-  const users = await assignTeamsBalanced(ctx.event.id, userIds);
+  const onlyUnassigned = typeof body.onlyUnassigned === "boolean" ? body.onlyUnassigned : undefined;
+  const algorithm =
+    typeof body.algorithm === "string" && isTeamAssignAlgorithm(body.algorithm)
+      ? body.algorithm
+      : undefined;
 
-  return NextResponse.json({
-    users: users.map((u) => ({
-      id: u.id,
-      username: u.username,
-      teamLetter: u.team?.letter ?? null,
-    })),
-  });
+  try {
+    const users = await assignTeams(ctx.event.id, { userIds, onlyUnassigned, algorithm });
+    return NextResponse.json({
+      assigned: users.length,
+      users: users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        teamLetter: u.team?.letter ?? null,
+      })),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to assign teams" },
+      { status: 400 },
+    );
+  }
 }

@@ -3,7 +3,8 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { requireEventRole } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
-import { assignTeamsBalanced, createUserFromRow } from "@/lib/users";
+import { assignTeams, getTeamAssignSettings } from "@/lib/team-assign";
+import { createUserFromRow } from "@/lib/users";
 import { jsonError } from "@/lib/auth/middleware";
 import type { Role } from "@/types";
 import { prisma } from "@/lib/prisma";
@@ -37,6 +38,7 @@ export async function POST(
   const buffer = Buffer.from(await file.arrayBuffer());
   const rows = parseFile(buffer, file.name);
   const created: Array<{ username: string; password: string; role: string }> = [];
+  const createdParticipantIds: string[] = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -67,6 +69,9 @@ export async function POST(
         password: user.pinDisplay!,
         role: user.role,
       });
+      if (user.role === "PARTICIPANT") {
+        createdParticipantIds.push(user.id);
+      }
     } catch (error) {
       errors.push({
         row: i + 2,
@@ -75,12 +80,15 @@ export async function POST(
     }
   }
 
+  const assignSettings = await getTeamAssignSettings(ctx.event.id);
   if (autoAssignTeams) {
     const participants = await prisma.user.findMany({
       where: { eventId: ctx.event.id, role: "PARTICIPANT" },
       select: { id: true },
     });
-    await assignTeamsBalanced(ctx.event.id, participants.map((p) => p.id));
+    await assignTeams(ctx.event.id, { userIds: participants.map((p) => p.id) });
+  } else if (assignSettings.autoAssignOnImport && createdParticipantIds.length > 0) {
+    await assignTeams(ctx.event.id, { userIds: createdParticipantIds });
   }
 
   return NextResponse.json({

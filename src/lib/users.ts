@@ -108,38 +108,6 @@ export async function generateNextPassword(
   throw new Error(`No available passwords for role ${role}`);
 }
 
-export async function assignTeamsBalanced(eventId: string, userIds?: string[]) {
-  const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
-  if (teams.length === 0) throw new Error("Teams not seeded");
-
-  const users = await prisma.user.findMany({
-    where: {
-      eventId,
-      role: "PARTICIPANT",
-      ...(userIds ? { id: { in: userIds } } : {}),
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const shuffled = [...users].sort(() => Math.random() - 0.5);
-  const teamCounts = new Map(teams.map((t) => [t.id, 0]));
-
-  for (const user of shuffled) {
-    const team = teams.reduce((min, t) =>
-      (teamCounts.get(t.id) ?? 0) < (teamCounts.get(min.id) ?? 0) ? t : min,
-    );
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { teamId: team.id },
-    });
-    teamCounts.set(team.id, (teamCounts.get(team.id) ?? 0) + 1);
-  }
-
-  return prisma.user.findMany({
-    where: { id: { in: shuffled.map((u) => u.id) } },
-    include: { team: true },
-  });
-}
 
 export async function createUserFromRow(
   eventId: string,

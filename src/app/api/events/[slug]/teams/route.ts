@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventRole } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
+import { normalizeTeamCode, validateTeamCode } from "@/lib/team-codes";
+import { parseTeamInput, seedFigmaTeams } from "@/lib/teams";
 
 export async function GET(
   request: NextRequest,
@@ -13,9 +15,51 @@ export async function GET(
   const teams = await prisma.team.findMany({
     where: { eventId: ctx.event.id },
     orderBy: { letter: "asc" },
+    include: { _count: { select: { users: true } } },
   });
 
-  return NextResponse.json({ teams });
+  return NextResponse.json({
+    teams: teams.map(({ _count, ...team }) => ({
+      ...team,
+      memberCount: _count.users,
+    })),
+  });
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await params;
+  const ctx = await requireEventRole(request, slug, "ADMIN");
+  if (ctx instanceof NextResponse) return ctx;
+
+  const body = await request.json();
+
+  if (body.action === "seed_figma") {
+    const result = await seedFigmaTeams(ctx.event.id);
+    return NextResponse.json(result);
+  }
+
+  try {
+    const { letter, name, color } = parseTeamInput(body);
+    const existing = await prisma.team.findUnique({
+      where: { eventId_letter: { eventId: ctx.event.id, letter } },
+    });
+    if (existing) {
+      return NextResponse.json({ error: `Team code "${letter}" already exists` }, { status: 409 });
+    }
+
+    const team = await prisma.team.create({
+      data: { eventId: ctx.event.id, letter, name, color },
+    });
+    return NextResponse.json({ team }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Invalid team" },
+      { status: 400 },
+    );
+  }
 }
 
 export async function PATCH(
@@ -27,7 +71,7 @@ export async function PATCH(
   if (ctx instanceof NextResponse) return ctx;
 
   const body = (await request.json()) as {
-    teams?: Array<{ id: string; name?: string; color?: string }>;
+    teams?: Array<{ id: string; letter?: string; name?: string; color?: string }>;
   };
 
   if (!Array.isArray(body.teams) || body.teams.length === 0) {
@@ -36,19 +80,47 @@ export async function PATCH(
 
   for (const team of body.teams) {
     if (!team.id) continue;
+
+    const data: { letter?: string; name?: string; color?: string } = {};
+    if (team.name !== undefined) data.name = team.name.trim();
+    if (team.color !== undefined) data.color = team.color.trim();
+
+    if (team.letter !== undefined) {
+      const letter = normalizeTeamCode(team.letter);
+      const letterError = validateTeamCode(letter);
+      if (letterError) {
+        return NextResponse.json({ error: letterError }, { status: 400 });
+      }
+
+      const conflict = await prisma.team.findFirst({
+        where: {
+          eventId: ctx.event.id,
+          letter,
+          NOT: { id: team.id },
+        },
+      });
+      if (conflict) {
+        return NextResponse.json({ error: `Team code "${letter}" already exists` }, { status: 409 });
+      }
+      data.letter = letter;
+    }
+
     await prisma.team.updateMany({
       where: { id: team.id, eventId: ctx.event.id },
-      data: {
-        ...(team.name !== undefined ? { name: team.name } : {}),
-        ...(team.color !== undefined ? { color: team.color } : {}),
-      },
+      data,
     });
   }
 
   const teams = await prisma.team.findMany({
     where: { eventId: ctx.event.id },
     orderBy: { letter: "asc" },
+    include: { _count: { select: { users: true } } },
   });
 
-  return NextResponse.json({ teams });
+  return NextResponse.json({
+    teams: teams.map(({ _count, ...team }) => ({
+      ...team,
+      memberCount: _count.users,
+    })),
+  });
 }

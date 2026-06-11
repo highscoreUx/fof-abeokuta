@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
+import { ChatPollMessage } from "@/components/chat/ChatPollMessage";
 import { parseChatContent } from "@/lib/chat-content";
 import {
   formatMessageTime,
@@ -12,6 +13,7 @@ import type { ChatMessage } from "@/types/chat";
 
 interface ChatMessageBubbleProps {
   message: ChatMessage;
+  roomId: string;
   isOwn: boolean;
   showName: boolean;
   showAvatar: boolean;
@@ -90,6 +92,7 @@ function MessageStatus({
 
 export function ChatMessageBubble({
   message,
+  roomId,
   isOwn,
   showName,
   showAvatar,
@@ -100,6 +103,7 @@ export function ChatMessageBubble({
   const fullName = `${message.user.firstName} ${message.user.lastName}`;
   const content = parseChatContent(message.body);
   const isText = content.type === "text";
+  const isPoll = content.type === "poll";
 
   return (
     <div
@@ -153,6 +157,17 @@ export function ChatMessageBubble({
                 className="float-right ml-2.5 mt-1 h-[15px] translate-y-px"
               />
               <span className="whitespace-pre-wrap break-words">{content.text}</span>
+            </div>
+          ) : isPoll ? (
+            <div>
+              <ChatPollMessage
+                messageId={message.id}
+                body={message.body}
+                roomId={roomId}
+              />
+              <div className="mt-1 flex justify-end">
+                <MessageMeta time={time} isOwn={isOwn} isPending={isPending} />
+              </div>
             </div>
           ) : (
             <div className="relative inline-block max-w-full">

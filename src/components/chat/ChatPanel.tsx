@@ -179,6 +179,7 @@ export function ChatPanel({ room, isActive, className }: ChatPanelProps) {
               <ChatMessageBubble
                 key={m.id}
                 message={m}
+                roomId={room.id}
                 isOwn={isOwn}
                 showName={showName}
                 showAvatar={showAvatar}

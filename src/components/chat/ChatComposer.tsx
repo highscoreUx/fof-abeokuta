@@ -7,6 +7,12 @@ import {
   CHAT_GIFS,
   CHAT_STICKER_PACKS,
 } from "@/lib/chat-assets";
+import {
+  createEmptyPoll,
+  isValidPollData,
+  POLL_MAX_OPTIONS,
+  POLL_MIN_OPTIONS,
+} from "@/lib/chat-poll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -29,6 +35,9 @@ export function ChatComposer({
   onSendContent,
 }: ChatComposerProps) {
   const [picker, setPicker] = useState<PickerTab | null>(null);
+  const [showPollBuilder, setShowPollBuilder] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
   const [emojiCategory, setEmojiCategory] = useState<string>(CHAT_EMOJI_CATEGORIES[0].id);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +88,41 @@ export function ChatComposer({
     setPicker(null);
   };
 
+  const openPollBuilder = () => {
+    setPicker(null);
+    setShowPollBuilder((open) => !open);
+  };
+
+  const updatePollOption = (index: number, value: string) => {
+    setPollOptions((current) => current.map((option, i) => (i === index ? value : option)));
+  };
+
+  const addPollOption = () => {
+    setPollOptions((current) =>
+      current.length < POLL_MAX_OPTIONS ? [...current, ""] : current,
+    );
+  };
+
+  const removePollOption = (index: number) => {
+    setPollOptions((current) =>
+      current.length > POLL_MIN_OPTIONS ? current.filter((_, i) => i !== index) : current,
+    );
+  };
+
+  const sendPoll = async () => {
+    if (disabled) return;
+
+    const poll = createEmptyPoll(pollQuestion, pollOptions);
+    if (!isValidPollData(poll)) return;
+    if (!(await onSendContent({ type: "poll", poll }))) return;
+
+    setPollQuestion("");
+    setPollOptions(["", ""]);
+    setShowPollBuilder(false);
+  };
+
+  const pollReady = isValidPollData(createEmptyPoll(pollQuestion, pollOptions));
+
   const activeEmojiCategory =
     CHAT_EMOJI_CATEGORIES.find((category) => category.id === emojiCategory) ??
     CHAT_EMOJI_CATEGORIES[0];
@@ -91,6 +135,73 @@ export function ChatComposer({
 
   return (
     <div ref={containerRef} className="relative space-y-2">
+      {showPollBuilder && (
+        <div className="mb-2 space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-foreground">Create poll</p>
+            <button
+              type="button"
+              onClick={() => setShowPollBuilder(false)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Close
+            </button>
+          </div>
+
+          <Input
+            value={pollQuestion}
+            disabled={disabled}
+            onChange={(e) => setPollQuestion(e.target.value)}
+            placeholder="Ask a question..."
+            maxLength={200}
+          />
+
+          <div className="space-y-2">
+            {pollOptions.map((option, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  value={option}
+                  disabled={disabled}
+                  onChange={(e) => updatePollOption(index, e.target.value)}
+                  placeholder={`Option ${index + 1}`}
+                  maxLength={100}
+                />
+                {pollOptions.length > POLL_MIN_OPTIONS && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 px-2"
+                    onClick={() => removePollOption(index)}
+                    aria-label={`Remove option ${index + 1}`}
+                  >
+                    ✕
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {pollOptions.length < POLL_MAX_OPTIONS ? (
+              <Button type="button" variant="ghost" size="sm" onClick={addPollOption}>
+                Add option
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button
+              type="button"
+              size="sm"
+              disabled={disabled || !pollReady}
+              onClick={() => void sendPoll()}
+            >
+              Send poll
+            </Button>
+          </div>
+        </div>
+      )}
+
       {picker && (
         <div className="absolute bottom-full left-0 right-0 z-10 mb-2 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
           <div className="flex border-b border-border">
@@ -202,7 +313,10 @@ export function ChatComposer({
           variant={picker === "emoji" ? "secondary" : "ghost"}
           size="sm"
           className="shrink-0 px-2.5"
-          onClick={() => setPicker((current) => (current === "emoji" ? null : "emoji"))}
+          onClick={() => {
+            setShowPollBuilder(false);
+            setPicker((current) => (current === "emoji" ? null : "emoji"));
+          }}
           aria-label="Emoji"
         >
           😊
@@ -212,7 +326,10 @@ export function ChatComposer({
           variant={picker === "gif" ? "secondary" : "ghost"}
           size="sm"
           className="shrink-0 px-2.5 text-xs font-semibold"
-          onClick={() => setPicker((current) => (current === "gif" ? null : "gif"))}
+          onClick={() => {
+            setShowPollBuilder(false);
+            setPicker((current) => (current === "gif" ? null : "gif"));
+          }}
           aria-label="GIF"
         >
           GIF
@@ -222,10 +339,23 @@ export function ChatComposer({
           variant={picker === "sticker" ? "secondary" : "ghost"}
           size="sm"
           className="shrink-0 px-2.5 text-xs font-semibold"
-          onClick={() => setPicker((current) => (current === "sticker" ? null : "sticker"))}
+          onClick={() => {
+            setShowPollBuilder(false);
+            setPicker((current) => (current === "sticker" ? null : "sticker"));
+          }}
           aria-label="Stickers"
         >
           🎨
+        </Button>
+        <Button
+          type="button"
+          variant={showPollBuilder ? "secondary" : "ghost"}
+          size="sm"
+          className="shrink-0 px-2.5 text-xs font-semibold"
+          onClick={openPollBuilder}
+          aria-label="Poll"
+        >
+          Poll
         </Button>
       </div>
 

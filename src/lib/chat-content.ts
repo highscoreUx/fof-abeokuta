@@ -1,7 +1,17 @@
+import {
+  createEmptyPoll,
+  isValidPollData,
+  parsePollBody,
+  serializePoll,
+  type ChatPollData,
+} from "@/lib/chat-poll";
+
+export type { ChatPollData };
 export type ChatContent =
   | { type: "text"; text: string }
   | { type: "gif"; url: string; alt?: string }
-  | { type: "sticker"; id: string; url: string; label?: string };
+  | { type: "sticker"; id: string; url: string; label?: string }
+  | { type: "poll"; poll: ChatPollData };
 
 const ALLOWED_GIF_HOSTS = ["media.giphy.com", "media.tenor.com", "i.giphy.com"];
 
@@ -23,6 +33,7 @@ export function isAllowedStickerUrl(url: string): boolean {
 
 export function serializeChatContent(content: ChatContent): string {
   if (content.type === "text") return content.text.trim();
+  if (content.type === "poll") return serializePoll(content.poll);
   return JSON.stringify(content);
 }
 
@@ -47,6 +58,8 @@ export function parseChatContent(body: string): ChatContent {
           label: typeof parsed.label === "string" ? parsed.label : undefined,
         };
       }
+      const poll = parsePollBody(trimmed);
+      if (poll) return { type: "poll", poll };
     } catch {
       // plain text fallback
     }
@@ -90,6 +103,23 @@ export function normalizeChatPayload(input: unknown): string | null {
     if (record.type === "text" && typeof record.text === "string") {
       const text = record.text.trim();
       return text ? text.slice(0, 2000) : null;
+    }
+    if (record.type === "poll" && record.poll && typeof record.poll === "object") {
+      const pollRecord = record.poll as Record<string, unknown>;
+      const question = typeof pollRecord.question === "string" ? pollRecord.question : "";
+      const options = Array.isArray(pollRecord.options)
+        ? pollRecord.options.filter((o): o is string => typeof o === "string")
+        : [];
+      const poll = createEmptyPoll(question, options);
+      return isValidPollData(poll) ? serializePoll(poll) : null;
+    }
+    if (record.type === "poll") {
+      const question = typeof record.question === "string" ? record.question : "";
+      const options = Array.isArray(record.options)
+        ? record.options.filter((o): o is string => typeof o === "string")
+        : [];
+      const poll = createEmptyPoll(question, options);
+      return isValidPollData(poll) ? serializePoll(poll) : null;
     }
   }
 

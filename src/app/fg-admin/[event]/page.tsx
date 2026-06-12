@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { usePlatformAuthStore } from "@/stores/platformAuthStore";
+import { useParams } from "next/navigation";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import {
   consumePlatformCredentials,
@@ -10,19 +9,19 @@ import {
   type FlashedCredentials,
 } from "@/lib/platform-credentials-flash";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
-import { PlatformAdminHeader } from "@/components/platform/PlatformAdminHeader";
+import { PlatformAppShell } from "@/components/platform/PlatformAppShell";
 import { EventCredentialsBanner } from "@/components/platform/EventCredentialsBanner";
 import { EventDetailPanel } from "@/components/platform/EventDetailPanel";
+import { usePlatformNav } from "@/hooks/usePlatformNav";
 
 export default function PlatformEventPage() {
-  const router = useRouter();
   const params = useParams<{ event: string }>();
   const eventSlug = params.event;
-  const { admin, accessToken, clearAuth } = usePlatformAuthStore();
   const [event, setEvent] = useState<PlatformEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<FlashedCredentials | null>(null);
+  const nav = usePlatformNav(event);
 
   const load = async () => {
     setLoading(true);
@@ -41,13 +40,6 @@ export default function PlatformEventPage() {
   };
 
   useEffect(() => {
-    if (!accessToken) {
-      platformApiFetch("/api/fg-admin/auth/refresh", { method: "POST" })
-        .catch(() => router.replace("/fg-admin/login"));
-    }
-  }, [accessToken, router]);
-
-  useEffect(() => {
     void load();
   }, [eventSlug]);
 
@@ -55,12 +47,6 @@ export default function PlatformEventPage() {
     const flashed = consumePlatformCredentials();
     if (flashed) setCreatedCredentials(flashed);
   }, []);
-
-  const logout = async () => {
-    await fetch("/api/fg-admin/auth/logout", { method: "POST", credentials: "include" });
-    clearAuth();
-    router.push("/fg-admin/login");
-  };
 
   const handleCredentials = (payload: {
     eventTitle: string;
@@ -72,10 +58,8 @@ export default function PlatformEventPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <PlatformAdminHeader adminEmail={admin?.email} onLogout={logout} backHref="/fg-admin" />
-
-      <main className="mx-auto max-w-6xl space-y-8 p-6">
+    <PlatformAppShell title={event?.title ?? "Event"} nav={nav}>
+      <div className="space-y-8">
         {createdCredentials && (
           <EventCredentialsBanner
             credentials={createdCredentials}
@@ -100,7 +84,7 @@ export default function PlatformEventPage() {
             onCredentials={handleCredentials}
           />
         )}
-      </main>
-    </div>
+      </div>
+    </PlatformAppShell>
   );
 }

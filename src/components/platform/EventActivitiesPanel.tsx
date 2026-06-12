@@ -15,7 +15,13 @@ interface EventActivityRow {
   allowStaff: boolean;
 }
 
-export function EventActivitiesPanel({ eventId }: { eventId: string }) {
+export function EventActivitiesPanel({
+  eventId,
+  embedded = false,
+}: {
+  eventId: string;
+  embedded?: boolean;
+}) {
   const [activities, setActivities] = useState<EventActivityRow[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -59,14 +65,22 @@ export function EventActivitiesPanel({ eventId }: { eventId: string }) {
   if (activities.length === 0) return null;
 
   return (
-    <div className="space-y-4 border-t border-border pt-6">
-      <div>
-        <h3 className="text-base font-semibold">Activities</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-        Enable activity types and choose which participant scopes event admins may use per
-        instance. Team scope means every team participates separately within their own team.
+    <div className={embedded ? "space-y-4" : "space-y-4 border-t border-border pt-6"}>
+      {!embedded && (
+        <div>
+          <h3 className="text-base font-semibold">Activities</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enable activity types and choose which participant scopes event admins may use per
+            instance. Team scope means every team participates separately within their own team.
+          </p>
+        </div>
+      )}
+      {embedded && (
+        <p className="text-sm text-muted-foreground">
+          Enable activity types and choose which participant scopes event admins may use per
+          instance. Team scope means every team participates separately within their own team.
         </p>
-      </div>
+      )}
       <div className="space-y-4">
         {activities.map((row) => (
           <div key={row.slug} className="rounded-lg border border-border p-4">

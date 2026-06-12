@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import {
@@ -77,12 +77,14 @@ export default function PlatformEventPage() {
         )}
 
         {event && !loading && (
-          <EventDetailPanel
-            event={event}
-            fallbackIndex={0}
-            onUpdated={load}
-            onCredentials={handleCredentials}
-          />
+          <Suspense fallback={null}>
+            <EventDetailPanel
+              event={event}
+              fallbackIndex={0}
+              onUpdated={load}
+              onCredentials={handleCredentials}
+            />
+          </Suspense>
         )}
       </div>
     </PlatformAppShell>

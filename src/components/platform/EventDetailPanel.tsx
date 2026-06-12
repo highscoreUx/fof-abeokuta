@@ -1,16 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EventActivitiesPanel } from "@/components/platform/EventActivitiesPanel";
+import { EventAdminTab } from "@/components/platform/EventAdminTab";
+import { EventSettingsTab } from "@/components/platform/EventSettingsTab";
 import { getEventCoverUrl } from "@/lib/event-cover";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
+
+type EventConfigTab = "admin" | "activities" | "settings";
+
+const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
+  { value: "admin", label: "Event admin" },
+  { value: "activities", label: "Activity config" },
+  { value: "settings", label: "Event settings" },
+];
+
+function parseTab(value: string | null): EventConfigTab {
+  if (value === "activities" || value === "settings") return value;
+  return "admin";
+}
 
 interface EventDetailPanelProps {
   event: PlatformEvent;
@@ -29,14 +45,25 @@ export function EventDetailPanel({
   onUpdated,
   onCredentials,
 }: EventDetailPanelProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = parseTab(searchParams.get("tab"));
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [adminFirstName, setAdminFirstName] = useState("");
-  const [adminLastName, setAdminLastName] = useState("");
-  const [creatingAdmin, setCreatingAdmin] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
 
   const coverUrl = getEventCoverUrl(event.coverImageUrl, fallbackIndex);
+
+  const setTab = useCallback(
+    (next: EventConfigTab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "admin") params.delete("tab");
+      else params.set("tab", next);
+      const query = params.toString();
+      router.replace(`/fg-admin/${event.slug}${query ? `?${query}` : ""}`, { scroll: false });
+    },
+    [router, searchParams, event.slug],
+  );
 
   const updateStatus = async (status: "DRAFT" | "LIVE" | "ARCHIVED") => {
     setStatusLoading(true);
@@ -63,35 +90,8 @@ export function EventDetailPanel({
     }
   };
 
-  const createEventAdmin = async () => {
-    if (!adminFirstName.trim() || !adminLastName.trim()) return;
-    setCreatingAdmin(true);
-    try {
-      const result = await platformApiFetch<{
-        user: PlatformCreatedEventUser;
-        loginPath: string;
-      }>(`/api/fg-admin/events/${event.id}/admin-user`, {
-        method: "POST",
-        body: JSON.stringify({
-          firstName: adminFirstName.trim(),
-          lastName: adminLastName.trim(),
-        }),
-      });
-      onCredentials({
-        eventTitle: event.title,
-        loginPath: result.loginPath,
-        user: result.user,
-      });
-      setAdminFirstName("");
-      setAdminLastName("");
-      onUpdated();
-    } finally {
-      setCreatingAdmin(false);
-    }
-  };
-
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden p-0">
       <div className="relative aspect-[21/9] max-h-56 w-full bg-muted sm:max-h-72">
         <Image src={coverUrl} alt="" fill className="object-cover" sizes="100vw" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -131,69 +131,40 @@ export function EventDetailPanel({
       </div>
 
       <div className="space-y-6 p-6">
-        {event.description && (
-          <p className="text-sm leading-relaxed text-muted-foreground">{event.description}</p>
-        )}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <SegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
 
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/${event.slug}/login`}>
-            <Button size="sm" variant="outline">
-              Event login
-            </Button>
-          </Link>
-          <Link href={`/${event.slug}/home`}>
-            <Button size="sm" variant="secondary">
-              Open event app
-            </Button>
-          </Link>
-          {event.status !== "LIVE" && (
-            <Button size="sm" disabled={statusLoading} onClick={() => updateStatus("LIVE")}>
-              Go live
-            </Button>
-          )}
-          {event.status === "LIVE" && (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={statusLoading}
-              onClick={() => updateStatus("ARCHIVED")}
-            >
-              Archive
-            </Button>
-          )}
-        </div>
-
-        {event.userCount === 0 && (
-          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
-            <CardTitle className="text-base">Create event admin</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              No users yet. Add the first event admin for /{event.slug}/login.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Input
-                className="max-w-[10rem]"
-                value={adminFirstName}
-                onChange={(e) => setAdminFirstName(e.target.value)}
-                placeholder="First name"
-              />
-              <Input
-                className="max-w-[10rem]"
-                value={adminLastName}
-                onChange={(e) => setAdminLastName(e.target.value)}
-                placeholder="Last name"
-              />
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/${event.slug}/home`}>
+              <Button size="sm" variant="secondary">
+                Open event app
+              </Button>
+            </Link>
+            {event.status !== "LIVE" && (
+              <Button size="sm" disabled={statusLoading} onClick={() => updateStatus("LIVE")}>
+                Go live
+              </Button>
+            )}
+            {event.status === "LIVE" && (
               <Button
                 size="sm"
-                onClick={createEventAdmin}
-                disabled={creatingAdmin || !adminFirstName.trim() || !adminLastName.trim()}
+                variant="outline"
+                disabled={statusLoading}
+                onClick={() => updateStatus("ARCHIVED")}
               >
-                {creatingAdmin ? "Creating…" : "Create admin"}
+                Archive
               </Button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
-        <EventActivitiesPanel eventId={event.id} />
+        {tab === "admin" && (
+          <EventAdminTab event={event} onUpdated={onUpdated} onCredentials={onCredentials} />
+        )}
+        {tab === "activities" && (
+          <EventActivitiesPanel eventId={event.id} embedded />
+        )}
+        {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
       </div>
     </Card>
   );

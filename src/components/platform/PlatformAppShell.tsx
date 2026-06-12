@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/layout/BrandMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { FG_ADMIN_EVENTS, FG_ADMIN_MEMBERS } from "@/lib/fg-admin-routes";
 import { loginPath } from "@/lib/routes";
 import { usePlatformAuthStore } from "@/stores/platformAuthStore";
 
@@ -24,7 +25,16 @@ interface PlatformAppShellProps {
 function resolveActiveHref(pathname: string, nav: NavItem[]) {
   return [...nav]
     .sort((a, b) => b.href.length - a.href.length)
-    .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.href;
+    .find((item) => {
+      if (pathname === item.href) return true;
+      if (item.href === FG_ADMIN_EVENTS) {
+        return pathname.startsWith(`${FG_ADMIN_EVENTS}/`);
+      }
+      if (item.href === FG_ADMIN_MEMBERS) {
+        return pathname === FG_ADMIN_MEMBERS;
+      }
+      return false;
+    })?.href;
 }
 
 export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps) {
@@ -38,7 +48,7 @@ export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps
   const logout = async () => {
     await fetch("/api/fg-admin/auth/logout", { method: "POST", credentials: "include" });
     clearAuth();
-    router.push(loginPath("/fg-admin"));
+    router.push(loginPath(FG_ADMIN_EVENTS));
   };
 
   const navLink = (item: NavItem, onNavigate?: () => void) => {

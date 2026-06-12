@@ -45,7 +45,7 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
 
       if (!platformIntent && !resolvedEventSlug) {
         throw new Error(
-          "No event is available. Open an event link first, or add ?next=/fg-admin for platform access.",
+          "No event is available. Open an event link first, or add ?next=/fg-admin/events for platform access.",
         );
       }
 

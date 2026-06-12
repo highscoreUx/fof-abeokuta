@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { AddEventAdminModal } from "@/components/platform/AddEventAdminModal";
-import { EventAdminsTable } from "@/components/platform/EventAdminsTable";
+import { AddCommunityUserModal } from "@/components/platform/AddCommunityUserModal";
+import { PlatformCommunityUsersTable } from "@/components/platform/PlatformCommunityUsersTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
-interface EventAdminTabProps {
+interface CommunityStaffTabProps {
   event: PlatformEvent;
   onUpdated: () => void;
   onCredentials: (payload: {
@@ -17,7 +17,11 @@ interface EventAdminTabProps {
   }) => void;
 }
 
-export function EventAdminTab({ event, onUpdated, onCredentials }: EventAdminTabProps) {
+export function CommunityStaffTab({
+  event,
+  onUpdated,
+  onCredentials,
+}: CommunityStaffTabProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -26,36 +30,46 @@ export function EventAdminTab({ event, onUpdated, onCredentials }: EventAdminTab
       <Card className="p-0 shadow-none">
         <CardHeader className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <CardTitle>Event staff</CardTitle>
+            <CardTitle>Staff</CardTitle>
             <CardDescription>
-              People who run this event in the app. Share email and temporary password when you
-              add someone.
+              Coordinators, staff, judges, and admins for this event. Manage elevated access
+              here; all members are listed under Members in the sidebar.
             </CardDescription>
           </div>
           <Button className="shrink-0" onClick={() => setAddOpen(true)}>
-            Add event staff
+            Add staff
           </Button>
         </CardHeader>
 
         <div className="p-6 pt-4">
-          <EventAdminsTable
+          <PlatformCommunityUsersTable
             eventId={event.id}
-            eventSlug={event.slug}
+            audience="staff"
             refreshKey={refreshKey}
+            emptyLabel="No community staff yet"
+            countLabel="staff"
           />
         </div>
       </Card>
 
-      <AddEventAdminModal
+      <AddCommunityUserModal
         open={addOpen}
         eventId={event.id}
         eventTitle={event.title}
+        mode="staff"
         onClose={() => setAddOpen(false)}
-        onCreated={({ credentials, loginPath }) => {
+        onCreated={(credentials) => {
           onCredentials({
             eventTitle: event.title,
-            loginPath,
-            user: credentials,
+            loginPath: "/login",
+            user: {
+              email: credentials.email,
+              username: credentials.username,
+              password: credentials.password,
+              firstName: credentials.firstName,
+              lastName: credentials.lastName,
+              permissionProfile: credentials.permissionProfile,
+            },
           });
           setRefreshKey((key) => key + 1);
           onUpdated();

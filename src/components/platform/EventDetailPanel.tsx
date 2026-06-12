@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { EventAdminTab } from "@/components/platform/EventAdminTab";
+import { CommunityStaffTab } from "@/components/platform/CommunityStaffTab";
 import { EventSettingsTab } from "@/components/platform/EventSettingsTab";
+import { fgAdminEventPath } from "@/lib/fg-admin-routes";
 import { getEventCoverUrl } from "@/lib/event-cover";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
@@ -23,7 +24,7 @@ const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
 
 function parseTab(value: string | null): EventConfigTab {
   if (value === "staff" || value === "admin") return "staff";
-  if (value === "settings" || value === "activities") return "settings";
+  if (value === "settings" || value === "activities" || value === "members") return "settings";
   return "settings";
 }
 
@@ -59,7 +60,7 @@ export function EventDetailPanel({
       if (next === "settings") params.delete("tab");
       else params.set("tab", "staff");
       const query = params.toString();
-      router.replace(`/fg-admin/${event.slug}${query ? `?${query}` : ""}`, { scroll: false });
+      router.replace(fgAdminEventPath(event.slug, query || undefined), { scroll: false });
     },
     [router, searchParams, event.slug],
   );
@@ -159,7 +160,11 @@ export function EventDetailPanel({
 
         {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
         {tab === "staff" && (
-          <EventAdminTab event={event} onUpdated={onUpdated} onCredentials={onCredentials} />
+          <CommunityStaffTab
+            event={event}
+            onUpdated={onUpdated}
+            onCredentials={onCredentials}
+          />
         )}
       </div>
     </Card>

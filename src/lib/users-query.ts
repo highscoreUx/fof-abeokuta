@@ -1,3 +1,4 @@
+import { buildCommunityStaffAccountFilter, type CommunityAudience } from "@/lib/community-audience";
 import { getProfilePermissions } from "@/lib/permission-profiles";
 import { parsePaginationParams } from "@/lib/pagination";
 
@@ -32,16 +33,38 @@ function buildAccountFilter(params: ReturnType<typeof parsePaginationParams>) {
   return { account: { AND: parts } };
 }
 
+function mergeAccountFilters(
+  ...filters: Array<Record<string, unknown> | undefined>
+): Record<string, unknown> | undefined {
+  const parts = filters.filter((filter) => filter && Object.keys(filter).length > 0) as Record<
+    string,
+    unknown
+  >[];
+  if (parts.length === 0) return undefined;
+  if (parts.length === 1) return parts[0];
+  return { AND: parts };
+}
+
 export function buildUsersWhere(
   eventId: string,
-  params: ReturnType<typeof parsePaginationParams>,
+  params: ReturnType<typeof parsePaginationParams> & { audience?: CommunityAudience },
 ) {
+  const accountFromSearch = buildAccountFilter(params);
+  const audienceFilter =
+    params.audience === "staff"
+      ? { account: buildCommunityStaffAccountFilter() }
+      : undefined;
+  const searchAccount = accountFromSearch.account as Record<string, unknown> | undefined;
+  const audienceAccount =
+    audienceFilter?.account as Record<string, unknown> | undefined;
+  const mergedAccount = mergeAccountFilters(searchAccount, audienceAccount);
+
   return {
     eventId,
     ...(params.teamId ? { teamId: params.teamId } : {}),
     ...(params.checkedIn === "yes" ? { checkedInAt: { not: null } } : {}),
     ...(params.checkedIn === "no" ? { checkedInAt: null } : {}),
-    ...buildAccountFilter(params),
+    ...(mergedAccount ? { account: mergedAccount } : {}),
   };
 }
 

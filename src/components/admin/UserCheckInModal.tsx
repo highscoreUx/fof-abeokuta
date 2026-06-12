@@ -9,51 +9,38 @@ import {
   useCheckInUserMutation,
   useUncheckInUserMutation,
 } from "@/hooks/useUsersQuery";
+import { platformApiFetch } from "@/lib/platform-api-client";
+import type { CheckInUserPayload } from "@/lib/check-in";
 
 interface UserCheckInModalProps {
   open: boolean;
   onClose: () => void;
   user: EventUserRow | null;
+  /** When set, uses platform admin APIs instead of event-scoped hooks. */
+  platformEventId?: string;
+  onUpdated?: () => void;
 }
 
-export function UserCheckInModal({ open, onClose, user }: UserCheckInModalProps) {
-  const checkInUser = useCheckInUserMutation();
-  const uncheckInUser = useUncheckInUserMutation();
-  const [details, setDetails] = useState<EventUserRow | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (open && user) {
-      setDetails(user);
-      setError("");
-    }
-  }, [open, user]);
-
-  if (!details) return null;
-
+function UserCheckInModalContent({
+  open,
+  onClose,
+  details,
+  isCheckedIn,
+  busy,
+  error,
+  onCheckIn,
+  onUncheck,
+}: {
+  open: boolean;
+  onClose: () => void;
+  details: EventUserRow;
+  isCheckedIn: boolean;
+  busy: boolean;
+  error: string;
+  onCheckIn: () => Promise<void>;
+  onUncheck: () => Promise<void>;
+}) {
   const fullName = `${details.firstName} ${details.lastName}`.trim();
-  const isCheckedIn = Boolean(details.checkedInAt);
-  const busy = checkInUser.isPending || uncheckInUser.isPending;
-
-  const handleCheckIn = async () => {
-    setError("");
-    try {
-      const result = await checkInUser.mutateAsync(details.id);
-      setDetails((prev) => (prev ? { ...prev, ...result.user } : prev));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to check in user");
-    }
-  };
-
-  const handleUncheck = async () => {
-    setError("");
-    try {
-      const result = await uncheckInUser.mutateAsync(details.id);
-      setDetails((prev) => (prev ? { ...prev, ...result.user } : prev));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to undo check-in");
-    }
-  };
 
   return (
     <Modal
@@ -111,18 +98,168 @@ export function UserCheckInModal({ open, onClose, user }: UserCheckInModalProps)
               type="button"
               variant="outline"
               className="text-danger"
-              onClick={() => void handleUncheck()}
+              onClick={() => void onUncheck()}
               disabled={busy}
             >
-              {uncheckInUser.isPending ? "Undoing…" : "Undo check-in"}
+              {busy ? "Undoing…" : "Undo check-in"}
             </Button>
           ) : (
-            <Button type="button" onClick={() => void handleCheckIn()} disabled={busy}>
-              {checkInUser.isPending ? "Checking in…" : "Check in"}
+            <Button type="button" onClick={() => void onCheckIn()} disabled={busy}>
+              {busy ? "Checking in…" : "Check in"}
             </Button>
           )}
         </div>
       </div>
     </Modal>
   );
+}
+
+function EventUserCheckInModal({
+  open,
+  onClose,
+  user,
+}: Pick<UserCheckInModalProps, "open" | "onClose" | "user">) {
+  const checkInUser = useCheckInUserMutation();
+  const uncheckInUser = useUncheckInUserMutation();
+  const [details, setDetails] = useState<EventUserRow | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open && user) {
+      setDetails(user);
+      setError("");
+    }
+  }, [open, user]);
+
+  if (!details) return null;
+
+  const isCheckedIn = Boolean(details.checkedInAt);
+  const busy = checkInUser.isPending || uncheckInUser.isPending;
+
+  return (
+    <UserCheckInModalContent
+      open={open}
+      onClose={onClose}
+      details={details}
+      isCheckedIn={isCheckedIn}
+      busy={busy}
+      error={error}
+      onCheckIn={async () => {
+        setError("");
+        try {
+          const result = await checkInUser.mutateAsync(details.id);
+          setDetails((prev) => (prev ? { ...prev, ...result.user } : prev));
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to check in user");
+        }
+      }}
+      onUncheck={async () => {
+        setError("");
+        try {
+          const result = await uncheckInUser.mutateAsync(details.id);
+          setDetails((prev) => (prev ? { ...prev, ...result.user } : prev));
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to undo check-in");
+        }
+      }}
+    />
+  );
+}
+
+function PlatformUserCheckInModal({
+  open,
+  onClose,
+  user,
+  platformEventId,
+  onUpdated,
+}: Required<Pick<UserCheckInModalProps, "platformEventId">> &
+  Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated">) {
+  const [details, setDetails] = useState<EventUserRow | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open && user) {
+      setDetails(user);
+      setError("");
+    }
+  }, [open, user]);
+
+  if (!details) return null;
+
+  const applyCheckInResult = (payload: CheckInUserPayload) => {
+    setDetails((prev) =>
+      prev
+        ? {
+            ...prev,
+            teamLetter: payload.teamLetter,
+            checkedInAt: payload.checkedInAt,
+          }
+        : prev,
+    );
+    onUpdated?.();
+  };
+
+  return (
+    <UserCheckInModalContent
+      open={open}
+      onClose={onClose}
+      details={details}
+      isCheckedIn={Boolean(details.checkedInAt)}
+      busy={busy}
+      error={error}
+      onCheckIn={async () => {
+        setError("");
+        setBusy(true);
+        try {
+          const result = await platformApiFetch<{ user: CheckInUserPayload }>(
+            `/api/fg-admin/events/${platformEventId}/users/${details.id}/check-in`,
+            { method: "PATCH" },
+          );
+          applyCheckInResult(result.user);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to check in user");
+        } finally {
+          setBusy(false);
+        }
+      }}
+      onUncheck={async () => {
+        setError("");
+        setBusy(true);
+        try {
+          const result = await platformApiFetch<{ user: CheckInUserPayload }>(
+            `/api/fg-admin/events/${platformEventId}/users/${details.id}/check-in`,
+            { method: "DELETE" },
+          );
+          applyCheckInResult(result.user);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to undo check-in");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    />
+  );
+}
+
+export function UserCheckInModal({
+  open,
+  onClose,
+  user,
+  platformEventId,
+  onUpdated,
+}: UserCheckInModalProps) {
+  if (platformEventId) {
+    return (
+      <PlatformUserCheckInModal
+        open={open}
+        onClose={onClose}
+        user={user}
+        platformEventId={platformEventId}
+        onUpdated={onUpdated}
+      />
+    );
+  }
+
+  return <EventUserCheckInModal open={open} onClose={onClose} user={user} />;
 }

@@ -6,6 +6,6 @@ export default async function LegacyPlatformLoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  const target = next ? `/login?next=${encodeURIComponent(next)}` : "/login?next=%2Ffg-admin";
+  const target = next ? `/login?next=${encodeURIComponent(next)}` : "/login?next=%2Ffg-admin%2Fevents";
   redirect(target);
 }

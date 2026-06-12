@@ -18,7 +18,7 @@ export function usePlatformAuthGuard(enabled = true) {
     const returnTo =
       typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}`
-        : "/fg-admin";
+        : "/fg-admin/events";
 
     if (accessToken && admin) {
       if (!canAccessPlatform(admin.permissions)) {

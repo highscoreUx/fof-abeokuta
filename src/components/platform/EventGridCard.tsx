@@ -27,7 +27,7 @@ export function EventGridCard({ event, fallbackIndex }: EventGridCardProps) {
 
   return (
     <Link
-      href={`/fg-admin/${event.slug}`}
+      href={`/fg-admin/events/${event.slug}`}
       className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-muted">

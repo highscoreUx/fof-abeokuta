@@ -13,7 +13,7 @@ interface EventCredentialsBannerProps {
 export function EventCredentialsBanner({ credentials, onDismiss }: EventCredentialsBannerProps) {
   return (
     <Card className="border-primary/40 bg-primary/5">
-      <CardTitle>Event staff credentials</CardTitle>
+      <CardTitle>Community staff credentials</CardTitle>
       <p className="mt-1 text-sm text-muted-foreground">
         Share these with event staff for <strong>{credentials.eventTitle}</strong>. They sign in
         at{" "}

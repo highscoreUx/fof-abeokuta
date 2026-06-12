@@ -30,8 +30,8 @@ export function resolvePostLoginRedirect(options: {
     return sanitized;
   }
 
-  if (isPlatformSession && isPlatformPath(sanitized ?? "/fg-admin")) {
-    return "/fg-admin";
+  if (isPlatformSession && isPlatformPath(sanitized ?? "/fg-admin/events")) {
+    return "/fg-admin/events";
   }
 
   const eventSlug =

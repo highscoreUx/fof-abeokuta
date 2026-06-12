@@ -56,8 +56,27 @@ export function proxy(request: NextRequest) {
   }
 
   if (pathname === "/fg-admin/login") {
-    const next = request.nextUrl.searchParams.get("next") ?? "/fg-admin";
+    const next = request.nextUrl.searchParams.get("next") ?? "/fg-admin/events";
     return loginRedirect(request, next);
+  }
+
+  if (pathname === "/fg-admin") {
+    return NextResponse.redirect(new URL("/fg-admin/events", request.url));
+  }
+
+  const legacyEventPage = pathname.match(/^\/fg-admin\/([^/]+)$/);
+  if (
+    legacyEventPage &&
+    !["events", "members", "login", "access-denied"].includes(legacyEventPage[1])
+  ) {
+    return NextResponse.redirect(new URL(`/fg-admin/events/${legacyEventPage[1]}`, request.url));
+  }
+
+  const legacyMembersPage = pathname.match(/^\/fg-admin\/([^/]+)\/members$/);
+  if (legacyMembersPage) {
+    const url = new URL("/fg-admin/members", request.url);
+    url.searchParams.set("event", legacyMembersPage[1]);
+    return NextResponse.redirect(url);
   }
 
   const legacyEventLogin = pathname.match(/^\/([^/]+)\/login$/);

@@ -327,6 +327,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     socket.on(
       "spin:admin:start",
       async (data?: {
+        challengeId?: string;
         title?: string;
         allowGeneralParticipants?: boolean;
         allowGroupParticipants?: boolean;

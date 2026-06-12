@@ -20,17 +20,53 @@ export async function getActiveSpinChallenge(eventId: string) {
   });
 }
 
+function pickSpinPrompt() {
+  return SPIN_PROMPTS[Math.floor(Math.random() * SPIN_PROMPTS.length)];
+}
+
+export async function activateSpinChallenge(
+  io: SocketIOServer,
+  challengeId: string,
+  eventId: string,
+) {
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+  const prompt = pickSpinPrompt();
+
+  const challenge = await prisma.spinChallenge.update({
+    where: { id: challengeId, eventId },
+    data: { state: "ACTIVE", config: { prompt } },
+  });
+
+  io.to(eventRoom(event.slug)).emit("spin:state", {
+    challengeId: challenge.id,
+    title: challenge.title,
+    prompt,
+    state: challenge.state,
+    allowGeneralParticipants: challenge.allowGeneralParticipants,
+    allowGroupParticipants: challenge.allowGroupParticipants,
+    submissions: [],
+  });
+
+  return challenge;
+}
+
+/** @deprecated Prefer creating via API then activateSpinChallenge */
 export async function startSpinChallenge(
   io: SocketIOServer,
   eventId: string,
   options?: {
+    challengeId?: string;
     title?: string;
     allowGeneralParticipants?: boolean;
     allowGroupParticipants?: boolean;
   },
 ) {
+  if (options?.challengeId) {
+    return activateSpinChallenge(io, options.challengeId, eventId);
+  }
+
   const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
-  const prompt = SPIN_PROMPTS[Math.floor(Math.random() * SPIN_PROMPTS.length)];
+  const prompt = pickSpinPrompt();
 
   const challenge = await prisma.spinChallenge.create({
     data: {

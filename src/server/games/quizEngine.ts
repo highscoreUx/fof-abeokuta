@@ -8,7 +8,7 @@ import {
   KAHOOT_RESULTS_DURATION_MS,
 } from "@/server/games/kahootScoring";
 import { scoreTriviaAnswer, toTriviaQuestionRecord } from "@/lib/trivia/scoring";
-import { broadcastKahootLive } from "@/lib/activity-chat";
+import { broadcastKahootLive } from "@/lib/activity-chat-server";
 import type {
   QuizAnswerResult,
   QuizQuestionResults,

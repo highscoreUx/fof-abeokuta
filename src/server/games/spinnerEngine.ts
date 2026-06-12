@@ -1,6 +1,6 @@
 import type { Server as SocketIOServer } from "socket.io";
 import { prisma } from "@/lib/prisma";
-import { postActivityChatMessage } from "@/lib/activity-chat";
+import { postActivityChatMessage } from "@/lib/activity-chat-server";
 import type { SpinnerConfig, SpinnerStateSnapshot } from "@/lib/spinner/types";
 import { eventRoom, spinnerSessionRoom, teamRoom } from "@/server/socket/rooms";
 

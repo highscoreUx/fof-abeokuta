@@ -1,58 +1,16 @@
 import {
   createGlobalChatMessage,
   createTeamChatMessage,
-  serializeChatMessageRecord,
 } from "@/lib/chat-messages-server";
+import {
+  serializeActivityChat,
+  type ActivityChatBody,
+} from "@/lib/activity-chat-types";
 import { prisma } from "@/lib/prisma";
 import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { teamRoom } from "@/server/socket/rooms";
 import { tryGetIO } from "@/server/socket/io";
 import type { ChatMessage } from "@/types/chat";
-
-export type ActivityChatKind = "spinner" | "kahoot";
-
-export interface ActivityChatBody {
-  type: "activity";
-  kind: ActivityChatKind;
-  sessionId: string;
-  instanceId: string;
-  title: string;
-  status: "live" | "ended";
-  action: "started" | "spin_result" | "ended";
-  text: string;
-  metadata?: Record<string, unknown>;
-}
-
-export function serializeActivityChat(body: ActivityChatBody): string {
-  return JSON.stringify(body);
-}
-
-export function parseActivityChatBody(body: string): ActivityChatBody | null {
-  if (!body.trim().startsWith("{")) return null;
-  try {
-    const parsed = JSON.parse(body) as Partial<ActivityChatBody>;
-    if (
-      parsed.type !== "activity" ||
-      (parsed.kind !== "spinner" && parsed.kind !== "kahoot") ||
-      typeof parsed.sessionId !== "string" ||
-      typeof parsed.instanceId !== "string" ||
-      typeof parsed.title !== "string" ||
-      typeof parsed.text !== "string"
-    ) {
-      return null;
-    }
-    return parsed as ActivityChatBody;
-  } catch {
-    return null;
-  }
-}
-
-function systemUserForKind(kind: ActivityChatKind) {
-  if (kind === "kahoot") {
-    return { username: "system", firstName: "Live", lastName: "Trivia" };
-  }
-  return { username: "system", firstName: "Spinner", lastName: "Activity" };
-}
 
 export async function postActivityChatMessage(params: {
   eventId: string;

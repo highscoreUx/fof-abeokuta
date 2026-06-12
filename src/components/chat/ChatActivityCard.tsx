@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEventNav } from "@/hooks/useEventNav";
-import type { ActivityChatBody } from "@/lib/activity-chat";
+import type { ActivityChatBody } from "@/lib/activity-chat-types";
 import { Button } from "@/components/ui/button";
 
 interface ChatActivityCardProps {

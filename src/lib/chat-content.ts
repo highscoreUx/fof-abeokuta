@@ -6,7 +6,7 @@ import {
   serializePoll,
   type ChatPollData,
 } from "@/lib/chat-poll";
-import { parseActivityChatBody, type ActivityChatBody } from "@/lib/activity-chat";
+import { parseActivityChatBody, type ActivityChatBody } from "@/lib/activity-chat-types";
 
 export type { ChatPollData, ChatReplyRef };
 export type ChatContent =

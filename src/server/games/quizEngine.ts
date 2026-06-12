@@ -8,6 +8,7 @@ import {
   KAHOOT_RESULTS_DURATION_MS,
 } from "@/server/games/kahootScoring";
 import { scoreTriviaAnswer, toTriviaQuestionRecord } from "@/lib/trivia/scoring";
+import { broadcastKahootLive } from "@/lib/activity-chat";
 import type {
   QuizAnswerResult,
   QuizQuestionResults,
@@ -215,15 +216,36 @@ export async function broadcastQuizState(io: SocketIOServer, sessionId: string) 
   io.to(quizRoom(slug)).to(eventRoom(slug)).emit("quiz:state", snapshot);
 }
 
-export async function startQuizSession(io: SocketIOServer, quizId: string) {
+export async function startQuizSession(
+  io: SocketIOServer,
+  quizId: string,
+  hostUserId?: string,
+) {
   await withRetry(() => prisma.quiz.updateMany({ data: { active: false } }));
-  await withRetry(() => prisma.quiz.update({ where: { id: quizId }, data: { active: true } }));
+  const quiz = await withRetry(() =>
+    prisma.quiz.update({
+      where: { id: quizId },
+      data: { active: true, allowGroupParticipants: false },
+      include: { event: true },
+    }),
+  );
 
   const session = await withRetry(() =>
     prisma.quizSession.create({
       data: { quizId, state: "LOBBY" },
     }),
   );
+
+  if (hostUserId) {
+    await broadcastKahootLive({
+      eventId: quiz.eventId,
+      eventSlug: quiz.event.slug,
+      hostUserId,
+      sessionId: session.id,
+      quizId: quiz.id,
+      title: quiz.title,
+    });
+  }
 
   await broadcastQuizState(io, session.id);
   return session;

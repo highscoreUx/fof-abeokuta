@@ -5,7 +5,13 @@ export function userHasEnabledActivity(
   user: Pick<AuthUser, "enabledActivities"> | null | undefined,
   slug: ActivitySlug,
 ): boolean {
-  return Boolean(user?.enabledActivities?.some((entry) => entry.slug === slug));
+  return Boolean(
+    user?.enabledActivities?.some(
+      (entry) =>
+        entry.slug === slug ||
+        (slug === "spinner" && (entry.slug as string) === "spin_to_build"),
+    ),
+  );
 }
 
 export function eventHasAnyEnabledActivity(

@@ -57,7 +57,7 @@ async function main() {
   await ensureEventActivityRows(event.id);
 
   const kahootType = await prisma.activityType.findUnique({ where: { slug: "kahoot" } });
-  const spinType = await prisma.activityType.findUnique({ where: { slug: "spin_to_build" } });
+  const spinType = await prisma.activityType.findUnique({ where: { slug: "spinner" } });
   const surveyType = await prisma.activityType.findUnique({ where: { slug: "survey" } });
   if (kahootType) {
     await prisma.eventActivity.update({

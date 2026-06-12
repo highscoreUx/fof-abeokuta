@@ -83,19 +83,20 @@ export async function POST(
   if (!body.title) return jsonError("Title is required", "VALIDATION_ERROR", 400);
 
   const scope = {
-    allowGeneralParticipants: Boolean(body.allowGeneralParticipants),
-    allowGroupParticipants: Boolean(body.allowGroupParticipants),
+    allowGeneralParticipants: true,
+    allowGroupParticipants: false,
   };
 
-  const scopeError = validateInstanceScopeAgainstEvent(eventActivity, scope);
-  if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
+  if (!eventActivity.allowGeneral) {
+    return jsonError("Live Trivia must be whole-event scope on this event.", "VALIDATION_ERROR", 400);
+  }
 
   const quiz = await prisma.quiz.create({
     data: {
       eventId: ctx.event.id,
       title: body.title,
-      allowGeneralParticipants: scope.allowGeneralParticipants,
-      allowGroupParticipants: scope.allowGroupParticipants,
+      allowGeneralParticipants: true,
+      allowGroupParticipants: false,
       teamId: null,
     },
     include: { questions: true },

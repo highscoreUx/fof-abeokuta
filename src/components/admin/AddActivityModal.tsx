@@ -8,8 +8,10 @@ import { Select } from "@/components/ui/select";
 import {
   ACTIVITY_CATALOG,
   ACTIVITY_KAHOOT,
+  ACTIVITY_SPINNER,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
+import type { SpinnerParticipationMode } from "@/lib/spinner/types";
 import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
 
@@ -31,6 +33,7 @@ interface AddActivityModalProps {
     title: string;
     allowGeneralParticipants: boolean;
     allowGroupParticipants: boolean;
+    participationMode?: SpinnerParticipationMode;
   }) => Promise<void>;
 }
 
@@ -51,6 +54,8 @@ export function AddActivityModal({
   const [title, setTitle] = useState("");
   const [allowGeneral, setAllowGeneral] = useState(true);
   const [allowGroup, setAllowGroup] = useState(false);
+  const [participationMode, setParticipationMode] =
+    useState<SpinnerParticipationMode>("ONE_AT_A_TIME");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +75,11 @@ export function AddActivityModal({
 
   useEffect(() => {
     if (!selectedConfig) return;
+    if (type === ACTIVITY_KAHOOT) {
+      setAllowGeneral(true);
+      setAllowGroup(false);
+      return;
+    }
     if (!selectedConfig.allowGeneral && allowGeneral) setAllowGeneral(false);
     if (!selectedConfig.allowGroup && allowGroup) setAllowGroup(false);
     if (selectedConfig.allowGeneral && !selectedConfig.allowGroup) setAllowGeneral(true);
@@ -92,8 +102,9 @@ export function AddActivityModal({
       await onCreate({
         type,
         title: title.trim(),
-        allowGeneralParticipants: allowGeneral,
-        allowGroupParticipants: allowGroup,
+        allowGeneralParticipants: type === ACTIVITY_KAHOOT ? true : allowGeneral,
+        allowGroupParticipants: type === ACTIVITY_KAHOOT ? false : allowGroup,
+        participationMode: type === ACTIVITY_SPINNER ? participationMode : undefined,
       });
       onClose();
     } catch (e) {
@@ -146,36 +157,59 @@ export function AddActivityModal({
           )}
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Who can participate?</p>
-          <div className="flex flex-wrap gap-4 text-sm">
-            {selectedConfig?.allowGeneral && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={allowGeneral}
-                  onChange={(e) => setAllowGeneral(e.target.checked)}
-                />
-                Whole event
-              </label>
-            )}
-            {selectedConfig?.allowGroup && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={allowGroup}
-                  onChange={(e) => setAllowGroup(e.target.checked)}
-                />
-                Team scoped
-              </label>
+        {type === ACTIVITY_KAHOOT ? (
+          <p className="text-sm text-muted-foreground">
+            Live Trivia is always whole-event scope. When started, it is announced in general and
+            team chats so everyone can join or spectate.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Who can participate?</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              {selectedConfig?.allowGeneral && (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={allowGeneral}
+                    onChange={(e) => setAllowGeneral(e.target.checked)}
+                  />
+                  Whole event
+                </label>
+              )}
+              {selectedConfig?.allowGroup && (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={allowGroup}
+                    onChange={(e) => setAllowGroup(e.target.checked)}
+                  />
+                  Team scoped
+                </label>
+              )}
+            </div>
+            {allowGroup && (
+              <p className="text-xs text-muted-foreground">
+                Team-scoped spinners post to that team&apos;s chat. Members can spectate live spins.
+              </p>
             )}
           </div>
-          {allowGroup && (
-            <p className="text-xs text-muted-foreground">
-              Each team participates separately. All teams with assigned members can join.
-            </p>
-          )}
-        </div>
+        )}
+
+        {type === ACTIVITY_SPINNER && (
+          <div>
+            <label className="mb-2 block text-sm font-medium">Participation</label>
+            <select
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={participationMode}
+              onChange={(e) =>
+                setParticipationMode(e.target.value as SpinnerParticipationMode)
+              }
+            >
+              <option value="ONE_AT_A_TIME">One person at a time (spectators watch)</option>
+              <option value="CONCURRENT">Anyone can spin</option>
+            </select>
+          </div>
+        )}
 
         {error && <p className="text-sm text-danger">{error}</p>}
 

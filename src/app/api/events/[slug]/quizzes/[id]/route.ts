@@ -77,26 +77,17 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const scope = {
-    allowGeneralParticipants:
-      body.allowGeneralParticipants !== undefined
-        ? Boolean(body.allowGeneralParticipants)
-        : quiz.allowGeneralParticipants,
-    allowGroupParticipants:
-      body.allowGroupParticipants !== undefined
-        ? Boolean(body.allowGroupParticipants)
-        : quiz.allowGroupParticipants,
-  };
 
-  const scopeError = validateInstanceScopeAgainstEvent(eventActivity, scope);
-  if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
+  if (!eventActivity.allowGeneral) {
+    return jsonError("Live Trivia must be whole-event scope on this event.", "VALIDATION_ERROR", 400);
+  }
 
   const updated = await prisma.quiz.update({
     where: { id: quiz.id },
     data: {
       title: body.title ?? quiz.title,
-      allowGeneralParticipants: scope.allowGeneralParticipants,
-      allowGroupParticipants: scope.allowGroupParticipants,
+      allowGeneralParticipants: true,
+      allowGroupParticipants: false,
       teamId: null,
     },
     include: {

@@ -8,7 +8,7 @@ import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleto
 import { useEventNav } from "@/hooks/useEventNav";
 import { useEventApi } from "@/hooks/useEventApi";
 import { selectUserPermissions, useAuthStore } from "@/stores/authStore";
-import { ACTIVITY_KAHOOT, ACTIVITY_SPIN_TO_BUILD, ACTIVITY_SURVEY } from "@/lib/activities/catalog";
+import { ACTIVITY_KAHOOT, ACTIVITY_SPINNER, ACTIVITY_SURVEY } from "@/lib/activities/catalog";
 import { Card, CardTitle } from "@/components/ui/card";
 
 export function ActivitiesView() {
@@ -24,7 +24,8 @@ export function ActivitiesView() {
           (a) =>
             a.enabled &&
             (a.slug === ACTIVITY_KAHOOT ||
-              a.slug === ACTIVITY_SPIN_TO_BUILD ||
+              a.slug === ACTIVITY_SPINNER ||
+              a.slug === "spin_to_build" ||
               a.slug === ACTIVITY_SURVEY),
         );
         setAnyEnabled(enabled);

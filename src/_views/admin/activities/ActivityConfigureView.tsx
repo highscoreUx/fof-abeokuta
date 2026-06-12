@@ -17,17 +17,18 @@ import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
 import { TRIVIA_TYPE_LABELS } from "@/lib/trivia/types";
 import { isMediaUrl } from "@/lib/trivia/media";
 import { SurveyConfigurePanel } from "@/components/admin/SurveyConfigurePanel";
-import type { ActivityConfigureKind, KahootActivityDetail, SpinActivityDetail } from "@/types/activities";
+import { SpinnerConfigurePanel } from "@/components/admin/SpinnerConfigurePanel";
+import type { ActivityConfigureKind, KahootActivityDetail } from "@/types/activities";
 
 export function ActivityConfigureView() {
   const params = useParams<{ kind: string; id: string }>();
-  const kind = params.kind as ActivityConfigureKind;
+  const rawKind = params.kind;
+  const configureKind = (rawKind === "spin" ? "spinner" : rawKind) as ActivityConfigureKind;
   const id = params.id;
   const { api } = useEventApi();
   const { nav, activities } = useEventNav();
 
   const [kahoot, setKahoot] = useState<KahootActivityDetail | null>(null);
-  const [spin, setSpin] = useState<SpinActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export function ActivityConfigureView() {
     setLoading(true);
     setLoadError(null);
     try {
-      if (kind === "kahoot") {
+      if (configureKind === "kahoot") {
         const data = await api<{
           quiz: {
             id: string;
@@ -60,24 +61,10 @@ export function ActivityConfigureView() {
             options: Array.isArray(q.options) ? (q.options as string[]) : undefined,
           })),
         });
-      } else if (kind === "spin") {
-        const data = await api<{
-          challenge: {
-            id: string;
-            title: string;
-            allowGeneralParticipants: boolean;
-            allowGroupParticipants: boolean;
-            state: string;
-          };
-        }>(`/spin-challenges/${id}`);
-        setSpin({
-          kind: "spin",
-          id: data.challenge.id,
-          title: data.challenge.title,
-          allowGeneralParticipants: data.challenge.allowGeneralParticipants,
-          allowGroupParticipants: data.challenge.allowGroupParticipants,
-          state: data.challenge.state,
-        });
+      } else if (configureKind === "spinner") {
+        // Spinner detail loaded by SpinnerConfigurePanel
+      } else if (configureKind === "survey") {
+        // Survey detail loaded by SurveyConfigurePanel
       } else {
         setLoadError("Unknown activity type.");
       }
@@ -86,13 +73,13 @@ export function ActivityConfigureView() {
     } finally {
       setLoading(false);
     }
-  }, [api, id, kind]);
+  }, [api, id, configureKind]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const activity = kind === "kahoot" ? kahoot : spin;
+  const activity = configureKind === "kahoot" ? kahoot : null;
   const scope = activity
     ? formatInstanceScope({
         allowGeneralParticipants: activity.allowGeneralParticipants,
@@ -100,9 +87,17 @@ export function ActivityConfigureView() {
       })
     : "";
   const typeLabel =
-    kind === "kahoot" ? "Live Trivia" : kind === "survey" ? "Survey" : "Spin to Build";
+    configureKind === "kahoot"
+      ? "Live Trivia"
+      : configureKind === "survey"
+        ? "Survey"
+        : "Spinner";
   const permission =
-    kind === "kahoot" ? "quiz.manage" : kind === "survey" ? "survey.manage" : "spin.manage";
+    configureKind === "kahoot"
+      ? "quiz.manage"
+      : configureKind === "survey"
+        ? "survey.manage"
+        : "spin.manage";
 
   return (
     <PermissionGuard permission={permission}>
@@ -124,7 +119,7 @@ export function ActivityConfigureView() {
         {loading && <p className="text-muted-foreground">Loading…</p>}
         {loadError && <p className="text-danger">{loadError}</p>}
 
-        {!loading && !loadError && kahoot && kind === "kahoot" && (
+        {!loading && !loadError && kahoot && configureKind === "kahoot" && (
           <>
             <Card className="w-full p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -238,16 +233,12 @@ export function ActivityConfigureView() {
           </>
         )}
 
-        {!loading && !loadError && kind === "survey" && (
+        {!loading && !loadError && configureKind === "survey" && (
           <SurveyConfigurePanel surveyId={id} onReload={load} />
         )}
 
-        {!loading && !loadError && spin && kind === "spin" && (
-          <Card className="w-full p-6">
-            <p className="text-sm text-muted-foreground">
-              Spin to Build sessions are started from the activities list. Scope: {scope}.
-            </p>
-          </Card>
+        {!loading && !loadError && configureKind === "spinner" && (
+          <SpinnerConfigurePanel spinnerId={id} onReload={load} />
         )}
       </AppShell>
     </PermissionGuard>

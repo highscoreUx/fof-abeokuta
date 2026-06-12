@@ -19,14 +19,19 @@ export interface KahootActivityDetail {
   }>;
 }
 
-export interface SpinActivityDetail {
-  kind: "spin";
+export interface SpinnerActivityDetail {
+  kind: "spinner";
   id: string;
   title: string;
   allowGeneralParticipants: boolean;
   allowGroupParticipants: boolean;
-  state: string;
+  participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
+  optionsCount?: number;
+  activeSessionId?: string | null;
 }
+
+/** @deprecated use SpinnerActivityDetail */
+export type SpinActivityDetail = SpinnerActivityDetail;
 
 export interface SurveyActivityDetail {
   kind: "survey";
@@ -49,6 +54,6 @@ export interface SurveyActivityDetail {
   responseCount?: number;
 }
 
-export type ActivityDetail = KahootActivityDetail | SpinActivityDetail | SurveyActivityDetail;
+export type ActivityDetail = KahootActivityDetail | SpinnerActivityDetail | SurveyActivityDetail;
 
 export type ActivityConfigureKind = ActivityDetail["kind"];

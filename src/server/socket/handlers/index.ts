@@ -5,6 +5,7 @@ import {
   eventRoom,
   quizRoom,
   roleRoom,
+  spinnerSessionRoom,
   staffRoom,
   teamRoom,
   userRoom,
@@ -17,11 +18,11 @@ import {
   submitQuizAnswer,
 } from "@/server/games/quizEngine";
 import {
-  broadcastSpinState,
-  completeSpinChallenge,
-  startSpinChallenge,
-  submitSpinBuild,
-} from "@/server/games/spinToBuild";
+  broadcastSpinnerState,
+  endSpinnerSession,
+  performSpinnerSpin,
+  startSpinnerSession,
+} from "@/server/games/spinnerEngine";
 import {
   castChatPollVote,
   createDirectChatMessage,
@@ -36,7 +37,7 @@ import { isStaffRoomId } from "@/lib/chat-staff";
 import { isActivityEnabledForEvent } from "@/lib/activities/event-activities";
 import {
   ACTIVITY_KAHOOT,
-  ACTIVITY_SPIN_TO_BUILD,
+  ACTIVITY_SPINNER,
   userCanAccessActivityInstance,
 } from "@/lib/activities/catalog";
 import { hasPermission } from "@/lib/permissions";
@@ -314,7 +315,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
       if (!socketCan(auth, "quiz.run")) return;
       const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
       if (!kahootEnabled) return;
-      const session = await startQuizSession(io, quizId);
+      const session = await startQuizSession(io, quizId, auth.userId);
       socket.emit("sync:toast", { type: "success", message: "Activity session started" });
       await broadcastQuizState(io, session.id);
     });
@@ -333,49 +334,100 @@ export function registerSocketHandlers(io: SocketIOServer) {
       await endQuizGame(io, sessionId);
     });
 
-    socket.on(
-      "spin:admin:start",
-      async (data?: {
-        challengeId?: string;
-        title?: string;
-        allowGeneralParticipants?: boolean;
-        allowGroupParticipants?: boolean;
-      }) => {
-        if (!socketCan(auth, "spin.run")) return;
-        const spinEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPIN_TO_BUILD);
-        if (!spinEnabled) return;
-        await startSpinChallenge(io, auth.eventId, data);
-      },
-    );
-
-    socket.on("spin:submit", async (data: { challengeId: string; payload: Record<string, unknown> }) => {
-      const spinEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPIN_TO_BUILD);
-      if (!spinEnabled) return;
-
-      const challenge = await prisma.spinChallenge.findFirst({
-        where: { id: data.challengeId, eventId: auth.eventId },
-      });
-      if (!challenge || challenge.state !== "ACTIVE") return;
-
-      if (
-        !userCanAccessActivityInstance(auth, {
-          allowGeneralParticipants: challenge.allowGeneralParticipants,
-          allowGroupParticipants: challenge.allowGroupParticipants,
-        })
-      ) {
-        return;
+    socket.on("spinner:join", async (sessionId: string) => {
+      if (typeof sessionId !== "string" || !sessionId) return;
+      socket.join(spinnerSessionRoom(sessionId));
+      const snapshot = await broadcastSpinnerState(io, sessionId, slug);
+      if (snapshot) {
+        socket.emit("spinner:state", snapshot);
       }
-
-      if (!auth.teamId) return;
-      await submitSpinBuild(data.challengeId, auth.teamId, auth.userId, data.payload);
-      await broadcastSpinState(io, slug);
     });
 
-    socket.on("spin:admin:complete", async (challengeId: string) => {
-      if (!socketCan(auth, "spin.run")) return;
-      const spinEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPIN_TO_BUILD);
-      if (!spinEnabled) return;
-      await completeSpinChallenge(io, challengeId, slug);
+    socket.on("spinner:session:start", async (challengeId: string) => {
+      try {
+        const spinnerEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPINNER);
+        if (!spinnerEnabled) return;
+
+        const challenge = await prisma.spinChallenge.findFirst({
+          where: { id: challengeId, eventId: auth.eventId },
+        });
+        if (!challenge) return;
+
+        const canRun = socketCan(auth, "spin.run");
+        if (
+          !canRun &&
+          !userCanAccessActivityInstance(auth, {
+            allowGeneralParticipants: challenge.allowGeneralParticipants,
+            allowGroupParticipants: challenge.allowGroupParticipants,
+          })
+        ) {
+          return;
+        }
+
+        const snapshot = await startSpinnerSession(io, {
+          challengeId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+          userId: auth.userId,
+          teamId: auth.teamId ?? null,
+        });
+        if (snapshot) socket.join(spinnerSessionRoom(snapshot.sessionId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to start spinner",
+        });
+      }
+    });
+
+    socket.on("spinner:spin", async (sessionId: string) => {
+      try {
+        const spinnerEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPINNER);
+        if (!spinnerEnabled) return;
+
+        const snapshot = await performSpinnerSpin(io, {
+          sessionId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+          userId: auth.userId,
+          teamId: auth.teamId ?? null,
+        });
+        if (snapshot) socket.join(spinnerSessionRoom(snapshot.sessionId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to spin",
+        });
+      }
+    });
+
+    socket.on("spinner:session:end", async (sessionId: string) => {
+      try {
+        const spinnerEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_SPINNER);
+        if (!spinnerEnabled) return;
+
+        const session = await prisma.spinnerSession.findFirst({
+          where: { id: sessionId, eventId: auth.eventId },
+          include: { challenge: true },
+        });
+        if (!session) return;
+
+        const canEnd =
+          socketCan(auth, "spin.run") || session.startedByUserId === auth.userId;
+        if (!canEnd) return;
+
+        await endSpinnerSession(io, {
+          sessionId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+          userId: auth.userId,
+        });
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to end spinner",
+        });
+      }
     });
 
     socket.on("stream:admin:toggle", async (data: { live: boolean; videoId?: string }) => {

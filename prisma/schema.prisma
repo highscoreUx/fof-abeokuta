@@ -32,6 +32,16 @@ enum SpinChallengeState {
   COMPLETED
 }
 
+enum SpinnerParticipationMode {
+  CONCURRENT
+  ONE_AT_A_TIME
+}
+
+enum SpinnerSessionState {
+  ACTIVE
+  COMPLETED
+}
+
 enum TriviaQuestionType {
   QUIZ
   QUIZ_IMAGE
@@ -101,6 +111,7 @@ model Event {
   votes           Vote[]
   scoreCriteria   ScoreCriterion[]
   spinChallenges  SpinChallenge[]
+  spinnerSessions SpinnerSession[]
   surveys         Survey[]
   eventActivities EventActivity[]
   appSettings     AppSetting[]
@@ -147,6 +158,7 @@ model Team {
   voteBallots VoteBallot[]
   quizzes       Quiz[]
   spinChallenges SpinChallenge[]
+  spinnerSessions SpinnerSession[]
 
   @@unique([eventId, letter])
 }
@@ -196,6 +208,9 @@ model User {
   scoresGiven   Score[]        @relation("JudgeScores")
   voteBallots   VoteBallot[]
   spinSubmissions SpinSubmission[]
+  spinnerSpins SpinnerSpin[]
+  spinnerSessionsStarted SpinnerSession[] @relation("SpinnerStartedBy")
+  spinnerSessionsActive SpinnerSession[] @relation("SpinnerActiveUser")
   surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
 
@@ -373,19 +388,55 @@ model Score {
 }
 
 model SpinChallenge {
-  id                       String             @id @default(cuid())
+  id                       String                   @id @default(cuid())
   eventId                  String
-  event                    Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event                    Event                    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   title                    String
   config                   Json
-  state                    SpinChallengeState @default(IDLE)
-  allowGeneralParticipants Boolean            @default(false)
-  allowGroupParticipants   Boolean            @default(true)
+  state                    SpinChallengeState       @default(IDLE)
+  participationMode        SpinnerParticipationMode @default(ONE_AT_A_TIME)
+  allowGeneralParticipants Boolean                  @default(false)
+  allowGroupParticipants   Boolean                  @default(true)
   teamId                   String?
-  team                     Team?              @relation(fields: [teamId], references: [id])
+  team                     Team?                    @relation(fields: [teamId], references: [id])
   submissions              SpinSubmission[]
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
+  sessions                 SpinnerSession[]
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+}
+
+model SpinnerSession {
+  id              String              @id @default(cuid())
+  challengeId     String
+  challenge       SpinChallenge       @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  eventId         String
+  event           Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamId          String?
+  team            Team?               @relation(fields: [teamId], references: [id])
+  state           SpinnerSessionState @default(ACTIVE)
+  activeUserId    String?
+  activeUser      User?               @relation("SpinnerActiveUser", fields: [activeUserId], references: [id])
+  startedByUserId String
+  startedBy       User                @relation("SpinnerStartedBy", fields: [startedByUserId], references: [id])
+  spins           SpinnerSpin[]
+  createdAt       DateTime            @default(now())
+  endedAt         DateTime?
+
+  @@index([eventId, state])
+  @@index([challengeId, state])
+}
+
+model SpinnerSpin {
+  id             String         @id @default(cuid())
+  sessionId      String
+  session        SpinnerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  selectedIndex  Int
+  selectedOption String
+  createdAt      DateTime       @default(now())
+
+  @@index([sessionId, createdAt])
 }
 
 model SpinSubmission {

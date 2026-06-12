@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
+import { Button } from "@/components/ui/button";
+import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
 import { useAuth } from "@/hooks/useAuth";
 import { TriviaAnswerInput } from "@/components/trivia/TriviaAnswerInput";
 import {
@@ -71,13 +74,19 @@ function LeaderboardList({
   );
 }
 
+type PlayMode = "join" | "spectate" | null;
+
 export function QuizPlayer() {
   const socket = useSocket();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [state, setState] = useState<QuizStateSnapshot | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [answerResult, setAnswerResult] = useState<QuizAnswerResult | null>(null);
+  const [playMode, setPlayMode] = useState<PlayMode>(
+    searchParams.get("mode") === "spectate" ? "spectate" : null,
+  );
   const activeQuestionId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -141,7 +150,36 @@ export function QuizPlayer() {
   if (!state) {
     return (
       <div className="rounded-2xl bg-card p-8 text-center shadow-card">
-        <p className="text-muted-foreground">Waiting for the host to start…</p>
+        <p className="text-muted-foreground">Waiting for the host to start Live Trivia…</p>
+      </div>
+    );
+  }
+
+  if (!playMode && state.state !== "FINISHED") {
+    return (
+      <div className="rounded-2xl bg-gradient-to-br from-[#46178f] to-[#1368ce] p-10 text-center text-white shadow-card">
+        <p className="text-sm uppercase tracking-widest opacity-80">Live now</p>
+        <h2 className="mt-2 text-3xl font-black">{state.quizTitle ?? "Live Trivia"}</h2>
+        <p className="mt-4 text-lg opacity-90">Join to answer questions or spectate the game.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button size="lg" onClick={() => setPlayMode("join")}>
+            Join
+          </Button>
+          <Button size="lg" variant="secondary" onClick={() => setPlayMode("spectate")}>
+            Spectate
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (playMode === "spectate") {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl bg-muted/50 px-4 py-2 text-center text-sm text-muted-foreground">
+          Spectating — you are not competing for points
+        </div>
+        <QuizStageDisplay />
       </div>
     );
   }

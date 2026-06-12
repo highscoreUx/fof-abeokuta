@@ -155,8 +155,8 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
     permissions: [
       { permission: "quiz.manage", label: "Manage live trivia activities" },
       { permission: "quiz.run", label: "Run live trivia sessions" },
-      { permission: "spin.manage", label: "Manage spin to build activities" },
-      { permission: "spin.run", label: "Run spin to build sessions" },
+      { permission: "spin.manage", label: "Manage spinner activities" },
+      { permission: "spin.run", label: "Run spinner sessions" },
       { permission: "survey.manage", label: "Manage surveys" },
       { permission: "survey.run", label: "Open and close surveys" },
       { permission: "survey.view_results", label: "View survey results" },

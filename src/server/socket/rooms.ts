@@ -21,3 +21,7 @@ export function userRoom(userId: string) {
 export function quizRoom(eventSlug: string) {
   return `event:${eventSlug}:quiz`;
 }
+
+export function spinnerSessionRoom(sessionId: string) {
+  return `spinner:${sessionId}`;
+}

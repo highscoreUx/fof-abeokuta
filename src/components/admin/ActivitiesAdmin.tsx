@@ -14,7 +14,7 @@ import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
 import { CardTitle } from "@/components/ui/card";
 import {
   ACTIVITY_KAHOOT,
-  ACTIVITY_SPIN_TO_BUILD,
+  ACTIVITY_SPINNER,
   ACTIVITY_SURVEY,
   formatInstanceScope,
   type ActivitySlug,
@@ -97,18 +97,21 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           title: string;
           allowGeneralParticipants: boolean;
           allowGroupParticipants: boolean;
-          state: string;
+          participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
+          config?: { options?: string[] };
+          activeSessionId?: string | null;
         }>;
       }>("/spin-challenges").catch(() => ({ challenges: [] }));
       for (const c of spinRes.challenges) {
-        if (c.state === "COMPLETED") continue;
         next.push({
-          kind: "spin",
+          kind: "spinner",
           id: c.id,
           title: c.title,
           allowGeneralParticipants: c.allowGeneralParticipants,
           allowGroupParticipants: c.allowGroupParticipants,
-          state: c.state,
+          participationMode: c.participationMode,
+          optionsCount: Array.isArray(c.config?.options) ? c.config.options.length : 0,
+          activeSessionId: c.activeSessionId,
         });
       }
     }
@@ -168,12 +171,12 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       setActiveQuiz(snapshot);
       if (snapshot.state === "FINISHED") void refresh();
     };
-    const onSpin = () => void refresh();
+    const onSpinner = () => void refresh();
     socket.on("quiz:state", onQuiz);
-    socket.on("spin:state", onSpin);
+    socket.on("spinner:state", onSpinner);
     return () => {
       socket.off("quiz:state", onQuiz);
-      socket.off("spin:state", onSpin);
+      socket.off("spinner:state", onSpinner);
     };
   }, [socket, refresh]);
 
@@ -182,6 +185,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     title: string;
     allowGeneralParticipants: boolean;
     allowGroupParticipants: boolean;
+    participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
   }) => {
     if (data.type === ACTIVITY_KAHOOT) {
       await api("/quizzes", {
@@ -209,6 +213,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           title: data.title,
           allowGeneralParticipants: data.allowGeneralParticipants,
           allowGroupParticipants: data.allowGroupParticipants,
+          participationMode: data.participationMode ?? "ONE_AT_A_TIME",
         }),
       });
     }
@@ -218,7 +223,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const typeLabel = (row: ActivityRow) => {
     if (row.kind === "kahoot") return "Live Trivia";
     if (row.kind === "survey") return "Survey";
-    return "Spin to Build";
+    return "Spinner";
   };
 
   const stateLabel = (row: ActivityRow) => {
@@ -228,14 +233,14 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       if (row.status === "CLOSED") return "Closed";
       return "Draft";
     }
-    if (row.state === "ACTIVE" || row.state === "REVIEWING") return "Live";
-    return "Draft";
+    if (row.kind === "spinner" && row.activeSessionId) return "Live";
+    return "Ready";
   };
 
   const creatableCount = eventActivities.filter((a) => {
     if (!a.enabled) return false;
     if (a.slug === ACTIVITY_KAHOOT) return canManageKahoot;
-    if (a.slug === ACTIVITY_SPIN_TO_BUILD) return canManageSpin;
+    if (a.slug === ACTIVITY_SPINNER) return canManageSpin;
     if (a.slug === ACTIVITY_SURVEY) return canManageSurvey;
     return false;
   }).length;
@@ -303,7 +308,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                     <p className="text-sm text-muted-foreground">
                       {row.kind === "kahoot" || row.kind === "survey"
                         ? `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`
-                        : "Design challenge"}
+                        : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}
                       {" · "}
                       {scope}
                     </p>
@@ -311,7 +316,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
 
                   <div className="flex flex-wrap gap-2">
                     {((row.kind === "kahoot" && canManageKahoot) ||
-                      (row.kind === "spin" && canManageSpin) ||
+                      (row.kind === "spinner" && canManageSpin) ||
                       (row.kind === "survey" && canManageSurvey)) && (
                       <Link
                         href={activityConfigure(row.kind, row.id)}
@@ -344,23 +349,6 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                           End
                         </Button>
                       </>
-                    )}
-                    {row.kind === "spin" && canRunSpin && row.state === "IDLE" && (
-                      <Button
-                        onClick={() =>
-                          socket?.emit("spin:admin:start", { challengeId: row.id })
-                        }
-                      >
-                        Start session
-                      </Button>
-                    )}
-                    {row.kind === "spin" && canRunSpin && row.state === "ACTIVE" && (
-                      <Button
-                        variant="secondary"
-                        onClick={() => socket?.emit("spin:admin:complete", row.id)}
-                      >
-                        Complete
-                      </Button>
                     )}
                     {row.kind === "survey" && canRunSurvey && row.status !== "OPEN" && (
                       <Button

@@ -6,13 +6,15 @@ import {
   serializePoll,
   type ChatPollData,
 } from "@/lib/chat-poll";
+import { parseActivityChatBody, type ActivityChatBody } from "@/lib/activity-chat";
 
 export type { ChatPollData, ChatReplyRef };
 export type ChatContent =
   | { type: "text"; text: string; replyTo?: ChatReplyRef }
   | { type: "gif"; url: string; alt?: string }
   | { type: "sticker"; id: string; url: string; label?: string }
-  | { type: "poll"; poll: ChatPollData };
+  | { type: "poll"; poll: ChatPollData }
+  | { type: "activity"; activity: ActivityChatBody };
 
 const ALLOWED_GIF_HOSTS = ["media.giphy.com", "media.tenor.com", "i.giphy.com"];
 
@@ -42,6 +44,7 @@ export function serializeChatContent(content: ChatContent): string {
     return text;
   }
   if (content.type === "poll") return serializePoll(content.poll);
+  if (content.type === "activity") return JSON.stringify(content.activity);
   return JSON.stringify(content);
 }
 
@@ -68,6 +71,8 @@ export function parseChatContent(body: string): ChatContent {
       }
       const poll = parsePollBody(trimmed);
       if (poll) return { type: "poll", poll };
+      const activity = parseActivityChatBody(trimmed);
+      if (activity) return { type: "activity", activity };
       if (parsed.type === "text" && typeof parsed.text === "string") {
         return {
           type: "text",
@@ -128,6 +133,17 @@ export function normalizeChatPayload(input: unknown): string | null {
       const poll = sanitizeNewPoll(source);
       return poll ? serializePoll(poll) : null;
     }
+    if (record.type === "activity") {
+      const activity =
+        record.activity && typeof record.activity === "object" ? record.activity : record;
+      const parsed = parseActivityChatBody(JSON.stringify(activity));
+      return parsed ? JSON.stringify(parsed) : null;
+    }
+  }
+
+  if (typeof input === "string" && input.trim().startsWith("{")) {
+    const activity = parseActivityChatBody(input);
+    if (activity) return JSON.stringify(activity);
   }
 
   return null;

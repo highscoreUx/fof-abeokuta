@@ -1,12 +1,14 @@
 import type { Permission } from "@/lib/permissions/catalog";
 
 export const ACTIVITY_KAHOOT = "kahoot" as const;
-export const ACTIVITY_SPIN_TO_BUILD = "spin_to_build" as const;
+export const ACTIVITY_SPINNER = "spinner" as const;
+/** @deprecated use ACTIVITY_SPINNER */
+export const ACTIVITY_SPIN_TO_BUILD = ACTIVITY_SPINNER;
 export const ACTIVITY_SURVEY = "survey" as const;
 
 export type ActivitySlug =
   | typeof ACTIVITY_KAHOOT
-  | typeof ACTIVITY_SPIN_TO_BUILD
+  | typeof ACTIVITY_SPINNER
   | typeof ACTIVITY_SURVEY;
 
 export interface ActivityTypeDefinition {
@@ -30,9 +32,9 @@ export const ACTIVITY_CATALOG: ActivityTypeDefinition[] = [
     sortOrder: 1,
   },
   {
-    slug: ACTIVITY_SPIN_TO_BUILD,
-    name: "Spin to Build",
-    description: "Random design prompt challenge with team submissions.",
+    slug: ACTIVITY_SPINNER,
+    name: "Spinner",
+    description: "Spin a wheel to pick a random option. Teammates can spectate live spins.",
     managePermission: "spin.manage",
     runPermission: "spin.run",
     participantPermission: "participant.activities",

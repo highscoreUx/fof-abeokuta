@@ -62,10 +62,19 @@ export async function loadEnabledActivitiesSnapshot(
     }));
 }
 
+const ACTIVITY_SLUG_ALIASES: Record<string, string[]> = {
+  spinner: ["spinner", "spin_to_build"],
+  spin_to_build: ["spinner", "spin_to_build"],
+};
+
+function slugCandidates(activitySlug: string): string[] {
+  return ACTIVITY_SLUG_ALIASES[activitySlug] ?? [activitySlug];
+}
+
 export async function getEventActivityBySlug(eventId: string, activitySlug: string) {
   await ensureEventActivityRows(eventId);
   return prisma.eventActivity.findFirst({
-    where: { eventId, activityType: { slug: activitySlug } },
+    where: { eventId, activityType: { slug: { in: slugCandidates(activitySlug) } } },
     include: { activityType: true },
   });
 }

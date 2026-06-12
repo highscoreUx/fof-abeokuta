@@ -1,9 +1,8 @@
 "use client";
 
-import { canAccessPlatform } from "@/lib/account-permissions";
+import { refreshSessionFromServer } from "@/lib/auth/refresh-client";
 import { getLoginRedirectFromPathname } from "@/lib/routes";
 import { useAuthStore } from "@/stores/authStore";
-import type { AccountSession } from "@/stores/authStore";
 
 export async function platformApiFetch<T>(path: string, options: RequestInit & { skipAuth?: boolean } = {}): Promise<T> {
   const { skipAuth, headers, ...rest } = options;
@@ -34,8 +33,9 @@ export async function platformApiFetch<T>(path: string, options: RequestInit & {
         window.location.pathname,
         window.location.search,
       );
+      return new Promise(() => {}) as Promise<T>;
     }
-    throw new Error("Session expired");
+    return new Promise(() => {}) as Promise<T>;
   }
 
   const data = await response.json().catch(() => ({}));
@@ -64,8 +64,9 @@ export async function platformApiUpload<T>(path: string, formData: FormData): Pr
         window.location.pathname,
         window.location.search,
       );
+      return new Promise(() => {}) as Promise<T>;
     }
-    throw new Error("Session expired");
+    return new Promise(() => {}) as Promise<T>;
   }
 
   const data = await response.json().catch(() => ({}));
@@ -74,19 +75,5 @@ export async function platformApiUpload<T>(path: string, formData: FormData): Pr
 }
 
 export async function refreshPlatformAccessToken(): Promise<boolean> {
-  try {
-    const response = await fetch("/api/auth/refresh", {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!response.ok) return false;
-    const data = (await response.json()) as { accessToken: string; account: AccountSession };
-    if (!canAccessPlatform(data.account.permissions)) {
-      return false;
-    }
-    useAuthStore.getState().setAccountAuth(data.accessToken, data.account);
-    return true;
-  } catch {
-    return false;
-  }
+  return refreshSessionFromServer();
 }

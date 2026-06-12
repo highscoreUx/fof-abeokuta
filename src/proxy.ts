@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyRefreshToken } from "@/lib/auth/jwt";
+import { sanitizeNextParam } from "@/lib/post-login-redirect";
 import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
 
 const PLATFORM_PUBLIC = [
@@ -45,7 +47,21 @@ export function proxy(request: NextRequest) {
   const hasRefresh = request.cookies.has("fof_refresh_token");
 
   if (pathname === "/login" && hasRefresh) {
-    return NextResponse.redirect(new URL("/home", request.url));
+    const next = sanitizeNextParam(request.nextUrl.searchParams.get("next"));
+    if (next) {
+      return NextResponse.redirect(new URL(next, request.url));
+    }
+
+    const refreshToken = request.cookies.get("fof_refresh_token")?.value;
+    if (refreshToken) {
+      try {
+        verifyRefreshToken(refreshToken);
+      } catch {
+        return loginRedirect(request, "/home");
+      }
+    }
+
+    return NextResponse.redirect(new URL(next ?? "/home", request.url));
   }
 
   if (

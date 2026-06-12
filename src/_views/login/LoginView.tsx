@@ -1,36 +1,31 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { useOptionalEventScope } from "@/contexts/EventScopeContext";
+import { resolveAuthenticatedLoginRedirect } from "@/lib/post-login-redirect";
 import { useAuthStore } from "@/stores/authStore";
 
 export function LoginView() {
   const router = useRouter();
-  const scope = useOptionalEventScope();
+  const searchParams = useSearchParams();
   const accessToken = useAuthStore((s) => s.accessToken);
-  const user = useAuthStore((s) => s.user);
-  const guestEventSlug = useAuthStore((s) => s.guestEventSlug);
+  const account = useAuthStore((s) => s.account);
   const isHydrated = useAuthStore((s) => s.isHydrated);
 
   useEffect(() => {
-    if (!isHydrated || !accessToken) return;
-    if (user) {
-      const prefix = user.eventSlug ? `/${user.eventSlug}` : scope?.pathPrefix ?? "";
-      router.replace(`${prefix}/home`);
-      return;
-    }
-    if (guestEventSlug) {
-      router.replace(`/${guestEventSlug}/not-registered`);
-      return;
-    }
-    router.replace("/home");
-  }, [accessToken, guestEventSlug, isHydrated, router, scope?.pathPrefix, user]);
+    if (!isHydrated || !accessToken || !account) return;
+    router.replace(
+      resolveAuthenticatedLoginRedirect({
+        next: searchParams.get("next"),
+        account,
+      }),
+    );
+  }, [accessToken, account, isHydrated, router, searchParams]);
 
-  if (isHydrated && accessToken) {
+  if (isHydrated && accessToken && account) {
     return null;
   }
 
-  return <LoginForm eventSlug={scope?.eventSlug} pathPrefix={scope?.pathPrefix ?? ""} />;
+  return <LoginForm />;
 }

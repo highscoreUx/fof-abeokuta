@@ -13,8 +13,8 @@ interface LoginFormProps {
   pathPrefix?: string;
 }
 
-export function LoginForm({ eventSlug, pathPrefix = "" }: LoginFormProps) {
-  const { login } = useLogin({ eventSlug, pathPrefix });
+export function LoginForm({ eventSlug }: LoginFormProps) {
+  const { login } = useLogin();
   const [slides, setSlides] = useState<string[]>([...DEFAULT_LOGIN_SLIDE_PATHS]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

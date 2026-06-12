@@ -67,6 +67,7 @@ export async function refreshGuestEventSession(slug: string, refreshToken: strin
   const newRefreshToken = await rotateRefreshToken(refreshToken, {
     accountId,
     eventId: event.id,
+    eventSlug: slug,
   });
 
   return {

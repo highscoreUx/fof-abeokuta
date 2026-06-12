@@ -68,6 +68,7 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
     accountId,
     userId,
     eventId: event.id,
+    eventSlug: slug,
   });
   const accessToken = await buildAccessTokenForUser(user.id, slug);
   const permissions = resolveAccountPermissionList(user.account);

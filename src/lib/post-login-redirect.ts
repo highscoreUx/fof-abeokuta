@@ -1,3 +1,4 @@
+import { canAccessPlatform } from "@/lib/account-permissions";
 import { resolvePermissionsList } from "@/lib/permission-profiles";
 import { resolveDefaultRoute } from "@/lib/permissions";
 import { normalizeRolePermissions, type RolePermission } from "@/lib/permissions/catalog";
@@ -7,6 +8,7 @@ import {
   pathPrefixForEventSlug,
   stripEventSlugPrefix,
 } from "@/lib/route-access";
+import type { AccountSession } from "@/stores/authStore";
 
 export function sanitizeNextParam(next: string | null | undefined): string | null {
   if (!next) return null;
@@ -21,17 +23,21 @@ export function resolvePostLoginRedirect(options: {
   permissions: RolePermission[];
   eventSlug?: string;
   pathPrefix?: string;
-  isPlatformSession: boolean;
+  isPlatformSession?: boolean;
 }): string {
-  const { permissions, isPlatformSession } = options;
+  const { permissions } = options;
   const sanitized = sanitizeNextParam(options.next);
 
   if (sanitized && canAccessPath(permissions, sanitized)) {
     return sanitized;
   }
 
-  if (isPlatformSession && isPlatformPath(sanitized ?? "/fg-admin/events")) {
+  if (!sanitized && canAccessPlatform(permissions)) {
     return "/fg-admin/events";
+  }
+
+  if (canAccessPlatform(permissions) && sanitized && isPlatformPath(sanitized)) {
+    return sanitized;
   }
 
   const eventSlug =
@@ -44,6 +50,19 @@ export function resolvePostLoginRedirect(options: {
     (eventSlug ? pathPrefixForEventSlug(eventSlug, sanitized ?? "/home") : "");
 
   return resolveDefaultRoute(permissions, pathPrefix);
+}
+
+/** Where to send an already-authenticated user who opened `/login`. */
+export function resolveAuthenticatedLoginRedirect(options: {
+  next: string | null | undefined;
+  account: AccountSession;
+}): string {
+  const permissions = permissionsFromAccount(options.account);
+  return resolvePostLoginRedirect({
+    next: options.next,
+    permissions,
+    isPlatformSession: false,
+  });
 }
 
 export function permissionsFromAccount(account: { permissions: unknown }): RolePermission[] {

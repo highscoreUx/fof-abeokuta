@@ -1,10 +1,6 @@
 import { verifyRefreshToken } from "@/lib/auth/jwt";
 import { signAccountAccessToken } from "@/lib/auth/account-jwt";
-import {
-  accountAccessTokenFields,
-  canAccessPlatform,
-  resolveAccountPermissions,
-} from "@/lib/account-permissions";
+import { accountAccessTokenFields } from "@/lib/account-permissions";
 import { isRefreshTokenValid, rotateRefreshToken } from "@/lib/auth/refresh";
 import { prisma } from "@/lib/prisma";
 import { serializeAccount } from "@/lib/users";
@@ -39,10 +35,6 @@ export async function refreshAccountSession(refreshToken: string) {
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   if (!account) {
     throw new AccountSessionRefreshError("Account not found", "ACCOUNT_NOT_FOUND");
-  }
-
-  if (!canAccessPlatform(resolveAccountPermissions(account))) {
-    throw new AccountSessionRefreshError("Forbidden", "FORBIDDEN", 403);
   }
 
   if (account.mustChangePassword) {

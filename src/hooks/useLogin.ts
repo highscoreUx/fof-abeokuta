@@ -2,14 +2,11 @@
 
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { canAccessPlatform } from "@/lib/account-permissions";
 import {
   permissionsFromAccount,
   resolvePostLoginRedirect,
 } from "@/lib/post-login-redirect";
-import { inferEventSlugFromPath, isPlatformPath } from "@/lib/route-access";
 import { useAuthStore, type AccountSession } from "@/stores/authStore";
-import type { AuthUser } from "@/types";
 
 type LoginResponse =
   | {
@@ -20,38 +17,17 @@ type LoginResponse =
   | {
       mustChangePassword?: false;
       accessToken: string;
-      user?: AuthUser;
-      account?: AccountSession;
-      eventSlug?: string;
-      registered?: boolean;
+      account: AccountSession;
     };
 
-interface UseLoginOptions {
-  eventSlug?: string;
-  pathPrefix?: string;
-}
-
-export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
+export function useLogin() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
-  const setEventAuth = useAuthStore((s) => s.setEventAuth);
   const setAccountAuth = useAuthStore((s) => s.setAccountAuth);
-  const setGuestEventAuth = useAuthStore((s) => s.setGuestEventAuth);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const targetNext = next ?? `${pathPrefix}/home`;
-      const platformIntent = isPlatformPath(targetNext);
-      const slugFromNext = inferEventSlugFromPath(targetNext);
-      const resolvedEventSlug = platformIntent ? undefined : (slugFromNext ?? eventSlug);
-
-      if (!platformIntent && !resolvedEventSlug) {
-        throw new Error(
-          "No event is available. Open an event link first, or add ?next=/fg-admin/events for platform access.",
-        );
-      }
-
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,16 +35,10 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           password,
-          ...(resolvedEventSlug ? { eventSlug: resolvedEventSlug } : {}),
         }),
       });
 
       const data = (await response.json()) as LoginResponse & { error?: string };
-
-      if (response.status === 403 && platformIntent) {
-        router.push("/fg-admin/access-denied");
-        return;
-      }
 
       if (!response.ok) {
         throw new Error(data.error || "Login failed");
@@ -82,44 +52,14 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
         return;
       }
 
-      if (
-        "account" in data &&
-        data.account &&
-        data.registered === false &&
-        data.eventSlug
-      ) {
-        setGuestEventAuth(data.accessToken, data.account, data.eventSlug);
-        router.push(`/${data.eventSlug}/not-registered`);
-        return;
-      }
-
-      if ("user" in data && data.user) {
-        setEventAuth(data.accessToken, data.user);
-        const userPrefix = data.user.eventSlug ? `/${data.user.eventSlug}` : pathPrefix;
-        router.push(
-          resolvePostLoginRedirect({
-            next,
-            permissions: data.user.permissions,
-            eventSlug: data.user.eventSlug,
-            pathPrefix: userPrefix,
-            isPlatformSession: false,
-          }),
-        );
-        return;
-      }
-
       if ("account" in data && data.account) {
         const permissions = permissionsFromAccount(data.account);
-        if (!canAccessPlatform(permissions)) {
-          router.push("/fg-admin/access-denied");
-          return;
-        }
         setAccountAuth(data.accessToken, data.account);
         router.push(
           resolvePostLoginRedirect({
             next,
             permissions,
-            isPlatformSession: true,
+            isPlatformSession: false,
           }),
         );
         return;
@@ -127,7 +67,7 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
 
       throw new Error("Login failed");
     },
-    [eventSlug, next, pathPrefix, router, setAccountAuth, setEventAuth, setGuestEventAuth],
+    [next, router, setAccountAuth],
   );
 
   return { login, next };

@@ -10,6 +10,7 @@ export async function createRefreshToken(payload: {
   accountId: string;
   userId?: string;
   eventId?: string;
+  eventSlug?: string;
 }) {
   const token = signRefreshToken(payload);
   const tokenHash = hashToken(token);
@@ -29,7 +30,7 @@ export async function createRefreshToken(payload: {
 
 export async function rotateRefreshToken(
   oldToken: string,
-  payload: { accountId: string; userId?: string; eventId?: string },
+  payload: { accountId: string; userId?: string; eventId?: string; eventSlug?: string },
 ) {
   const oldHash = hashToken(oldToken);
 

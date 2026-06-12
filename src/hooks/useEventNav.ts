@@ -5,14 +5,14 @@ import { useEventScope } from "@/contexts/EventScopeContext";
 import { selectUserPermissions, useAuthStore } from "@/stores/authStore";
 import { hasAdminShellAccess, hasPermission } from "@/lib/permissions";
 import { loginPath } from "@/lib/routes";
-import type { Permission } from "@/lib/permissions/catalog";
+import type { Permission, RolePermission } from "@/lib/permissions/catalog";
 
 interface NavItem {
   href: string;
   label: string;
 }
 
-function navIf(permission: Permission, href: string, label: string, permissions: Permission[]): NavItem | null {
+function navIf(permission: Permission, href: string, label: string, permissions: RolePermission[]): NavItem | null {
   return hasPermission(permissions, permission) ? { href, label } : null;
 }
 

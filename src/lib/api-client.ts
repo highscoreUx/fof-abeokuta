@@ -37,12 +37,14 @@ export async function apiFetch<T>(
     if (status === 401 && !skipAuth) {
       useAuthStore.getState().clearAuth();
       if (typeof window !== "undefined") {
-        window.location.href = getLoginRedirectFromPathname(
+        const target = getLoginRedirectFromPathname(
           window.location.pathname,
           window.location.search,
         );
+        window.location.href = target;
+        return new Promise(() => {}) as Promise<T>;
       }
-      throw new Error("Session expired");
+      return new Promise(() => {}) as Promise<T>;
     }
 
     const message =

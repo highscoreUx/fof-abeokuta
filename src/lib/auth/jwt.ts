@@ -27,6 +27,7 @@ export function signRefreshToken(payload: {
   accountId: string;
   userId?: string;
   eventId?: string;
+  eventSlug?: string;
 }): string {
   return jwt.sign({ ...payload, type: "session" }, getRefreshSecret(), { expiresIn: REFRESH_TTL });
 }
@@ -71,6 +72,7 @@ export function verifyRefreshToken(token: string): {
   accountId: string;
   userId?: string;
   eventId?: string;
+  eventSlug?: string;
 } {
   const decoded = jwt.verify(token, getRefreshSecret());
   if (typeof decoded === "string" || decoded.type !== "session" || !decoded.accountId) {
@@ -80,5 +82,6 @@ export function verifyRefreshToken(token: string): {
     accountId: decoded.accountId as string,
     userId: decoded.userId as string | undefined,
     eventId: decoded.eventId as string | undefined,
+    eventSlug: decoded.eventSlug as string | undefined,
   };
 }

@@ -1,33 +1,33 @@
 "use client";
 
 import { create } from "zustand";
-import type { Permission, RolePermission } from "@/lib/permissions/catalog";
+import type { Permission } from "@/lib/permissions/catalog";
 import type { AuthUser } from "@/types";
 
 /** Stable fallback for useSyncExternalStore selectors (never use inline `?? []`). */
 export const EMPTY_PERMISSIONS: Permission[] = [];
 
 export const selectUserPermissions = (state: AuthState): Permission[] =>
-  state.user?.permissions ?? EMPTY_PERMISSIONS;
+  state.user?.permissions ?? state.account?.permissions ?? EMPTY_PERMISSIONS;
 
 export interface AccountSession {
   id: string;
   email: string;
   username: string;
-  permissions: RolePermission[];
+  firstName: string;
+  lastName: string;
+  permissions: Permission[];
   mustChangePassword?: boolean;
 }
 
 interface AuthState {
   accessToken: string | null;
-  user: AuthUser | null;
   account: AccountSession | null;
-  guestEventSlug: string | null;
+  user: AuthUser | null;
   isHydrated: boolean;
   isHydrating: boolean;
-  setEventAuth: (accessToken: string, user: AuthUser) => void;
   setAccountAuth: (accessToken: string, account: AccountSession) => void;
-  setGuestEventAuth: (accessToken: string, account: AccountSession, eventSlug: string) => void;
+  setEventUser: (user: AuthUser | null) => void;
   setAuth: (accessToken: string, user: AuthUser) => void;
   setAccessToken: (accessToken: string | null) => void;
   clearAuth: () => void;
@@ -36,49 +36,34 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
-  user: null,
   account: null,
-  guestEventSlug: null,
+  user: null,
   isHydrated: false,
   isHydrating: false,
-
-  setEventAuth: (accessToken, user) =>
-    set({
-      accessToken,
-      user,
-      account: null,
-      guestEventSlug: null,
-      isHydrated: true,
-    }),
 
   setAccountAuth: (accessToken, account) =>
     set({
       accessToken,
-      user: null,
       account,
-      guestEventSlug: null,
       isHydrated: true,
     }),
 
-  setGuestEventAuth: (accessToken, account, eventSlug) =>
+  setEventUser: (user) => set({ user }),
+
+  setAuth: (accessToken, user) =>
     set({
       accessToken,
-      user: null,
-      account,
-      guestEventSlug: eventSlug,
+      user,
       isHydrated: true,
     }),
-
-  setAuth: (accessToken, user) => get().setEventAuth(accessToken, user),
 
   setAccessToken: (accessToken) => set({ accessToken }),
 
   clearAuth: () =>
     set({
       accessToken: null,
-      user: null,
       account: null,
-      guestEventSlug: null,
+      user: null,
       isHydrated: true,
     }),
 
@@ -89,13 +74,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isHydrating: true });
 
     try {
-      if (state.accessToken && (state.user || state.account || state.guestEventSlug)) {
+      if (state.accessToken && state.account) {
         set({ isHydrated: true });
         return;
       }
 
-      const { refreshAccessToken } = await import("@/lib/axios");
-      await refreshAccessToken();
+      const { refreshSessionFromServer } = await import("@/lib/auth/refresh-client");
+      await refreshSessionFromServer();
     } finally {
       set({ isHydrated: true, isHydrating: false });
     }

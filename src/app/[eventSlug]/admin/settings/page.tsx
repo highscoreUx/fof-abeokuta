@@ -1,19 +1,10 @@
 import { Suspense } from "react";
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
 import { SettingsView } from "@/_views/admin/settings/SettingsView";
 
-export default async function AdminSettingsPage({
-  params,
-}: {
-  params: Promise<{ eventSlug: string }>;
-}) {
-  const { eventSlug } = await params;
-
+export default function AdminSettingsPage() {
   return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <Suspense fallback={null}>
-        <SettingsView />
-      </Suspense>
-    </EventScopeProvider>
+    <Suspense fallback={null}>
+      <SettingsView />
+    </Suspense>
   );
 }

@@ -22,6 +22,7 @@ export function EventSessionGate({ children }: { children: React.ReactNode }) {
   const { eventSlug } = useEventScope();
   const account = useAuthStore((s) => s.account);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const setEventUser = useAuthStore((s) => s.setEventUser);
   const [status, setStatus] = useState<GateStatus>("loading");
@@ -34,6 +35,11 @@ export function EventSessionGate({ children }: { children: React.ReactNode }) {
 
     if (!accessToken || !account) {
       router.replace(loginPath(currentReturnTo(fallbackPath)));
+      return;
+    }
+
+    if (user?.eventSlug === eventSlug) {
+      setStatus("ready");
       return;
     }
 
@@ -79,7 +85,7 @@ export function EventSessionGate({ children }: { children: React.ReactNode }) {
     } catch {
       setStatus("error");
     }
-  }, [accessToken, account, eventSlug, isHydrated, router, setEventUser]);
+  }, [accessToken, account, eventSlug, isHydrated, router, setEventUser, user]);
 
   useEffect(() => {
     void loadSession();

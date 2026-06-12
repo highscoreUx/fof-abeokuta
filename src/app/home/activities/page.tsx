@@ -1,10 +1,5 @@
-import { LatestEventScope } from "@/components/event/LatestEventScope";
 import { ParticipantActivitiesView } from "@/_views/participant/activities/ParticipantActivitiesView";
 
-export default async function HomeActivitiesPage() {
-  return (
-    <LatestEventScope>
-      <ParticipantActivitiesView />
-    </LatestEventScope>
-  );
+export default function HomeActivitiesPage() {
+  return <ParticipantActivitiesView />;
 }

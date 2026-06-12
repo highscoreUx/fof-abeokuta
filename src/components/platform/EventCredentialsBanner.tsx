@@ -13,9 +13,9 @@ interface EventCredentialsBannerProps {
 export function EventCredentialsBanner({ credentials, onDismiss }: EventCredentialsBannerProps) {
   return (
     <Card className="border-primary/40 bg-primary/5">
-      <CardTitle>Event admin credentials</CardTitle>
+      <CardTitle>Event staff credentials</CardTitle>
       <p className="mt-1 text-sm text-muted-foreground">
-        Share these with the event admin for <strong>{credentials.eventTitle}</strong>. They sign in
+        Share these with event staff for <strong>{credentials.eventTitle}</strong>. They sign in
         at{" "}
         <Link href={credentials.loginPath} className="text-primary underline">
           {credentials.loginPath}

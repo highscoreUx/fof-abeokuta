@@ -70,7 +70,7 @@ export function EventActivitiesPanel({
         <div>
           <h3 className="text-base font-semibold">Activities</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Enable activity types and choose which participant scopes event admins may use per
+            Enable activity types and choose which participant scopes event staff may use per
             instance. Team scope means every team participates separately within their own team.
           </p>
         </div>

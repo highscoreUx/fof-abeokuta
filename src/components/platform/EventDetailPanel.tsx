@@ -14,16 +14,17 @@ import { getEventCoverUrl } from "@/lib/event-cover";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
-type EventConfigTab = "admin" | "settings";
+type EventConfigTab = "settings" | "staff";
 
 const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
-  { value: "admin", label: "Event admin" },
-  { value: "settings", label: "Event settings" },
+  { value: "settings", label: "Settings" },
+  { value: "staff", label: "Staff" },
 ];
 
 function parseTab(value: string | null): EventConfigTab {
+  if (value === "staff" || value === "admin") return "staff";
   if (value === "settings" || value === "activities") return "settings";
-  return "admin";
+  return "settings";
 }
 
 interface EventDetailPanelProps {
@@ -55,8 +56,8 @@ export function EventDetailPanel({
   const setTab = useCallback(
     (next: EventConfigTab) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next === "admin") params.delete("tab");
-      else params.set("tab", next);
+      if (next === "settings") params.delete("tab");
+      else params.set("tab", "staff");
       const query = params.toString();
       router.replace(`/fg-admin/${event.slug}${query ? `?${query}` : ""}`, { scroll: false });
     },
@@ -156,10 +157,10 @@ export function EventDetailPanel({
           </div>
         </div>
 
-        {tab === "admin" && (
+        {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
+        {tab === "staff" && (
           <EventAdminTab event={event} onUpdated={onUpdated} onCredentials={onCredentials} />
         )}
-        {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
       </div>
     </Card>
   );

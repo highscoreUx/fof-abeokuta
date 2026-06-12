@@ -38,7 +38,7 @@ export function EventAdminDetailsModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Event admin details"
+      title="Event staff details"
       description={`Share these login details with ${admin.firstName} so they can run the event.`}
     >
       <div className="space-y-5">

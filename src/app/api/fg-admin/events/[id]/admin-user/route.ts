@@ -49,7 +49,7 @@ export async function POST(
     );
   } catch (error) {
     return jsonError(
-      error instanceof Error ? error.message : "Failed to create event admin",
+      error instanceof Error ? error.message : "Failed to add event staff",
       "CREATE_FAILED",
       400,
     );

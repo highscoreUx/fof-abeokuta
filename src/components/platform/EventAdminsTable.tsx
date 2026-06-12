@@ -121,8 +121,8 @@ export function EventAdminsTable({ eventId, eventSlug, refreshKey = 0 }: EventAd
         <span>
           {result ? (
             <>
-              <span className="font-medium text-foreground">{result.total}</span> event admin
-              {result.total === 1 ? "" : "s"}
+              <span className="font-medium text-foreground">{result.total}</span> event staff
+              {result.total === 1 ? " member" : " members"}
             </>
           ) : (
             "Loading…"
@@ -155,7 +155,7 @@ export function EventAdminsTable({ eventId, eventSlug, refreshKey = 0 }: EventAd
               {!loading && admins.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
-                    No event admins yet
+                    No event staff yet
                   </td>
                 </tr>
               )}

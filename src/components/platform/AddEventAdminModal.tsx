@@ -68,7 +68,7 @@ export function AddEventAdminModal({
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create event admin");
+      setError(err instanceof Error ? err.message : "Failed to add event staff");
     } finally {
       setLoading(false);
     }
@@ -78,8 +78,8 @@ export function AddEventAdminModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Add event admin"
-      description={`Creates an event admin for ${eventTitle}. Share the email and temporary password so they can sign in.`}
+      title="Add event staff"
+      description={`Registers event staff for ${eventTitle}. Share the email and temporary password so they can sign in.`}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -130,7 +130,7 @@ export function AddEventAdminModal({
             type="submit"
             disabled={loading || !email.trim() || !username.trim() || !firstName.trim() || !lastName.trim()}
           >
-            {loading ? "Creating…" : "Create event admin"}
+            {loading ? "Adding…" : "Add event staff"}
           </Button>
         </div>
       </form>

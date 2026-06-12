@@ -26,14 +26,14 @@ export function EventAdminTab({ event, onUpdated, onCredentials }: EventAdminTab
       <Card className="p-0 shadow-none">
         <CardHeader className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <CardTitle>Event admins</CardTitle>
+            <CardTitle>Event staff</CardTitle>
             <CardDescription>
               People who run this event in the app. Share email and temporary password when you
               add someone.
             </CardDescription>
           </div>
           <Button className="shrink-0" onClick={() => setAddOpen(true)}>
-            Add event admin
+            Add event staff
           </Button>
         </CardHeader>
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AgendaItemModal } from "@/components/admin/AgendaItemModal";
 import { ChangeAgendaTemplateModal } from "@/components/admin/ChangeAgendaTemplateModal";
 import { AgendaList } from "@/components/agenda/AgendaList";
+import { AgendaListSkeleton } from "@/components/agenda/AgendaListSkeleton";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
@@ -24,29 +25,41 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AgendaListItem | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const load = () =>
-    api<{ items: AgendaListItem[]; presentItemId?: string | null; template: AgendaTemplateId; event: AgendaEventMeta }>(
-      "/agenda",
-    ).then((d) => {
-      setItems(d.items);
-      setPresentItemId(d.presentItemId ?? null);
-      setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
-      setEvent(d.event);
-    });
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const d = await api<{
+          items: AgendaListItem[];
+          presentItemId?: string | null;
+          template: AgendaTemplateId;
+          event: AgendaEventMeta;
+        }>("/agenda");
+        setItems(d.items);
+        setPresentItemId(d.presentItemId ?? null);
+        setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
+        setEvent(d.event);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [api],
+  );
 
   useEffect(() => {
-    load();
-  }, [slug]);
+    void load();
+  }, [slug, load]);
 
   const remove = async (id: string) => {
     await api(`/agenda/${id}`, { method: "DELETE" });
-    await load();
+    await load(true);
   };
 
   const setPresent = async (item: AgendaListItem) => {
     await api(`/agenda/${item.id}/present`, { method: "POST" });
-    await load();
+    await load(true);
   };
 
   const clearPresent = async (item: AgendaListItem) => {
@@ -54,7 +67,7 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
       method: "POST",
       body: JSON.stringify({ clear: true }),
     });
-    await load();
+    await load(true);
   };
 
   const openAdd = useCallback(() => {
@@ -78,6 +91,10 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
 
   const templateName =
     AGENDA_TEMPLATES.find((entry) => entry.id === template)?.name ?? "Notebook";
+
+  if (loading) {
+    return <AgendaListSkeleton showHeader={!embedded} />;
+  }
 
   return (
     <div className="space-y-6">

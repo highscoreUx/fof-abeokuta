@@ -11,6 +11,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { canManageAgenda, hasAdminShellAccess } from "@/lib/permissions";
 import { AgendaList } from "@/components/agenda/AgendaList";
+import { AgendaListSkeleton } from "@/components/agenda/AgendaListSkeleton";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-templates";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export function ParticipantView() {
   const [presentItemId, setPresentItemId] = useState<string | null>(null);
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
+  const [agendaLoading, setAgendaLoading] = useState(true);
   const [tab, setTab] = useState<"chat" | "agenda">("chat");
   const [openAddAgenda, setOpenAddAgenda] = useState<(() => void) | null>(null);
 
@@ -44,17 +46,20 @@ export function ParticipantView() {
   useEffect(() => {
     if (manageAgenda) return;
 
+    setAgendaLoading(true);
     api<{
       items: AgendaListItem[];
       presentItemId?: string | null;
       template: AgendaTemplateId;
       event: AgendaEventMeta;
-    }>("/agenda").then((d) => {
-      setAgenda(d.items);
-      setPresentItemId(d.presentItemId ?? null);
-      setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
-      setEvent(d.event);
-    });
+    }>("/agenda")
+      .then((d) => {
+        setAgenda(d.items);
+        setPresentItemId(d.presentItemId ?? null);
+        setTemplate(d.template ?? DEFAULT_AGENDA_TEMPLATE);
+        setEvent(d.event);
+      })
+      .finally(() => setAgendaLoading(false));
   }, [api, manageAgenda]);
 
   return (
@@ -89,6 +94,13 @@ export function ParticipantView() {
           {tab === "agenda" &&
             (manageAgenda ? (
               <AgendaAdmin embedded onRegisterOpenAdd={registerOpenAddAgenda} />
+            ) : agendaLoading ? (
+              <Card>
+                <CardHeader className="mb-4">
+                  <CardTitle>Agenda</CardTitle>
+                </CardHeader>
+                <AgendaListSkeleton />
+              </Card>
             ) : (
               <Card>
                 <CardHeader className="mb-4">

@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  EventAdminDetailsModal,
+  type EventAdminDetails,
+} from "@/components/platform/EventAdminDetailsModal";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -11,22 +16,15 @@ import type { PaginatedResponse } from "@/lib/pagination";
 
 type AdminSortField = "firstName" | "username" | "createdAt";
 
-interface PlatformEventAdminRow {
-  id: string;
-  firstName: string;
-  lastName: string;
-  username: string;
-  password: string;
-  eventUserRoleName: string;
-  createdAt: string;
-}
+interface PlatformEventAdminRow extends EventAdminDetails {}
 
 interface EventAdminsTableProps {
   eventId: string;
+  eventSlug: string;
   refreshKey?: number;
 }
 
-export function EventAdminsTable({ eventId, refreshKey = 0 }: EventAdminsTableProps) {
+export function EventAdminsTable({ eventId, eventSlug, refreshKey = 0 }: EventAdminsTableProps) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<AdminSortField>("firstName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -34,6 +32,7 @@ export function EventAdminsTable({ eventId, refreshKey = 0 }: EventAdminsTablePr
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<PaginatedResponse<PlatformEventAdminRow> | null>(null);
+  const [detailsAdmin, setDetailsAdmin] = useState<PlatformEventAdminRow | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -138,10 +137,10 @@ export function EventAdminsTable({ eventId, refreshKey = 0 }: EventAdminsTablePr
               <tr>
                 <SortHeader field="firstName" label="Name" />
                 <SortHeader field="username" label="Username" />
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Password
-                </th>
                 <SortHeader field="createdAt" label="Created" />
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -175,9 +174,13 @@ export function EventAdminsTable({ eventId, refreshKey = 0 }: EventAdminsTablePr
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       {admin.username}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{admin.password || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {new Date(admin.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button size="sm" variant="outline" onClick={() => setDetailsAdmin(admin)}>
+                        Details
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -195,6 +198,13 @@ export function EventAdminsTable({ eventId, refreshKey = 0 }: EventAdminsTablePr
           onPageChange={setPage}
         />
       )}
+
+      <EventAdminDetailsModal
+        open={detailsAdmin !== null}
+        onClose={() => setDetailsAdmin(null)}
+        admin={detailsAdmin}
+        eventSlug={eventSlug}
+      />
     </div>
   );
 }

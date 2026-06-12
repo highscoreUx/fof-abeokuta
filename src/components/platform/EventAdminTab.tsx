@@ -38,7 +38,11 @@ export function EventAdminTab({ event, onUpdated, onCredentials }: EventAdminTab
         </CardHeader>
 
         <div className="p-6 pt-4">
-          <EventAdminsTable eventId={event.id} refreshKey={refreshKey} />
+          <EventAdminsTable
+            eventId={event.id}
+            eventSlug={event.slug}
+            refreshKey={refreshKey}
+          />
         </div>
       </Card>
 

@@ -29,7 +29,17 @@ export async function GET(
   const quizzes = await prisma.quiz.findMany({
     where: { eventId: ctx.event.id },
     include: {
-      questions: { orderBy: { sortOrder: "asc" } },
+      questions: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          text: true,
+          options: true,
+          correctIndex: true,
+          timeLimitSec: true,
+          sortOrder: true,
+        },
+      },
       sessions: { orderBy: { createdAt: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "desc" },

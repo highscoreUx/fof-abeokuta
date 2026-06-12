@@ -78,6 +78,8 @@ export function useEventNav() {
     admin: `${prefix}/admin`,
     users: `${prefix}/admin/users`,
     activities: `${prefix}/admin/activities`,
+    activityConfigure: (kind: string, id: string) =>
+      `${prefix}/admin/activities/${kind}/${id}`,
     /** @deprecated use activities */
     games: `${prefix}/admin/activities`,
     agenda: `${prefix}/admin/agenda`,

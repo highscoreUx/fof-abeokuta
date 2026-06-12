@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
-import { useAuthStore } from "@/stores/authStore";
+import { useEventNav } from "@/hooks/useEventNav";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { AddActivityModal } from "@/components/admin/AddActivityModal";
+import type { ActivityDetail, KahootActivityDetail } from "@/types/activities";
 import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
+import { CardTitle } from "@/components/ui/card";
 import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPIN_TO_BUILD,
@@ -26,38 +29,19 @@ interface EventActivityConfig {
   allowGroup: boolean;
 }
 
-interface KahootInstance {
-  kind: "kahoot";
-  id: string;
-  title: string;
-  allowGeneralParticipants: boolean;
-  allowGroupParticipants: boolean;
-  questionCount: number;
-  questions: Array<{ id: string; text: string; options?: string[]; timeLimitSec?: number }>;
-}
-
-interface SpinInstance {
-  kind: "spin";
-  id: string;
-  title: string;
-  allowGeneralParticipants: boolean;
-  allowGroupParticipants: boolean;
-  state: string;
-}
-
-type ActivityRow = KahootInstance | SpinInstance;
+type ActivityRow = ActivityDetail;
 
 interface ActivitiesAdminProps {
   permissions: Permission[];
 }
 
 export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
-  const { slug, path, api } = useEventApi();
+  const { slug, api } = useEventApi();
+  const { activityConfigure } = useEventNav();
   const socket = useSocket();
   const [eventActivities, setEventActivities] = useState<EventActivityConfig[]>([]);
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<QuizStateSnapshot | null>(null);
 
   const canManageKahoot = hasPermission(permissions, "quiz.manage");
@@ -80,7 +64,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           title: string;
           allowGeneralParticipants: boolean;
           allowGroupParticipants: boolean;
-          questions: KahootInstance["questions"];
+          questions: KahootActivityDetail["questions"];
         }>;
       }>("/quizzes").catch(() => ({ quizzes: [] }));
       for (const q of quizRes.quizzes) {
@@ -90,8 +74,12 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           title: q.title,
           allowGeneralParticipants: q.allowGeneralParticipants,
           allowGroupParticipants: q.allowGroupParticipants,
-          questionCount: q.questions.length,
-          questions: q.questions,
+          questions: q.questions.map((question) => ({
+            ...question,
+            options: Array.isArray(question.options)
+              ? (question.options as string[])
+              : undefined,
+          })),
         });
       }
     }
@@ -120,26 +108,31 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     }
 
     setRows(next);
+    return next;
   }, [api, canManageKahoot, canManageSpin, canRunKahoot, canRunSpin]);
 
+  const refresh = useCallback(async () => {
+    await load();
+  }, [load]);
+
   useEffect(() => {
-    load();
+    void load();
   }, [slug, load]);
 
   useEffect(() => {
     if (!socket) return;
     const onQuiz = (snapshot: QuizStateSnapshot) => {
       setActiveQuiz(snapshot);
-      if (snapshot.state === "FINISHED") void load();
+      if (snapshot.state === "FINISHED") void refresh();
     };
-    const onSpin = () => void load();
+    const onSpin = () => void refresh();
     socket.on("quiz:state", onQuiz);
     socket.on("spin:state", onSpin);
     return () => {
       socket.off("quiz:state", onQuiz);
       socket.off("spin:state", onSpin);
     };
-  }, [socket, load]);
+  }, [socket, refresh]);
 
   const handleCreate = async (data: {
     type: ActivitySlug;
@@ -166,19 +159,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
         }),
       });
     }
-    await load();
-  };
-
-  const uploadQuestions = async (instanceId: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const token = useAuthStore.getState().accessToken;
-    await globalThis.fetch(path(`/quizzes/${instanceId}/questions`), {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
-    await load();
+    await refresh();
   };
 
   const typeLabel = (row: ActivityRow) =>
@@ -227,9 +208,10 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
               allowGroupParticipants: row.allowGroupParticipants,
             });
             const status = stateLabel(row);
-            const isExpanded = expandedId === row.id;
             const isActiveKahoot =
-              row.kind === "kahoot" && activeQuiz?.quizId === row.id && activeQuiz.state !== "FINISHED";
+              row.kind === "kahoot" &&
+              activeQuiz?.quizId === row.id &&
+              activeQuiz.state !== "FINISHED";
 
             return (
               <Card key={`${row.kind}-${row.id}`} className="overflow-hidden">
@@ -254,7 +236,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                     <h3 className="mt-2 font-semibold">{row.title}</h3>
                     <p className="text-sm text-muted-foreground">
                       {row.kind === "kahoot"
-                        ? `${row.questionCount} question${row.questionCount === 1 ? "" : "s"}`
+                        ? `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`
                         : "Design challenge"}
                       {" · "}
                       {scope}
@@ -262,53 +244,40 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {row.kind === "kahoot" && canManageKahoot && (
-                      <label className="cursor-pointer">
-                        <span className="inline-flex rounded-lg border border-border px-4 py-2 text-sm">
-                          Upload CSV
-                        </span>
-                        <input
-                          type="file"
-                          accept=".csv,.xlsx"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) void uploadQuestions(row.id, file);
-                          }}
-                        />
-                      </label>
+                    {((row.kind === "kahoot" && canManageKahoot) ||
+                      (row.kind === "spin" && canManageSpin)) && (
+                      <Link
+                        href={activityConfigure(row.kind, row.id)}
+                        className="inline-flex h-10 items-center justify-center rounded-lg bg-secondary px-4 text-sm font-medium text-secondary-foreground shadow-sm transition hover:bg-secondary-hover"
+                      >
+                        Configure
+                      </Link>
                     )}
-
-                    {row.kind === "kahoot" && canRunKahoot && (
+                    {row.kind === "kahoot" && canRunKahoot && !isActiveKahoot && (
+                      <Button onClick={() => socket?.emit("quiz:admin:start", row.id)}>
+                        Start session
+                      </Button>
+                    )}
+                    {row.kind === "kahoot" && canRunKahoot && isActiveKahoot && activeQuiz && (
                       <>
-                        {!isActiveKahoot && (
-                          <Button onClick={() => socket?.emit("quiz:admin:start", row.id)}>
-                            Start session
-                          </Button>
-                        )}
-                        {isActiveKahoot && activeQuiz && (
-                          <>
-                            <Button
-                              variant="secondary"
-                              onClick={() =>
-                                socket?.emit("quiz:admin:next", activeQuiz.sessionId)
-                              }
-                            >
-                              {activeQuiz.state === "LOBBY" ? "Start question" : "Next question"}
-                            </Button>
-                            <Button
-                              variant="danger"
-                              onClick={() =>
-                                socket?.emit("quiz:admin:end", activeQuiz.sessionId)
-                              }
-                            >
-                              End session
-                            </Button>
-                          </>
-                        )}
+                        <Button
+                          variant="secondary"
+                          onClick={() =>
+                            socket?.emit("quiz:admin:next", activeQuiz.sessionId)
+                          }
+                        >
+                          {activeQuiz.state === "LOBBY" ? "Start question" : "Next"}
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() =>
+                            socket?.emit("quiz:admin:end", activeQuiz.sessionId)
+                          }
+                        >
+                          End
+                        </Button>
                       </>
                     )}
-
                     {row.kind === "spin" && canRunSpin && row.state === "IDLE" && (
                       <Button
                         onClick={() =>
@@ -318,7 +287,6 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                         Start session
                       </Button>
                     )}
-
                     {row.kind === "spin" && canRunSpin && row.state === "ACTIVE" && (
                       <Button
                         variant="secondary"
@@ -327,38 +295,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                         Complete
                       </Button>
                     )}
-
-                    {row.kind === "kahoot" && row.questions.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                      >
-                        {isExpanded ? "Hide questions" : "Questions"}
-                      </Button>
-                    )}
                   </div>
                 </div>
-
-                {isExpanded && row.kind === "kahoot" && (
-                  <div className="border-t border-border bg-foreground/[0.02] px-4 py-3">
-                    <ol className="space-y-2 text-sm">
-                      {row.questions.map((q, i) => (
-                        <li key={q.id} className="rounded-lg bg-card px-3 py-2">
-                          <span className="font-medium">
-                            {i + 1}. {q.text}
-                          </span>
-                          {Array.isArray(q.options) && (
-                            <span className="ml-2 text-muted-foreground">
-                              ({q.options.length} options
-                              {q.timeLimitSec ? ` · ${q.timeLimitSec}s` : ""})
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
               </Card>
             );
           })}
@@ -384,6 +322,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
         eventActivities={eventActivities}
         onCreate={handleCreate}
       />
+
     </div>
   );
 }

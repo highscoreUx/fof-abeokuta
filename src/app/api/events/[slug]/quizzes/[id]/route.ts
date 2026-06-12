@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireEventPermission } from "@/lib/auth/event-middleware";
+import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
+import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
 import {
@@ -10,6 +11,43 @@ import {
   getEventActivityBySlug,
   isActivityEnabledForEvent,
 } from "@/lib/activities/event-activities";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string; id: string }> },
+) {
+  const { slug, id } = await params;
+  const ctx = await requireEventContext(request, slug);
+  if (ctx instanceof NextResponse) return ctx;
+
+  const enabled = await isActivityEnabledForEvent(ctx.event.id, ACTIVITY_KAHOOT);
+  const canAccess =
+    hasPermission(ctx.auth.permissions, "quiz.manage") ||
+    hasPermission(ctx.auth.permissions, "quiz.run");
+  if (!enabled && !canAccess) {
+    return jsonError("Activity not found", "NOT_FOUND", 404);
+  }
+
+  const quiz = await prisma.quiz.findFirst({
+    where: { id, eventId: ctx.event.id },
+    include: {
+      questions: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          text: true,
+          options: true,
+          correctIndex: true,
+          timeLimitSec: true,
+          sortOrder: true,
+        },
+      },
+    },
+  });
+  if (!quiz) return jsonError("Activity not found", "NOT_FOUND", 404);
+
+  return NextResponse.json({ quiz });
+}
 
 export async function PATCH(
   request: NextRequest,

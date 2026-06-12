@@ -30,7 +30,7 @@ export function ParticipantView() {
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
   const [agendaLoading, setAgendaLoading] = useState(true);
-  const [tab, setTab] = useState<"chat" | "agenda">("chat");
+  const [tab, setTab] = useState<"chat" | "agenda">("agenda");
   const [openAddAgenda, setOpenAddAgenda] = useState<(() => void) | null>(null);
 
   const registerOpenAddAgenda = useCallback((openAdd: () => void) => {
@@ -38,8 +38,9 @@ export function ParticipantView() {
   }, []);
 
   useEffect(() => {
-    if (searchParams.get("tab") === "agenda") {
-      setTab("agenda");
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "agenda" || tabParam === "chat") {
+      setTab(tabParam);
     }
   }, [searchParams]);
 
@@ -78,8 +79,8 @@ export function ParticipantView() {
               value={tab}
               onChange={setTab}
               options={[
-                { value: "chat", label: "Chat" },
                 { value: "agenda", label: "Agenda" },
+                { value: "chat", label: "Chat" },
               ]}
             />
             {manageAgenda && tab === "agenda" && (

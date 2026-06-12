@@ -32,8 +32,8 @@ export function CommunityStaffTab({
           <div className="space-y-1">
             <CardTitle>Staff</CardTitle>
             <CardDescription>
-              Coordinators, staff, judges, and admins for this event. Manage elevated access
-              here; all members are listed under Members in the sidebar.
+              Event staff for this event — coordinators, staff, judges, and admins assigned here.
+              Global members and platform staff are managed under Members in the sidebar.
             </CardDescription>
           </div>
           <Button className="shrink-0" onClick={() => setAddOpen(true)}>

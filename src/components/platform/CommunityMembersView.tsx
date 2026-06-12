@@ -2,13 +2,13 @@
 
 import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AddCommunityUserModal } from "@/components/platform/AddCommunityUserModal";
-import { PlatformCommunityUsersTable } from "@/components/platform/PlatformCommunityUsersTable";
+import { AddPlatformMemberModal } from "@/components/platform/AddPlatformMemberModal";
+import { PlatformMembersTable } from "@/components/platform/PlatformMembersTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { fgAdminMembersPath } from "@/lib/fg-admin-routes";
-import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
+import type { GlobalMembersAudience } from "@/lib/member-access";
 
 type MembersTab = "all" | "staff";
 
@@ -22,22 +22,10 @@ function parseMembersTab(value: string | null): MembersTab {
 }
 
 interface CommunityMembersViewProps {
-  event: PlatformEvent;
-  onUpdated: () => void;
-  onCredentials: (payload: {
-    eventTitle: string;
-    loginPath: string;
-    user: PlatformCreatedEventUser;
-  }) => void;
   onToast: (message: string) => void;
 }
 
-export function CommunityMembersView({
-  event,
-  onUpdated,
-  onCredentials,
-  onToast,
-}: CommunityMembersViewProps) {
+export function CommunityMembersView({ onToast }: CommunityMembersViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = parseMembersTab(searchParams.get("view"));
@@ -46,17 +34,14 @@ export function CommunityMembersView({
 
   const setTab = useCallback(
     (next: MembersTab) => {
-      router.replace(
-        fgAdminMembersPath({
-          eventSlug: event.slug,
-          view: next === "staff" ? "staff" : undefined,
-        }),
-        { scroll: false },
-      );
+      router.replace(fgAdminMembersPath({ view: next === "staff" ? "staff" : undefined }), {
+        scroll: false,
+      });
     },
-    [router, event.slug],
+    [router],
   );
 
+  const audience: GlobalMembersAudience = tab === "staff" ? "staff" : "all";
   const isStaff = tab === "staff";
 
   return (
@@ -68,8 +53,8 @@ export function CommunityMembersView({
               <CardTitle>Members</CardTitle>
               <CardDescription>
                 {isStaff
-                  ? "Staff are community members with elevated permissions for this event."
-                  : "Everyone registered for this event. Staff also appear here — use the Staff tab to focus on them."}
+                  ? "Global staff are community members who are not participants. Event staff are managed per event."
+                  : "Everyone in the community. Participants are members too — not every member is a participant."}
               </CardDescription>
             </div>
             <Button className="shrink-0" onClick={() => setAddOpen(true)}>
@@ -80,9 +65,8 @@ export function CommunityMembersView({
         </CardHeader>
 
         <div className="p-6 pt-4">
-          <PlatformCommunityUsersTable
-            eventId={event.id}
-            audience={isStaff ? "staff" : "members"}
+          <PlatformMembersTable
+            audience={audience}
             refreshKey={refreshKey}
             emptyLabel={isStaff ? "No staff yet" : "No members yet"}
             countLabel={isStaff ? "staff" : "members"}
@@ -90,33 +74,15 @@ export function CommunityMembersView({
         </div>
       </Card>
 
-      <AddCommunityUserModal
+      <AddPlatformMemberModal
         open={addOpen}
-        eventId={event.id}
-        eventTitle={event.title}
-        mode={isStaff ? "staff" : "members"}
+        audience={audience}
         onClose={() => setAddOpen(false)}
         onCreated={(credentials) => {
-          if (isStaff) {
-            onCredentials({
-              eventTitle: event.title,
-              loginPath: "/login",
-              user: {
-                email: credentials.email,
-                username: credentials.username,
-                password: credentials.password,
-                firstName: credentials.firstName,
-                lastName: credentials.lastName,
-                permissionProfile: credentials.permissionProfile,
-              },
-            });
-          } else {
-            onToast(
-              `Created ${credentials.email} (${credentials.permissionProfile}) — temp password: ${credentials.password}`,
-            );
-          }
+          onToast(
+            `Created ${credentials.email} (${credentials.permissionProfile}) — temp password: ${credentials.password}`,
+          );
           setRefreshKey((key) => key + 1);
-          onUpdated();
         }}
       />
     </>

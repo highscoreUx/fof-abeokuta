@@ -19,10 +19,17 @@ import {
   legacyRoleToProfileSlug,
 } from "@/lib/permission-profiles";
 import {
+  isLockedMemberAccount,
+  isParticipantPermissions,
+  isPlatformAdminPermissions,
+  resolveMemberProfileSlug,
+} from "@/lib/member-access";
+import {
   pickUserProfile,
   userWithAccountInclude,
   type UserWithAccount,
 } from "@/lib/user-display";
+import type { PlatformMemberRow } from "@/types/members";
 
 const TEAM_LETTERS = ["F", "I", "G", "M", "A"];
 
@@ -200,6 +207,34 @@ export function serializePlatformCreatedUser(
     firstName: profile.firstName,
     lastName: profile.lastName,
     permissionProfile,
+  };
+}
+
+export function serializeMemberRow(
+  account: {
+    id: string;
+    email: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    permissions: unknown;
+    createdAt: Date;
+    _count?: { users: number };
+  },
+): PlatformMemberRow {
+  return {
+    id: account.id,
+    email: account.email,
+    username: account.username,
+    firstName: account.firstName,
+    lastName: account.lastName,
+    permissionProfile: getProfileLabelForPermissions(account.permissions),
+    permissionProfileSlug: resolveMemberProfileSlug(account.permissions),
+    eventCount: account._count?.users ?? 0,
+    createdAt: account.createdAt.toISOString(),
+    isDeletable: !isLockedMemberAccount(account.permissions),
+    isPlatformAdmin: isPlatformAdminPermissions(account.permissions),
+    isParticipant: isParticipantPermissions(account.permissions),
   };
 }
 

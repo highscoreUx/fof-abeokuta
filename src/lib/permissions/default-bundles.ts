@@ -122,11 +122,11 @@ export const DEFAULT_EVENT_USER_ROLE_BUNDLES: Array<{
 ];
 
 export function isNonDeletableRoleSlug(slug: string): boolean {
-  return slug === "event_admin";
+  return slug === "event_admin" || slug === "participant" || slug === "platform_admin";
 }
 
 export function isNonEditableRoleSlug(slug: string): boolean {
-  return slug === "event_admin";
+  return slug === "platform_admin";
 }
 
 export function isSystemRoleSlug(slug: string): boolean {

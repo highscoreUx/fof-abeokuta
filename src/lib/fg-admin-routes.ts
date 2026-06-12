@@ -6,10 +6,9 @@ export function fgAdminEventPath(eventSlug: string, query?: string) {
   return `${FG_ADMIN_EVENTS}/${eventSlug}${query ? `?${query}` : ""}`;
 }
 
-export function fgAdminMembersPath(options?: { eventSlug?: string; view?: "staff" }) {
-  const params = new URLSearchParams();
-  if (options?.eventSlug) params.set("event", options.eventSlug);
-  if (options?.view === "staff") params.set("view", "staff");
-  const query = params.toString();
-  return `${FG_ADMIN_MEMBERS}${query ? `?${query}` : ""}`;
+export function fgAdminMembersPath(options?: { view?: "staff" }) {
+  if (options?.view === "staff") {
+    return `${FG_ADMIN_MEMBERS}?view=staff`;
+  }
+  return FG_ADMIN_MEMBERS;
 }

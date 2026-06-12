@@ -74,3 +74,54 @@ export async function changeAccountPassword(accountId: string, newPassword: stri
     },
   });
 }
+
+export async function updateAccount(
+  accountId: string,
+  data: {
+    email?: string;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    middleName?: string | null;
+    permissions?: RolePermission[];
+  },
+) {
+  const updates: {
+    email?: string;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    middleName?: string | null;
+    permissions?: RolePermission[];
+    permissionsVersion?: { increment: number };
+  } = {};
+
+  if (data.email !== undefined) updates.email = normalizeEmail(data.email);
+  if (data.username !== undefined) updates.username = normalizeUsername(data.username);
+  if (data.firstName !== undefined) updates.firstName = data.firstName.trim();
+  if (data.lastName !== undefined) updates.lastName = data.lastName.trim();
+  if (data.middleName !== undefined) updates.middleName = data.middleName?.trim() || null;
+  if (data.permissions !== undefined) {
+    updates.permissions = data.permissions;
+    updates.permissionsVersion = { increment: 1 };
+  }
+
+  if (updates.email) {
+    const taken = await prisma.account.findFirst({
+      where: { email: updates.email, NOT: { id: accountId } },
+    });
+    if (taken) throw new Error("Email is already registered");
+  }
+
+  if (updates.username) {
+    const taken = await prisma.account.findFirst({
+      where: { username: updates.username, NOT: { id: accountId } },
+    });
+    if (taken) throw new Error("Username is already taken");
+  }
+
+  return prisma.account.update({
+    where: { id: accountId },
+    data: updates,
+  });
+}

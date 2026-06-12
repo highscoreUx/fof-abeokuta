@@ -26,12 +26,16 @@ export function AddEventAdminModal({
   onClose,
   onCreated,
 }: AddEventAdminModalProps) {
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const reset = () => {
+    setEmail("");
+    setUsername("");
     setFirstName("");
     setLastName("");
     setError("");
@@ -54,6 +58,8 @@ export function AddEventAdminModal({
       }>(`/api/fg-admin/events/${eventId}/admin-user`, {
         method: "POST",
         body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          username: username.trim().toLowerCase(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
         }),
@@ -73,7 +79,7 @@ export function AddEventAdminModal({
       open={open}
       onClose={handleClose}
       title="Add event admin"
-      description={`Creates an event admin for ${eventTitle}. Share the username and password so they can sign in.`}
+      description={`Creates an event admin for ${eventTitle}. Share the email and temporary password so they can sign in.`}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -96,12 +102,34 @@ export function AddEventAdminModal({
             />
           </div>
         </div>
+        <div>
+          <Label htmlFor="admin-email">Email</Label>
+          <Input
+            id="admin-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="admin-username">Username</Label>
+          <Input
+            id="admin-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            required
+          />
+        </div>
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading || !firstName.trim() || !lastName.trim()}>
+          <Button
+            type="submit"
+            disabled={loading || !email.trim() || !username.trim() || !firstName.trim() || !lastName.trim()}
+          >
             {loading ? "Creating…" : "Create event admin"}
           </Button>
         </div>

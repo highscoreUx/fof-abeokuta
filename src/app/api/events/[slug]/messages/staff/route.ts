@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import {
+  chatUserSelect,
   createStaffChatMessage,
   serializeChatMessageRecord,
 } from "@/lib/chat-messages-server";
@@ -27,7 +28,7 @@ export async function GET(
       teamId: null,
       recipientId: null,
     },
-    include: { user: { select: { username: true, firstName: true, lastName: true } } },
+    include: { user: chatUserSelect },
     orderBy: { createdAt: "asc" },
     take: 100,
   });

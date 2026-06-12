@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
-import { createGlobalChatMessage } from "@/lib/chat-messages-server";
+import {
+  chatUserSelect,
+  createGlobalChatMessage,
+  serializeChatMessageRecord,
+} from "@/lib/chat-messages-server";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -20,12 +24,14 @@ export async function GET(
       recipientId: null,
       staffChannel: false,
     },
-    include: { user: { select: { username: true, firstName: true, lastName: true } } },
+    include: { user: chatUserSelect },
     orderBy: { createdAt: "asc" },
     take: 100,
   });
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({
+    messages: messages.map((message) => serializeChatMessageRecord(message)),
+  });
 }
 
 export async function POST(

@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/layout/BrandMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { loginPath } from "@/lib/routes";
 import { usePlatformAuthStore } from "@/stores/platformAuthStore";
 
 interface NavItem {
@@ -37,7 +38,7 @@ export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps
   const logout = async () => {
     await fetch("/api/fg-admin/auth/logout", { method: "POST", credentials: "include" });
     clearAuth();
-    router.push("/fg-admin/login");
+    router.push(loginPath("/fg-admin"));
   };
 
   const navLink = (item: NavItem, onNavigate?: () => void) => {
@@ -68,7 +69,7 @@ export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps
           </div>
           <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">{nav.map((item) => navLink(item))}</nav>
           <div className="border-t border-border p-4">
-            <p className="truncate text-sm font-medium text-foreground">{admin?.name ?? admin?.email}</p>
+            <p className="truncate text-sm font-medium text-foreground">{admin?.email}</p>
             <div className="mt-1 flex items-center justify-between gap-2">
               <Badge variant="muted" className="max-w-[8rem] truncate">
                 Platform

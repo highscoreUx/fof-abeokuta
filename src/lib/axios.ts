@@ -8,8 +8,9 @@ import axios, {
 } from "axios";
 import { useAuthStore } from "@/stores/authStore";
 import type { AuthUser } from "@/types";
+import type { AccountSession } from "@/stores/authStore";
 
-export const SESSION_REFRESH_PATH = "/api/events/session/refresh";
+export const SESSION_REFRESH_PATH = "/api/auth/refresh";
 
 export const publicApi = axios.create({
   withCredentials: true,
@@ -37,10 +38,18 @@ function processQueue(error: unknown, token: string | null = null) {
 
 export async function refreshAccessToken(): Promise<boolean> {
   try {
-    const { data } = await publicApi.post<{ accessToken: string; user: AuthUser }>(
-      SESSION_REFRESH_PATH,
-    );
-    useAuthStore.getState().setAuth(data.accessToken, data.user);
+    const { data } = await publicApi.post<{
+      accessToken: string;
+      user?: AuthUser;
+      account?: AccountSession;
+    }>(SESSION_REFRESH_PATH);
+    if (data.user) {
+      useAuthStore.getState().setEventAuth(data.accessToken, data.user);
+    } else if (data.account) {
+      useAuthStore.getState().setAccountAuth(data.accessToken, data.account);
+    } else {
+      return false;
+    }
     return true;
   } catch {
     return false;

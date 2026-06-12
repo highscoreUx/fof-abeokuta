@@ -17,14 +17,27 @@ const createEventSchema = z
     description: z.string().optional(),
     date: z.string().min(1),
     status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).optional(),
+    adminEmail: z.string().email().optional(),
+    adminUsername: z
+      .string()
+      .min(3)
+      .max(32)
+      .regex(/^[a-z0-9_]+$/)
+      .optional(),
     adminFirstName: z.string().min(1).optional(),
     adminLastName: z.string().min(1).optional(),
   })
   .refine(
-    (data) =>
-      (!data.adminFirstName && !data.adminLastName) ||
-      (Boolean(data.adminFirstName) && Boolean(data.adminLastName)),
-    { message: "Both admin first and last name are required", path: ["adminFirstName"] },
+    (data) => {
+      const fields = [
+        data.adminEmail,
+        data.adminUsername,
+        data.adminFirstName,
+        data.adminLastName,
+      ];
+      return fields.every(Boolean) || fields.every((value) => !value);
+    },
+    { message: "All event admin fields are required together", path: ["adminEmail"] },
   );
 
 export async function GET(request: NextRequest) {
@@ -84,13 +97,20 @@ export async function POST(request: NextRequest) {
   });
 
   let adminUser: ReturnType<typeof serializePlatformCreatedUser> | undefined;
-  if (parsed.data.adminFirstName && parsed.data.adminLastName) {
+  if (
+    parsed.data.adminEmail &&
+    parsed.data.adminUsername &&
+    parsed.data.adminFirstName &&
+    parsed.data.adminLastName
+  ) {
     try {
-      const user = await createEventAdminUser(event.id, {
+      const { user, initialPassword, permissionProfile } = await createEventAdminUser(event.id, {
+        email: parsed.data.adminEmail,
+        username: parsed.data.adminUsername,
         firstName: parsed.data.adminFirstName,
         lastName: parsed.data.adminLastName,
       });
-      adminUser = serializePlatformCreatedUser(user);
+      adminUser = serializePlatformCreatedUser(user, initialPassword, permissionProfile);
     } catch (error) {
       await prisma.event.delete({ where: { id: event.id } }).catch(() => undefined);
       return jsonError(
@@ -112,6 +132,6 @@ export async function POST(request: NextRequest) {
       coverImageUrl: event.coverImageUrl,
     },
     adminUser,
-    loginPath: adminUser ? `/${event.slug}/login` : undefined,
+    loginPath: adminUser ? "/login" : undefined,
   });
 }

@@ -4,7 +4,7 @@ import { getLatestEvent } from "@/lib/events";
 
 export async function LatestEventScope({ children }: { children: React.ReactNode }) {
   const event = await getLatestEvent();
-  if (!event) redirect("/fg-admin/login");
+  if (!event) redirect("/login");
 
   return (
     <EventScopeProvider eventSlug={event.slug} pathPrefix="">

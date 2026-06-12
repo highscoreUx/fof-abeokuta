@@ -36,8 +36,8 @@ export function UsersView() {
               <div className="space-y-1">
                 <CardTitle>Users</CardTitle>
                 <CardDescription>
-                  Search, filter, and manage event participants and staff. Usernames are assigned
-                  automatically — share passwords at check-in.
+                  Search, filter, and manage event participants and staff. Share temporary passwords
+                  when creating accounts.
                 </CardDescription>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
@@ -57,7 +57,7 @@ export function UsersView() {
           onClose={() => setAddOpen(false)}
           onCreated={(credentials) =>
             showToast(
-              `Created ${credentials.username} (${credentials.eventUserRoleName}) — password: ${credentials.password}`,
+              `Created ${credentials.email} (${credentials.permissionProfile}) — temp password: ${credentials.password}`,
             )
           }
         />

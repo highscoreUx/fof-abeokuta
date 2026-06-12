@@ -9,9 +9,10 @@ export interface EventAdminDetails {
   id: string;
   firstName: string;
   lastName: string;
+  email: string;
   username: string;
   password: string;
-  eventUserRoleName: string;
+  permissionProfile: string;
   createdAt: string;
 }
 
@@ -31,7 +32,7 @@ export function EventAdminDetailsModal({
   if (!admin) return null;
 
   const fullName = `${admin.firstName} ${admin.lastName}`.trim();
-  const loginPath = `/${eventSlug}/login`;
+  const signInPath = "/login";
 
   return (
     <Modal
@@ -44,18 +45,23 @@ export function EventAdminDetailsModal({
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-foreground">{fullName}</p>
           <Badge variant="muted" className="uppercase">
-            {admin.eventUserRoleName}
+            {admin.permissionProfile}
           </Badge>
         </div>
 
         <div className="rounded-xl border border-border bg-muted/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Username
+            Email
           </p>
-          <p className="mt-1 font-mono text-lg font-semibold text-primary">{admin.username}</p>
+          <p className="mt-1 font-mono text-lg font-semibold text-primary">{admin.email}</p>
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Password
+            Username
+          </p>
+          <p className="mt-1 font-mono text-lg font-semibold text-foreground">{admin.username}</p>
+
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Temporary password
           </p>
           <p className="mt-1 font-mono text-2xl font-semibold tracking-widest text-foreground">
             {admin.password || "—"}
@@ -64,7 +70,7 @@ export function EventAdminDetailsModal({
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Sign in at
           </p>
-          <p className="mt-1 font-mono text-sm text-foreground">{loginPath}</p>
+          <p className="mt-1 font-mono text-sm text-foreground">{signInPath}</p>
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Added
@@ -75,7 +81,7 @@ export function EventAdminDetailsModal({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">
-          <Link href={loginPath} target="_blank" rel="noopener noreferrer">
+          <Link href={signInPath} target="_blank" rel="noopener noreferrer">
             <Button type="button" variant="outline">
               Open login page
             </Button>

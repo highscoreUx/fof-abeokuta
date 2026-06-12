@@ -18,12 +18,12 @@ function toSpinRecord(spin: {
   selectedIndex: number;
   selectedOption: string;
   createdAt: Date;
-  user: { username: string };
+  user: { account: { username: string } };
 }) {
   return {
     id: spin.id,
     userId: spin.userId,
-    username: spin.user.username,
+    username: spin.user.account.username,
     selectedIndex: spin.selectedIndex,
     selectedOption: spin.selectedOption,
     createdAt: spin.createdAt.getTime(),
@@ -36,10 +36,10 @@ export async function buildSpinnerSnapshot(sessionId: string): Promise<SpinnerSt
     include: {
       challenge: true,
       team: true,
-      activeUser: { select: { id: true, username: true } },
+      activeUser: { select: { id: true, account: { select: { username: true } } } },
       spins: {
         orderBy: { createdAt: "asc" },
-        include: { user: { select: { username: true } } },
+        include: { user: { include: { account: { select: { username: true } } } } },
       },
     },
   });
@@ -61,7 +61,7 @@ export async function buildSpinnerSnapshot(sessionId: string): Promise<SpinnerSt
     teamLetter: session.team?.letter ?? null,
     state: session.state,
     activeUserId: session.activeUserId,
-    activeUsername: session.activeUser?.username ?? null,
+    activeUsername: session.activeUser?.account.username ?? null,
     startedByUserId: session.startedByUserId,
     lastSpin,
     spinHistory,
@@ -205,12 +205,12 @@ export async function performSpinnerSpin(
       selectedIndex,
       selectedOption,
     },
-    include: { user: { select: { username: true } } },
+    include: { user: { include: { account: { select: { username: true } } } } },
   });
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: params.userId },
-    select: { username: true },
+    include: { account: { select: { username: true } } },
   });
 
   await postActivityChatMessage({
@@ -226,7 +226,7 @@ export async function performSpinnerSpin(
       title: session.challenge.title,
       status: "live",
       action: "spin_result",
-      text: `${user.username} spun: ${selectedOption}`,
+      text: `${user.account.username} spun: ${selectedOption}`,
       metadata: {
         selectedIndex,
         selectedOption,

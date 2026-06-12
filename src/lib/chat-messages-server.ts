@@ -4,7 +4,23 @@ import { prisma } from "@/lib/prisma";
 import { tryGetIO } from "@/server/socket/io";
 import { eventRoom, staffRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 
-const userSelect = { select: { username: true, firstName: true, lastName: true } } as const;
+export const chatUserSelect = {
+  select: {
+    account: { select: { username: true, firstName: true, lastName: true } },
+  },
+} as const;
+
+const userSelect = chatUserSelect;
+
+function chatUserFromRecord(user: {
+  account: { username: string; firstName: string; lastName: string };
+}) {
+  return {
+    username: user.account.username,
+    firstName: user.account.firstName,
+    lastName: user.account.lastName,
+  };
+}
 
 export function serializeChatMessageRecord(message: {
   id: string;
@@ -14,7 +30,7 @@ export function serializeChatMessageRecord(message: {
   recipientId?: string | null;
   staffChannel?: boolean;
   userId: string;
-  user: { username: string; firstName: string; lastName: string };
+  user: { account: { username: string; firstName: string; lastName: string } };
 }) {
   return {
     id: message.id,
@@ -24,7 +40,7 @@ export function serializeChatMessageRecord(message: {
     ...(message.teamId ? { teamId: message.teamId } : {}),
     ...(message.recipientId ? { recipientId: message.recipientId } : {}),
     ...(message.staffChannel ? { staffChannel: true } : {}),
-    user: message.user,
+    user: chatUserFromRecord(message.user),
   };
 }
 

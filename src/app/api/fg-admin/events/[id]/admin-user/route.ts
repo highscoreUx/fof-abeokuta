@@ -6,6 +6,12 @@ import { prisma } from "@/lib/prisma";
 import { createEventAdminUser, serializePlatformCreatedUser } from "@/lib/users";
 
 const schema = z.object({
+  email: z.string().email("Valid email is required"),
+  username: z
+    .string()
+    .min(3)
+    .max(32)
+    .regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers, and underscores only"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
 });
@@ -30,11 +36,14 @@ export async function POST(
   }
 
   try {
-    const user = await createEventAdminUser(event.id, parsed.data);
+    const { user, initialPassword, permissionProfile } = await createEventAdminUser(
+      event.id,
+      parsed.data,
+    );
     return NextResponse.json(
       {
-        user: serializePlatformCreatedUser(user),
-        loginPath: `/${event.slug}/login`,
+        user: serializePlatformCreatedUser(user, initialPassword, permissionProfile),
+        loginPath: "/login",
       },
       { status: 201 },
     );

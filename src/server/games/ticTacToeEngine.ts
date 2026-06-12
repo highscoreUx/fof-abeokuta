@@ -45,8 +45,18 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
       challenge: true,
       teamX: true,
       teamO: true,
-      championX: { select: { id: true, username: true, firstName: true, lastName: true } },
-      championO: { select: { id: true, username: true, firstName: true, lastName: true } },
+      championX: {
+        select: {
+          id: true,
+          account: { select: { username: true, firstName: true, lastName: true } },
+        },
+      },
+      championO: {
+        select: {
+          id: true,
+          account: { select: { username: true, firstName: true, lastName: true } },
+        },
+      },
     },
   });
   if (!match) return null;
@@ -67,17 +77,17 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
     championX: match.championX
       ? {
           userId: match.championX.id,
-          username: match.championX.username,
-          firstName: match.championX.firstName,
-          lastName: match.championX.lastName,
+          username: match.championX.account.username,
+          firstName: match.championX.account.firstName,
+          lastName: match.championX.account.lastName,
         }
       : null,
     championO: match.championO
       ? {
           userId: match.championO.id,
-          username: match.championO.username,
-          firstName: match.championO.firstName,
-          lastName: match.championO.lastName,
+          username: match.championO.account.username,
+          firstName: match.championO.account.firstName,
+          lastName: match.championO.account.lastName,
         }
       : null,
     councilVotes,

@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
 
-const PLATFORM_PUBLIC = ["/fg-admin/login", "/api/fg-admin/auth/login", "/api/fg-admin/auth/refresh"];
+const PLATFORM_PUBLIC = [
+  "/fg-admin/access-denied",
+  "/change-password",
+  "/api/auth/login",
+  "/api/auth/refresh",
+  "/api/auth/change-password",
+];
 
 const PUBLIC_PATHS = [
   "/",
   "/login",
+  "/change-password",
   "/all-event",
   "/api/events/public",
   "/api/events/current",
@@ -27,6 +34,12 @@ function isRootEventProtected(pathname: string) {
   );
 }
 
+function loginRedirect(request: NextRequest, returnTo: string) {
+  const url = new URL("/login", request.url);
+  url.searchParams.set("next", returnTo);
+  return NextResponse.redirect(url);
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -42,17 +55,16 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/fg-admin")) {
-    const hasPlatformRefresh = request.cookies.has("fof_platform_refresh_token");
-    if (!hasPlatformRefresh && !pathname.startsWith("/api/")) {
-      return NextResponse.redirect(new URL("/fg-admin/login", request.url));
-    }
-    return NextResponse.next();
+  if (pathname === "/fg-admin/login") {
+    const next = request.nextUrl.searchParams.get("next") ?? "/fg-admin";
+    return loginRedirect(request, next);
   }
 
-  const eventLoginMatch = pathname.match(/^\/([^/]+)\/login$/);
-  if (eventLoginMatch && !RESERVED_EVENT_SLUGS.has(eventLoginMatch[1])) {
-    return NextResponse.next();
+  const legacyEventLogin = pathname.match(/^\/([^/]+)\/login$/);
+  if (legacyEventLogin && !RESERVED_EVENT_SLUGS.has(legacyEventLogin[1])) {
+    const slug = legacyEventLogin[1];
+    const next = request.nextUrl.searchParams.get("next") ?? `/${slug}/home`;
+    return loginRedirect(request, next);
   }
 
   if (pathname === "/login") {
@@ -64,8 +76,17 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const eventApiAuthMatch = pathname.match(/^\/api\/events\/([^/]+)\/auth\/(login|refresh)$/);
+  const eventApiAuthMatch = pathname.match(/^\/api\/events\/([^/]+)\/auth\/(login|refresh|logout)$/);
   if (eventApiAuthMatch) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/api/auth/")) {
+    return NextResponse.next();
+  }
+
+  const eventChangePasswordMatch = pathname.match(/^\/([^/]+)\/change-password$/);
+  if (eventChangePasswordMatch && !RESERVED_EVENT_SLUGS.has(eventChangePasswordMatch[1])) {
     return NextResponse.next();
   }
 
@@ -74,16 +95,24 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hasEventRefresh = request.cookies.has("fof_refresh_token");
+  const hasRefresh = request.cookies.has("fof_refresh_token");
+  const returnTo = `${pathname}${request.nextUrl.search}`;
 
-  if (isRootEventProtected(pathname) && !hasEventRefresh && !pathname.startsWith("/api/")) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (pathname.startsWith("/fg-admin")) {
+    if (!hasRefresh && !pathname.startsWith("/api/")) {
+      return loginRedirect(request, returnTo);
+    }
+    return NextResponse.next();
   }
 
-  if (pathname.match(/^\/([^/]+)\//) && !hasEventRefresh && !pathname.startsWith("/api/")) {
+  if (!hasRefresh && !pathname.startsWith("/api/")) {
+    if (isRootEventProtected(pathname)) {
+      return loginRedirect(request, returnTo);
+    }
+
     const slug = pathname.split("/")[1];
-    if (!RESERVED_EVENT_SLUGS.has(slug)) {
-      return NextResponse.redirect(new URL(`/${slug}/login`, request.url));
+    if (slug && !RESERVED_EVENT_SLUGS.has(slug)) {
+      return loginRedirect(request, returnTo);
     }
   }
 

@@ -32,7 +32,11 @@ function clearSessionTimer(sessionId: string) {
 
 function buildLeaderboard(
   answers: Array<{ userId: string; points: number; isCorrect: boolean; streakAtAnswer: number }>,
-  users: Array<{ id: string; username: string; team: { letter: string } | null }>,
+  users: Array<{
+    id: string;
+    account: { username: string };
+    team: { letter: string } | null;
+  }>,
 ): QuizStateSnapshot["leaderboard"] {
   const stats = new Map<
     string,
@@ -63,7 +67,7 @@ function buildLeaderboard(
       };
       return {
         userId: user.id,
-        username: user.username,
+        username: user.account.username,
         teamLetter: user.team?.letter ?? null,
         totalPoints: s.totalPoints,
         rank: 0,
@@ -98,7 +102,7 @@ async function buildQuestionResults(
 
   const answers = await prisma.quizAnswer.findMany({
     where: { sessionId, questionId: question.id },
-    include: { user: { include: { team: true } } },
+    include: { user: { include: { team: true, account: true } } },
     orderBy: [{ points: "desc" }, { responseTimeMs: "asc" }],
   });
 
@@ -125,7 +129,7 @@ async function buildQuestionResults(
     optionCounts,
     topScorers: answers.slice(0, 5).map((a) => ({
       userId: a.userId,
-      username: a.user.username,
+      username: a.user.account.username,
       teamLetter: a.user.team?.letter ?? null,
       points: a.points,
       responseTimeMs: a.responseTimeMs,
@@ -158,7 +162,7 @@ async function buildQuizSnapshotFromDb(sessionId: string): Promise<QuizStateSnap
     userIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: userIds } },
-          include: { team: true },
+          include: { team: true, account: true },
         })
       : [];
 

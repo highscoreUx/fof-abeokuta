@@ -1,21 +1,19 @@
 import { CACHE_TTL, cacheGetOrSet, cacheDelete } from "@/lib/cache/index";
 import { prisma } from "@/lib/prisma";
 import {
+  normalizeRolePermissions,
   permissionsFingerprint,
   type Permission,
 } from "@/lib/permissions/catalog";
 import { PERMISSIONS_CATALOG_REVISION } from "@/lib/permissions/catalog";
-import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
+import { resolveAccountPermissionList } from "@/lib/account-permissions";
 
 export interface SessionAuthContext {
   userId: string;
-  eventUserRoleId: string;
-  eventUserRoleSlug: string;
-  eventUserRoleName: string;
+  accountId: string;
   permissions: Permission[];
   authVersion: number;
-  permissionsVersion: number;
-  rolePermissionsVersion: number;
+  accountPermissionsVersion: number;
   permissionsFingerprint: string;
   teamId: string | null;
   eventId: string;
@@ -24,26 +22,22 @@ export interface SessionAuthContext {
 async function loadSessionAuthContextFromDb(userId: string): Promise<SessionAuthContext | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
-      eventUserRole: true,
-      event: { select: { permissionsVersion: true } },
-    },
+    include: { account: true },
   });
 
-  if (!user?.eventUserRole) return null;
+  if (!user?.account) return null;
 
-  const permissions = resolvePermissionsFromRole(user.eventUserRole);
+  const permissions = resolveAccountPermissionList(user.account);
 
   return {
     userId: user.id,
-    eventUserRoleId: user.eventUserRole.id,
-    eventUserRoleSlug: user.eventUserRole.slug,
-    eventUserRoleName: user.eventUserRole.name,
+    accountId: user.account.id,
     permissions,
     authVersion: user.authVersion,
-    permissionsVersion: user.event.permissionsVersion,
-    rolePermissionsVersion: user.eventUserRole.permissionsVersion,
-    permissionsFingerprint: permissionsFingerprint(permissions),
+    accountPermissionsVersion: user.account.permissionsVersion,
+    permissionsFingerprint: permissionsFingerprint(
+      normalizeRolePermissions(user.account.permissions),
+    ),
     teamId: user.teamId,
     eventId: user.eventId,
   };
@@ -62,16 +56,14 @@ export async function invalidateSessionAuthContext(userId: string) {
 export function assertSessionVersions(
   token: {
     authVersion: number;
-    permissionsVersion: number;
-    rolePermissionsVersion: number;
+    accountPermissionsVersion: number;
     permissionsFingerprint: string;
   },
   live: SessionAuthContext,
 ): "ok" | "stale" {
   if (
     token.authVersion !== live.authVersion ||
-    token.permissionsVersion !== live.permissionsVersion ||
-    token.rolePermissionsVersion !== live.rolePermissionsVersion ||
+    token.accountPermissionsVersion !== live.accountPermissionsVersion ||
     token.permissionsFingerprint !== live.permissionsFingerprint
   ) {
     return "stale";

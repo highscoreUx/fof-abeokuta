@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
-import { createDirectChatMessage, serializeChatMessageRecord } from "@/lib/chat-messages-server";
+import {
+  chatUserSelect,
+  createDirectChatMessage,
+  serializeChatMessageRecord,
+} from "@/lib/chat-messages-server";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -33,7 +37,7 @@ export async function GET(
         { userId: peerId, recipientId: myId },
       ],
     },
-    include: { user: { select: { username: true, firstName: true, lastName: true } } },
+    include: { user: chatUserSelect },
     orderBy: { createdAt: "asc" },
     take: 100,
   });

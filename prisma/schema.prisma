@@ -81,24 +81,22 @@ enum SurveyQuestionType {
   NPS
 }
 
-model PlatformAdmin {
-  id           String                 @id @default(cuid())
-  email        String                 @unique
-  passwordHash String
-  name         String
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  refreshTokens PlatformRefreshToken[]
-}
+model Account {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  username           String   @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  middleName         String?
+  mustChangePassword Boolean  @default(true)
+  permissions        Json     @default("[]")
+  permissionsVersion Int      @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-model PlatformRefreshToken {
-  id        String        @id @default(cuid())
-  adminId   String
-  admin     PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  tokenHash String
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime      @default(now())
+  users         User[]
+  refreshTokens RefreshToken[]
 }
 
 model Event {
@@ -109,11 +107,9 @@ model Event {
   coverImageUrl String?
   date        DateTime
   status             EventStatus @default(DRAFT)
-  permissionsVersion Int         @default(1)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  eventUserRoles  EventUserRole[]
   teams           Team[]
   users           User[]
   agendaItems     AgendaItem[]
@@ -180,43 +176,19 @@ model Team {
   @@unique([eventId, letter])
 }
 
-model EventUserRole {
-  id                 String   @id @default(cuid())
-  eventId            String
-  event              Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  name               String
-  slug               String
-  permissions        Json     @default("[]")
-  permissionsVersion Int      @default(0)
-  isSystem           Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  users              User[]
-
-  @@unique([eventId, slug])
-}
-
 model User {
-  id          String    @id @default(cuid())
-  eventId     String
-  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventUserRoleId String
-  eventUserRole   EventUserRole @relation(fields: [eventUserRoleId], references: [id], onDelete: Restrict)
-  authVersion Int       @default(0)
-  pinHash     String
-  pinDisplay  String?
-  loginPhrase String?
-  firstName   String
-  lastName    String
-  middleName  String?
-  username    String
-  email       String
-  teamId      String?
-  team        Team?     @relation(fields: [teamId], references: [id])
-  checkedInAt DateTime?
-  checkedInBy String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String        @id @default(cuid())
+  accountId       String
+  account         Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  eventId         String
+  event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  authVersion     Int           @default(0)
+  teamId          String?
+  team            Team?         @relation(fields: [teamId], references: [id])
+  checkedInAt     DateTime?
+  checkedInBy     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   refreshTokens RefreshToken[]
   messages      Message[]      @relation("MessageAuthor")
@@ -233,14 +205,15 @@ model User {
   surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
 
-  @@unique([eventId, username])
-  @@unique([eventId, email])
+  @@unique([accountId, eventId])
 }
 
 model RefreshToken {
   id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String
   expiresAt DateTime
   revokedAt DateTime?

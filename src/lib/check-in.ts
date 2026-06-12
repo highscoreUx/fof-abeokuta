@@ -1,42 +1,21 @@
-import { canViewPassword } from "@/lib/permissions";
-import type { Permission } from "@/lib/permissions/catalog";
+import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
+import { primarySocketRoleSlug, resolveAccountPermissions } from "@/lib/account-permissions";
+import type { UserWithAccount } from "@/lib/user-display";
 
-export interface CheckInUserPayload {
-  id: string;
-  firstName: string;
-  lastName: string;
-  username: string;
-  eventUserRoleSlug: string;
-  eventUserRoleName: string;
-  teamLetter: string | null;
-  checkedInAt: string | null;
-  password?: string;
-}
+export type CheckInUserPayload = ReturnType<typeof serializeCheckInUser>;
 
-export function serializeCheckInUser(
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    username: string;
-    pinDisplay: string | null;
-    checkedInAt: Date | null;
-    team?: { letter: string } | null;
-    eventUserRole: { slug: string; name: string };
-  },
-  viewerPermissions: Permission[],
-): CheckInUserPayload {
+export function serializeCheckInUser(user: UserWithAccount) {
+  const permissions = resolveAccountPermissions(user.account);
   return {
     id: user.id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    username: user.username,
-    eventUserRoleSlug: user.eventUserRole.slug,
-    eventUserRoleName: user.eventUserRole.name,
+    firstName: user.account.firstName,
+    lastName: user.account.lastName,
+    username: user.account.username,
+    email: user.account.email,
+    teamId: user.teamId,
     teamLetter: user.team?.letter ?? null,
     checkedInAt: user.checkedInAt?.toISOString() ?? null,
-    password: canViewPassword(viewerPermissions, user.eventUserRole.slug, user.pinDisplay)
-      ? (user.pinDisplay ?? undefined)
-      : undefined,
+    permissionProfile: getProfileLabelForPermissions(user.account.permissions),
+    primaryRoleSlug: primarySocketRoleSlug(permissions),
   };
 }

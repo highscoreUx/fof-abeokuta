@@ -60,13 +60,13 @@ export function UserCheckInModal({ open, onClose, user }: UserCheckInModalProps)
       open={open}
       onClose={onClose}
       title="Check-in details"
-      description={`Share these login details with ${details.firstName} before they sign in.`}
+      description={`Confirm sign-in details for ${details.firstName} before check-in.`}
     >
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-foreground">{fullName}</p>
           <Badge variant="muted" className="uppercase">
-            {details.eventUserRoleName}
+            {details.permissionProfile}
           </Badge>
           {isCheckedIn ? (
             <Badge variant="success">Checked in</Badge>
@@ -77,16 +77,14 @@ export function UserCheckInModal({ open, onClose, user }: UserCheckInModalProps)
 
         <div className="rounded-xl border border-border bg-muted/40 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Username
+            Email
           </p>
-          <p className="mt-1 font-mono text-lg font-semibold text-primary">{details.username}</p>
+          <p className="mt-1 font-mono text-lg font-semibold text-primary">{details.email}</p>
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Password
+            Username
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold tracking-widest text-foreground">
-            {details.password ?? "—"}
-          </p>
+          <p className="mt-1 font-mono text-lg font-semibold text-foreground">{details.username}</p>
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Team
@@ -99,7 +97,7 @@ export function UserCheckInModal({ open, onClose, user }: UserCheckInModalProps)
         <p className="text-sm text-muted-foreground">
           {isCheckedIn
             ? "This person is checked in and can sign in. Undo check-in if you need to correct a mistake."
-            : "Read the username and password aloud, then check them in when ready."}
+            : "Confirm their email, then check them in when ready."}
         </p>
 
         {error && <p className="text-sm text-danger">{error}</p>}

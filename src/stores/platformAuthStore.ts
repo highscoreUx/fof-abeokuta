@@ -1,23 +1,27 @@
 "use client";
 
-import { create } from "zustand";
+import { useAuthStore, type AccountSession } from "@/stores/authStore";
 
-export interface PlatformAdminUser {
-  id: string;
-  email: string;
-  name: string;
-}
+export type PlatformAdminUser = AccountSession;
 
-interface PlatformAuthState {
+type PlatformAuthSlice = {
   accessToken: string | null;
-  admin: PlatformAdminUser | null;
-  setAuth: (accessToken: string, admin: PlatformAdminUser) => void;
+  admin: AccountSession | null;
+  setAuth: (accessToken: string, admin: AccountSession) => void;
   clearAuth: () => void;
+};
+
+function toPlatformSlice(state: ReturnType<typeof useAuthStore.getState>): PlatformAuthSlice {
+  return {
+    accessToken: state.accessToken,
+    admin: state.account,
+    setAuth: state.setAccountAuth,
+    clearAuth: state.clearAuth,
+  };
 }
 
-export const usePlatformAuthStore = create<PlatformAuthState>((set) => ({
-  accessToken: null,
-  admin: null,
-  setAuth: (accessToken, admin) => set({ accessToken, admin }),
-  clearAuth: () => set({ accessToken: null, admin: null }),
-}));
+export function usePlatformAuthStore<T>(selector: (state: PlatformAuthSlice) => T): T {
+  return useAuthStore((state) => selector(toPlatformSlice(state)));
+}
+
+usePlatformAuthStore.getState = () => toPlatformSlice(useAuthStore.getState());

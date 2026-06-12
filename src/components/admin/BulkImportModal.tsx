@@ -8,9 +8,10 @@ import { useInvalidateUsers } from "@/hooks/useUsersQuery";
 import { useAuthStore } from "@/stores/authStore";
 
 interface CredentialRow {
+  email: string;
   username: string;
   password: string;
-  role: string;
+  permissionProfile: string;
 }
 
 interface BulkImportModalProps {
@@ -66,8 +67,8 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
     const sheet = result?.credentialSheet;
     if (!sheet?.length) return;
     const csv = [
-      "username,password,role",
-      ...sheet.map((r) => `${r.username},${r.password},${r.role}`),
+      "email,username,password,permissionProfile",
+      ...sheet.map((r) => `${r.email},${r.username},${r.password},${r.permissionProfile}`),
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -82,13 +83,13 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
       open={open}
       onClose={handleClose}
       title="Bulk add users"
-      description="Upload a CSV or Excel file. Columns: firstName, lastName, middleName (optional), role, password (optional)."
+      description="Upload a CSV or Excel file. Columns: email, username, firstName, lastName, middleName (optional), role, password (optional)."
       className="max-w-xl"
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Usernames are assigned as <span className="font-mono">firstname.design-phrase</span>.
-          New participants can be auto-assigned to teams based on your settings.
+          Each row needs a globally unique email and username. Temporary passwords are generated
+          when omitted. New participants can be auto-assigned to teams based on your settings.
         </p>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center transition hover:border-primary/40 hover:bg-muted/50">
           <span className="text-sm font-medium text-foreground">

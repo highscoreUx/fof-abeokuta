@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loginSchema } from "@/lib/validators/auth";
-import {
-  canUserSignIn,
-  findUserByCredentials,
-  serializeUser,
-  buildAccessTokenForUser,
-} from "@/lib/users";
-import { createRefreshToken } from "@/lib/auth/refresh";
+import { LoginError, loginToEvent } from "@/lib/auth/login-service";
 import {
   EVENT_SLUG_COOKIE,
   getRefreshCookieOptions,
@@ -14,8 +8,6 @@ import {
 } from "@/lib/auth/cookies";
 import { jsonError } from "@/lib/auth/middleware";
 import { requireEventBySlug } from "@/lib/events";
-import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
-import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { rateLimitAllow } from "@/lib/cache/index";
 
 export async function POST(
@@ -37,37 +29,41 @@ export async function POST(
     return jsonError(parsed.error.issues[0]?.message ?? "Invalid credentials", "VALIDATION_ERROR", 400);
   }
 
-  const rateKey = `${event.id}:${parsed.data.username.trim().toLowerCase()}`;
-  const allowed = await rateLimitAllow(`login:${rateKey}`, 15, 300);
+  const email = parsed.data.email.trim().toLowerCase();
+  const allowed = await rateLimitAllow(`login:${event.id}:${email}`, 15, 300);
   if (!allowed) {
     return jsonError("Too many login attempts. Try again in a few minutes.", "RATE_LIMITED", 429);
   }
 
-  const user = await findUserByCredentials(event.id, parsed.data.username, parsed.data.password);
-  if (!user) {
-    return jsonError("Invalid username or password", "INVALID_CREDENTIALS", 401);
-  }
-
-  if (!canUserSignIn(user)) {
-    return jsonError(
-      "You must check in with staff before signing in.",
-      "CHECK_IN_REQUIRED",
-      403,
+  try {
+    const result = await loginToEvent(
+      parsed.data.email,
+      parsed.data.password,
+      event.id,
+      slug,
     );
+
+    if (result.mustChangePassword) {
+      return NextResponse.json({
+        mustChangePassword: true,
+        accountAccessToken: result.accountAccessToken,
+        account: result.account,
+      });
+    }
+
+    const response = NextResponse.json({
+      accessToken: result.accessToken,
+      user: result.user,
+    });
+
+    response.cookies.set(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions());
+    response.cookies.set(EVENT_SLUG_COOKIE, slug, getRefreshCookieOptions());
+
+    return response;
+  } catch (error) {
+    if (error instanceof LoginError) {
+      return jsonError(error.message, error.code, error.status);
+    }
+    return jsonError("Login failed", "LOGIN_FAILED", 500);
   }
-
-  const permissions = resolvePermissionsFromRole(user.eventUserRole);
-  const enabledActivities = await loadEnabledActivitiesSnapshot(event.id);
-  const accessToken = await buildAccessTokenForUser(user.id, slug);
-  const refreshToken = await createRefreshToken(user.id, event.id);
-
-  const response = NextResponse.json({
-    accessToken,
-    user: serializeUser(user, slug, permissions, enabledActivities),
-  });
-
-  response.cookies.set(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
-  response.cookies.set(EVENT_SLUG_COOKIE, slug, getRefreshCookieOptions());
-
-  return response;
 }

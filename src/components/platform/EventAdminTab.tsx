@@ -28,8 +28,8 @@ export function EventAdminTab({ event, onUpdated, onCredentials }: EventAdminTab
           <div className="space-y-1">
             <CardTitle>Event admins</CardTitle>
             <CardDescription>
-              People who run this event in the app. Usernames are auto-generated — share passwords
-              when you add someone.
+              People who run this event in the app. Share email and temporary password when you
+              add someone.
             </CardDescription>
           </div>
           <Button className="shrink-0" onClick={() => setAddOpen(true)}>

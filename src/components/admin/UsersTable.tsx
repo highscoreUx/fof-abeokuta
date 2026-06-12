@@ -18,7 +18,7 @@ import {
   useUsersTableStore,
   type UsersSortField,
 } from "@/stores/usersTableStore";
-import { useEventUserRolesQuery } from "@/hooks/useEventUserRolesQuery";
+import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
 import type { EventUserRow } from "@/types/users";
 
 function SortableHeader({
@@ -55,7 +55,6 @@ function SortableHeader({
 export function UsersTable() {
   const { data, isLoading, isFetching, error } = useUsersQuery();
   const { data: teamsData } = useTeamsQuery();
-  const { data: rolesData } = useEventUserRolesQuery();
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
@@ -76,7 +75,7 @@ export function UsersTable() {
 
   const users = data?.data ?? [];
   const teams = teamsData?.teams ?? [];
-  const accessProfiles = rolesData?.roles ?? [];
+  const accessProfiles = PERMISSION_PROFILES;
 
   const toggleCheckIn = async (user: EventUserRow) => {
     setTogglingId(user.id);
@@ -106,7 +105,7 @@ export function UsersTable() {
         <Select value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="all">All profiles</option>
           {accessProfiles.map((profile) => (
-            <option key={profile.id} value={profile.slug}>
+            <option key={profile.slug} value={profile.slug}>
               {profile.name}
             </option>
           ))}
@@ -217,7 +216,7 @@ export function UsersTable() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant="muted" className="max-w-[10rem] truncate uppercase">
-                        {user.eventUserRoleName}
+                        {user.permissionProfile}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>

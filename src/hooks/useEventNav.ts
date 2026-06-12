@@ -37,8 +37,7 @@ export function useEventNav() {
       hasPermission(permissions, "team.list") ||
       hasPermission(permissions, "vote.list") ||
       hasPermission(permissions, "settings.broadcasting") ||
-      hasPermission(permissions, "settings.diagnostics") ||
-      hasPermission(permissions, "event_user_role.list")
+      hasPermission(permissions, "settings.diagnostics")
         ? { href: `${prefix}/admin/settings`, label: "Event settings" }
         : null,
     ].filter(Boolean) as NavItem[];
@@ -96,7 +95,7 @@ export function useEventNav() {
     participantActivities: `${prefix}/home/activities`,
     staffCheckIn: `${prefix}/staff/check-in`,
     judgeScoring: `${prefix}/judge/scoring`,
-    login: loginPath(pathPrefix),
+    login: loginPath(),
     nav,
     staffNav,
     judgeNav,

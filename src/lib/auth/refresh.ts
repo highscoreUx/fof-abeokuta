@@ -6,27 +6,39 @@ export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function createRefreshToken(userId: string, eventId: string) {
-  const token = signRefreshToken(userId, eventId);
+export async function createRefreshToken(payload: {
+  accountId: string;
+  userId?: string;
+  eventId?: string;
+}) {
+  const token = signRefreshToken(payload);
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   await prisma.refreshToken.create({
-    data: { userId, tokenHash, expiresAt },
+    data: {
+      accountId: payload.accountId,
+      userId: payload.userId ?? null,
+      tokenHash,
+      expiresAt,
+    },
   });
 
   return token;
 }
 
-export async function rotateRefreshToken(oldToken: string, userId: string, eventId: string) {
+export async function rotateRefreshToken(
+  oldToken: string,
+  payload: { accountId: string; userId?: string; eventId?: string },
+) {
   const oldHash = hashToken(oldToken);
 
   await prisma.refreshToken.updateMany({
-    where: { tokenHash: oldHash, userId, revokedAt: null },
+    where: { tokenHash: oldHash, accountId: payload.accountId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
 
-  return createRefreshToken(userId, eventId);
+  return createRefreshToken(payload);
 }
 
 export async function revokeRefreshToken(token: string) {
@@ -37,17 +49,15 @@ export async function revokeRefreshToken(token: string) {
   });
 }
 
-export async function isRefreshTokenValid(token: string, userId: string) {
+export async function isRefreshTokenValid(token: string, accountId: string) {
   const tokenHash = hashToken(token);
   const record = await prisma.refreshToken.findFirst({
     where: {
       tokenHash,
-      userId,
+      accountId,
       revokedAt: null,
       expiresAt: { gt: new Date() },
     },
   });
   return Boolean(record);
 }
-
-export { hashPin } from "@/lib/auth/bcrypt";

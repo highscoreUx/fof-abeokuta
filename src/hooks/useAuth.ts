@@ -6,30 +6,11 @@ import { useEventScope } from "@/contexts/EventScopeContext";
 import { useAuthStore } from "@/stores/authStore";
 import { apiFetch } from "@/lib/api-client";
 import { loginPath } from "@/lib/routes";
-import { resolveDefaultRoute } from "@/lib/permissions";
-import type { AuthUser } from "@/types";
 
 export function useAuth() {
   const router = useRouter();
-  const { eventSlug, pathPrefix } = useEventScope();
-  const { accessToken, user, setAuth, clearAuth, isHydrated } = useAuthStore();
-
-  const login = useCallback(
-    async (username: string, password: string) => {
-      const data = await apiFetch<{ accessToken: string; user: AuthUser }>(
-        eventSlug,
-        "/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({ username, password }),
-          skipAuth: true,
-        },
-      );
-      setAuth(data.accessToken, data.user);
-      router.push(resolveDefaultRoute(data.user.permissions, pathPrefix));
-    },
-    [router, setAuth, eventSlug, pathPrefix],
-  );
+  const { eventSlug } = useEventScope();
+  const { accessToken, user, setEventAuth, clearAuth, isHydrated } = useAuthStore();
 
   const logout = useCallback(async () => {
     try {
@@ -38,13 +19,13 @@ export function useAuth() {
       // ignore
     }
     clearAuth();
-    router.push(loginPath(pathPrefix));
-  }, [clearAuth, router, eventSlug, pathPrefix]);
+    router.push(loginPath());
+  }, [clearAuth, router, eventSlug]);
 
   return {
     accessToken,
     user,
-    login,
+    setEventAuth,
     logout,
     isHydrated,
     isAuthenticated: Boolean(accessToken && user),

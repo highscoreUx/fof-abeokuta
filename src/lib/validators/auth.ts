@@ -1,35 +1,39 @@
 import { z } from "zod";
+import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+
+const usernameSchema = z
+  .string()
+  .min(3, "Username must be at least 3 characters")
+  .max(32)
+  .regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers, and underscores only");
+
+const profileSlugs = PERMISSION_PROFILES.map((p) => p.slug) as [string, ...string[]];
 
 export const loginSchema = z.object({
-  username: z
-    .string()
-    .min(3, "Username is required")
-    .max(80)
-    .regex(/^[a-z0-9]+(\.[a-z0-9]+)+$/, "Use your assigned username (e.g. ada.wireframe)"),
-  password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits"),
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(1, "Password is required"),
 });
 
-export const createUserSchema = z
-  .object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    middleName: z.string().optional(),
-    eventUserRoleId: z.string().optional(),
-    role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]).optional(),
-    password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits").optional(),
-  })
-  .refine((data) => Boolean(data.eventUserRoleId || data.role), {
-    message: "Access profile is required",
-    path: ["eventUserRoleId"],
-  });
+export const createUserSchema = z.object({
+  email: z.string().email("Valid email is required"),
+  username: usernameSchema,
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  middleName: z.string().optional(),
+  permissionProfile: z.enum(profileSlugs).optional(),
+  role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]).optional(),
+  password: z.string().min(12).optional(),
+});
 
 export const userImportRowSchema = z.object({
+  email: z.string().email(),
+  username: usernameSchema,
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   middleName: z.string().optional(),
-  role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]),
-  password: z.string().regex(/^\d{4}$/).optional(),
-  pin: z.string().regex(/^\d{4}$/).optional(),
+  permissionProfile: z.enum(profileSlugs).optional(),
+  role: z.enum(["ADMIN", "STAFF", "JUDGE", "PARTICIPANT"]).optional(),
+  password: z.string().min(12).optional(),
 });
 
 export const agendaItemSchema = z.object({

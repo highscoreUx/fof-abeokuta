@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
-import { createTeamChatMessage } from "@/lib/chat-messages-server";
+import {
+  chatUserSelect,
+  createTeamChatMessage,
+  serializeChatMessageRecord,
+} from "@/lib/chat-messages-server";
 import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -24,12 +28,14 @@ export async function GET(
 
   const messages = await prisma.message.findMany({
     where: { eventId: ctx.event.id, teamId },
-    include: { user: { select: { username: true, firstName: true, lastName: true } } },
+    include: { user: chatUserSelect },
     orderBy: { createdAt: "asc" },
     take: 100,
   });
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({
+    messages: messages.map((message) => serializeChatMessageRecord(message)),
+  });
 }
 
 export async function POST(

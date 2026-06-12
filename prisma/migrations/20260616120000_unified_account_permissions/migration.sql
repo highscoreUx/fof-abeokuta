@@ -1,0 +1,13 @@
+-- Unified permissions on Account; drop per-event roles
+
+TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;
+TRUNCATE TABLE "Account" RESTART IDENTITY CASCADE;
+
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "permissionsVersion" INTEGER NOT NULL DEFAULT 1;
+
+ALTER TABLE "User" DROP CONSTRAINT IF EXISTS "User_eventUserRoleId_fkey";
+ALTER TABLE "User" DROP COLUMN IF EXISTS "eventUserRoleId";
+
+DROP TABLE IF EXISTS "EventUserRole";
+
+ALTER TABLE "Event" DROP COLUMN IF EXISTS "permissionsVersion";

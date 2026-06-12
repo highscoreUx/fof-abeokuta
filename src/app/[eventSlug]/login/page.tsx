@@ -1,16 +1,14 @@
-import { EventScopeProvider } from "@/contexts/EventScopeContext";
-import { LoginView } from "@/_views/login/LoginView";
+import { redirect } from "next/navigation";
 
-export default async function EventLoginPage({
+export default async function LegacyEventLoginPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ eventSlug: string }>;
+  searchParams: Promise<{ next?: string }>;
 }) {
   const { eventSlug } = await params;
-
-  return (
-    <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <LoginView />
-    </EventScopeProvider>
-  );
+  const { next } = await searchParams;
+  const returnTo = next ?? `/${eventSlug}/home`;
+  redirect(`/login?next=${encodeURIComponent(returnTo)}`);
 }

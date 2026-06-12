@@ -22,8 +22,12 @@ export function EventScopeProvider({
   );
 }
 
+export function useOptionalEventScope(): EventScopeValue | null {
+  return useContext(EventScopeContext);
+}
+
 export function useEventScope(): EventScopeValue {
-  const ctx = useContext(EventScopeContext);
+  const ctx = useOptionalEventScope();
   if (!ctx) {
     throw new Error("useEventScope must be used within EventScopeProvider");
   }

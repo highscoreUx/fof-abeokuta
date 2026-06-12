@@ -8,8 +8,9 @@ Multi-event platform for FOF Abeokuta. Host many events from one deployment.
 - Prisma 7 + PostgreSQL
 - Optional Upstash Redis (read cache + rate limits; in-memory fallback when unset)
 - pnpm
-- Platform admin: email + password at `/fg-admin`
-- Event access: username + password at `/login` (current event) or `/{slug}/login`
+- Global accounts: email + username + password (same credentials across events)
+- Platform admin: email + password at `/fg-admin` (requires `platform.admin` permission)
+- Event access: email + password at `/login` (current event) or `/{slug}/login`
 
 ## URLs
 
@@ -27,16 +28,12 @@ Set an event’s status to **LIVE** in platform admin to make it the current eve
 
 If no events exist yet, `/` redirects to `/fg-admin/login`.
 
-## Roles & passwords (per event)
+## Accounts
 
-| Role | Password range |
-|------|----------------|
-| Admin | 0000–0999 |
-| Staff | 1000–1999 |
-| Judge | 2000–2999 |
-| Participant | 3000–3999 |
-
-Usernames are auto-assigned (`firstname.wireframe`). Staff share credentials at check-in. Only checked-in participants can sign in.
+- Each person has one global **Account** (email, username, password).
+- Event membership is a **User** row linking an account to an event + role.
+- Passwords are auto-generated when creating users; recipients must change password on first sign-in.
+- Only checked-in participants can sign in to an event.
 
 ## Local Development
 

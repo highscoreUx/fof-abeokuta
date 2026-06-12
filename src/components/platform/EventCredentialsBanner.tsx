@@ -24,11 +24,15 @@ export function EventCredentialsBanner({ credentials, onDismiss }: EventCredenti
       </p>
       <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
         <div>
+          <dt className="text-muted-foreground">Email</dt>
+          <dd className="font-mono font-semibold">{credentials.user.email}</dd>
+        </div>
+        <div>
           <dt className="text-muted-foreground">Username</dt>
           <dd className="font-mono font-semibold">{credentials.user.username}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Password</dt>
+          <dt className="text-muted-foreground">Temporary password</dt>
           <dd className="font-mono font-semibold">{credentials.user.password}</dd>
         </div>
         <div>
@@ -39,7 +43,7 @@ export function EventCredentialsBanner({ credentials, onDismiss }: EventCredenti
         </div>
         <div>
           <dt className="text-muted-foreground">Role</dt>
-          <dd>{credentials.user.eventUserRoleName}</dd>
+          <dd>{credentials.user.permissionProfile}</dd>
         </div>
       </dl>
       <Button className="mt-4" variant="secondary" size="sm" onClick={onDismiss}>

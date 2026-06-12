@@ -24,6 +24,8 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminUsername, setAdminUsername] = useState("");
   const [adminFirstName, setAdminFirstName] = useState("");
   const [adminLastName, setAdminLastName] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -35,6 +37,8 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     setTitle("");
     setDescription("");
     setDate("");
+    setAdminEmail("");
+    setAdminUsername("");
     setAdminFirstName("");
     setAdminLastName("");
     setCoverFile(null);
@@ -51,6 +55,8 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
   const canSubmit =
     Boolean(title.trim()) &&
     Boolean(date) &&
+    Boolean(adminEmail.trim()) &&
+    Boolean(adminUsername.trim()) &&
     Boolean(adminFirstName.trim()) &&
     Boolean(adminLastName.trim());
 
@@ -72,6 +78,8 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
           title: title.trim(),
           description: description.trim() || undefined,
           date: new Date(date).toISOString(),
+          adminEmail: adminEmail.trim().toLowerCase(),
+          adminUsername: adminUsername.trim().toLowerCase(),
           adminFirstName: adminFirstName.trim(),
           adminLastName: adminLastName.trim(),
         }),
@@ -169,9 +177,28 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
         <fieldset className="space-y-4">
           <legend className="text-sm font-medium text-foreground">Event admin</legend>
           <p className="text-xs text-muted-foreground">
-            This person runs the event app. They sign in with a username and 4-digit PIN.
+            This person runs the event app. They sign in with email and password.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="admin-email">Email</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="admin-username">Username</Label>
+              <Input
+                id="admin-username"
+                value={adminUsername}
+                onChange={(e) => setAdminUsername(e.target.value.toLowerCase())}
+                required
+              />
+            </div>
             <div>
               <Label htmlFor="admin-first-name">First name</Label>
               <Input

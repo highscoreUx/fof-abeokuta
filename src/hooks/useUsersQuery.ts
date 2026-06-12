@@ -66,13 +66,23 @@ export function useCreateUserMutation() {
 
   return useMutation({
     mutationFn: (body: {
+      email: string;
+      username: string;
       firstName: string;
       lastName: string;
       middleName?: string;
-      eventUserRoleId?: string;
+      permissionProfile?: string;
       role?: string;
       password?: string;
-    }) => apiFetch<{ user: EventUserRow }>(eventSlug, "/users", { method: "POST", body: JSON.stringify(body) }),
+    }) =>
+      apiFetch<{
+        user: EventUserRow;
+        initialPassword: string | null;
+        permissionProfile: string;
+      }>(eventSlug, "/users", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["event-users", eventSlug] });
     },

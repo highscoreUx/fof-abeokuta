@@ -1,20 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canAccessStaffChat } from "@/lib/account-permissions";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parseDmRoomId } from "@/lib/chat-dm";
 import { isTeamChatEnabled } from "@/lib/chat-settings";
-import { STAFF_CHAT_ROLE_SLUGS, STAFF_ROOM_ID } from "@/lib/chat-staff";
+import { STAFF_ROOM_ID } from "@/lib/chat-staff";
+import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isUserOnline } from "@/server/presence";
 
 const participantSelect = {
   id: true,
-  firstName: true,
-  lastName: true,
+  account: { select: { firstName: true, lastName: true, permissions: true } },
   team: { select: { letter: true } },
-  eventUserRole: { select: { name: true } },
 } as const;
+
+const participantOrderBy = [
+  { account: { lastName: "asc" as const } },
+  { account: { firstName: "asc" as const } },
+];
+
+function mapParticipant(user: {
+  id: string;
+  account: { firstName: string; lastName: string; permissions: unknown };
+  team: { letter: string } | null;
+}) {
+  return {
+    id: user.id,
+    firstName: user.account.firstName,
+    lastName: user.account.lastName,
+    teamLetter: user.team?.letter ?? null,
+    roleName: getProfileLabelForPermissions(user.account.permissions),
+    online: isUserOnline(user.id),
+  };
+}
 
 export async function GET(
   request: NextRequest,
@@ -32,18 +52,11 @@ export async function GET(
     const participants = await prisma.user.findMany({
       where: { eventId: ctx.event.id },
       select: participantSelect,
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      orderBy: participantOrderBy,
     });
 
     return NextResponse.json({
-      participants: participants.map((user) => ({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        teamLetter: user.team?.letter ?? null,
-        roleName: user.eventUserRole.name,
-        online: isUserOnline(user.id),
-      })),
+      participants: participants.map(mapParticipant),
     });
   }
 
@@ -52,24 +65,16 @@ export async function GET(
       return jsonError("Forbidden", "FORBIDDEN", 403);
     }
 
-    const participants = await prisma.user.findMany({
-      where: {
-        eventId: ctx.event.id,
-        eventUserRole: { slug: { in: [...STAFF_CHAT_ROLE_SLUGS] } },
-      },
+    const allUsers = await prisma.user.findMany({
+      where: { eventId: ctx.event.id },
       select: participantSelect,
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      orderBy: participantOrderBy,
     });
 
     return NextResponse.json({
-      participants: participants.map((user) => ({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        teamLetter: user.team?.letter ?? null,
-        roleName: user.eventUserRole.name,
-        online: isUserOnline(user.id),
-      })),
+      participants: allUsers
+        .filter((user) => canAccessStaffChat(user.account.permissions as never))
+        .map(mapParticipant),
     });
   }
 
@@ -82,16 +87,7 @@ export async function GET(
     if (!peer) return jsonError("User not found", "NOT_FOUND", 404);
 
     return NextResponse.json({
-      participants: [
-        {
-          id: peer.id,
-          firstName: peer.firstName,
-          lastName: peer.lastName,
-          teamLetter: peer.team?.letter ?? null,
-          roleName: peer.eventUserRole.name,
-          online: isUserOnline(peer.id),
-        },
-      ],
+      participants: [mapParticipant(peer)],
     });
   }
 
@@ -106,17 +102,10 @@ export async function GET(
   const participants = await prisma.user.findMany({
     where: { eventId: ctx.event.id, teamId: roomId },
     select: participantSelect,
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    orderBy: participantOrderBy,
   });
 
   return NextResponse.json({
-    participants: participants.map((user) => ({
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      teamLetter: user.team?.letter ?? null,
-      roleName: user.eventUserRole.name,
-      online: isUserOnline(user.id),
-    })),
+    participants: participants.map(mapParticipant),
   });
 }

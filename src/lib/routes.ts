@@ -1,13 +1,13 @@
-import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
+import { sanitizeNextParam } from "@/lib/post-login-redirect";
 
-export function loginPath(pathPrefix: string): string {
-  return pathPrefix ? `${pathPrefix}/login` : "/login";
+/** Single app-wide login route. Pass `returnTo` to resume a guarded page after sign-in. */
+export function loginPath(returnTo?: string | null): string {
+  const next = sanitizeNextParam(returnTo ?? null);
+  if (!next) return "/login";
+  return `/login?next=${encodeURIComponent(next)}`;
 }
 
-export function getLoginRedirectFromPathname(pathname: string): string {
-  const segment = pathname.split("/")[1];
-  if (segment && !RESERVED_EVENT_SLUGS.has(segment)) {
-    return `/${segment}/login`;
-  }
-  return "/login";
+export function getLoginRedirectFromPathname(pathname: string, search = ""): string {
+  const returnTo = search ? `${pathname}${search}` : pathname;
+  return loginPath(returnTo);
 }

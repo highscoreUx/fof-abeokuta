@@ -1,6 +1,6 @@
-import bcrypt from "bcrypt";
 import { ACTIVITY_CATALOG } from "@/lib/activities/catalog";
 import { seedActivityTypes } from "@/lib/activities/event-activities";
+import { createAccount } from "@/lib/accounts";
 import { prisma } from "@/lib/prisma";
 
 async function activityTypesReady(): Promise<boolean> {
@@ -11,36 +11,39 @@ async function activityTypesReady(): Promise<boolean> {
   return count === slugs.length;
 }
 
-async function platformAdminReady(): Promise<boolean> {
-  return (await prisma.platformAdmin.count()) > 0;
+async function platformAccountReady(): Promise<boolean> {
+  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@fofabeokuta.com";
+  return Boolean(await prisma.account.findUnique({ where: { email: platformEmail } }));
 }
 
-async function ensurePlatformAdmin() {
+async function ensurePlatformAccount() {
   const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@fofabeokuta.com";
   const platformPassword = process.env.PLATFORM_ADMIN_PASSWORD ?? "fofadmin123";
-  const passwordHash = await bcrypt.hash(platformPassword, 10);
+  const platformUsername = process.env.PLATFORM_ADMIN_USERNAME ?? "platform_admin";
 
-  await prisma.platformAdmin.create({
-    data: {
-      email: platformEmail,
-      passwordHash,
-      name: "Platform Admin",
-    },
+  await createAccount({
+    email: platformEmail,
+    username: platformUsername,
+    firstName: "Platform",
+    lastName: "Admin",
+    permissions: ["*"],
+    password: platformPassword,
+    mustChangePassword: process.env.NODE_ENV === "production",
   });
 
-  console.log(`[bootstrap] Platform admin created: ${platformEmail}`);
+  console.log(`[bootstrap] Platform account created: ${platformEmail}`);
   if (process.env.NODE_ENV !== "production") {
     console.log(`[bootstrap] Dev password: ${platformPassword}`);
   }
 }
 
 export async function ensurePlatformBootstrap(): Promise<{ skipped: boolean }> {
-  const [typesReady, adminReady] = await Promise.all([
+  const [typesReady, accountReady] = await Promise.all([
     activityTypesReady(),
-    platformAdminReady(),
+    platformAccountReady(),
   ]);
 
-  if (typesReady && adminReady) {
+  if (typesReady && accountReady) {
     return { skipped: true };
   }
 
@@ -49,8 +52,8 @@ export async function ensurePlatformBootstrap(): Promise<{ skipped: boolean }> {
     console.log("[bootstrap] Activity types ensured.");
   }
 
-  if (!adminReady) {
-    await ensurePlatformAdmin();
+  if (!accountReady) {
+    await ensurePlatformAccount();
   }
 
   return { skipped: false };

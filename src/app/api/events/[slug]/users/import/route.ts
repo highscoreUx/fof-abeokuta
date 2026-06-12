@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { isTeamAssignableMember } from "@/lib/account-permissions";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
 import { assignTeams, assignableTeamRoleSlugs, getTeamAssignSettings } from "@/lib/team-assign";
 import { createUserFromRow } from "@/lib/users";
+import { pickUserProfile } from "@/lib/user-display";
 import { jsonError } from "@/lib/auth/middleware";
 
 function parseFile(buffer: Buffer, filename: string) {
@@ -35,18 +37,26 @@ export async function POST(
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const rows = parseFile(buffer, file.name);
-  const created: Array<{ username: string; password: string; eventUserRoleName: string }> = [];
-  const createdAssigneeIds: Array<{ id: string; eventUserRoleSlug: string }> = [];
+  const created: Array<{
+    email: string;
+    username: string;
+    password: string;
+    permissionProfile: string;
+  }> = [];
+  const createdAssigneeIds: string[] = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const parsed = userImportRowSchema.safeParse({
+      email: row.email ?? row.EMAIL,
+      username: row.username ?? row.USERNAME,
       firstName: row.firstName ?? row.first_name,
       lastName: row.lastName ?? row.last_name,
       middleName: row.middleName ?? row.middle_name,
+      permissionProfile: row.permissionProfile ?? row.profile,
       role: (row.role ?? "PARTICIPANT").toUpperCase(),
-      password: row.password ?? row.PASSWORD ?? row.pin ?? row.PIN,
+      password: row.password ?? row.PASSWORD,
     });
 
     if (!parsed.success) {
@@ -55,19 +65,20 @@ export async function POST(
     }
 
     try {
-      const user = await createUserFromRow(ctx.event.id, {
-        firstName: parsed.data.firstName,
-        lastName: parsed.data.lastName,
-        middleName: parsed.data.middleName,
-        role: parsed.data.role,
-        password: parsed.data.password ?? parsed.data.pin,
-      });
+      const { user, initialPassword, permissionProfile } = await createUserFromRow(
+        ctx.event.id,
+        parsed.data,
+      );
+      const profile = pickUserProfile(user);
       created.push({
-        username: user.username,
-        password: user.pinDisplay!,
-        eventUserRoleName: user.eventUserRole.name,
+        email: profile.email,
+        username: profile.username,
+        password: initialPassword ?? "(existing account — password unchanged)",
+        permissionProfile,
       });
-      createdAssigneeIds.push({ id: user.id, eventUserRoleSlug: user.eventUserRole.slug });
+      if (isTeamAssignableMember(user.account.permissions as never, false)) {
+        createdAssigneeIds.push(user.id);
+      }
     } catch (error) {
       errors.push({
         row: i + 2,
@@ -78,23 +89,21 @@ export async function POST(
 
   const assignSettings = await getTeamAssignSettings(ctx.event.id);
   const assignableSlugs = assignableTeamRoleSlugs(assignSettings.includeStaff);
-  const importedAssigneeIds = createdAssigneeIds
-    .filter((user) => assignableSlugs.includes(user.eventUserRoleSlug))
-    .map((user) => user.id);
 
   if (autoAssignTeams) {
     await assignTeams(ctx.event.id, { includeStaff: assignSettings.includeStaff });
-  } else if (assignSettings.autoAssignOnImport && importedAssigneeIds.length > 0) {
+  } else if (assignSettings.autoAssignOnImport && createdAssigneeIds.length > 0) {
     await assignTeams(ctx.event.id, {
-      userIds: importedAssigneeIds,
+      userIds: createdAssigneeIds,
       includeStaff: assignSettings.includeStaff,
     });
   }
+
+  void assignableSlugs;
 
   return NextResponse.json({
     created: created.length,
     errors,
     credentialSheet: created,
-    pinSheet: created,
   });
 }

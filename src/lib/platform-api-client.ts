@@ -1,11 +1,13 @@
 "use client";
 
-import { usePlatformAuthStore } from "@/stores/platformAuthStore";
-import type { PlatformAdminUser } from "@/stores/platformAuthStore";
+import { canAccessPlatform } from "@/lib/account-permissions";
+import { getLoginRedirectFromPathname } from "@/lib/routes";
+import { useAuthStore } from "@/stores/authStore";
+import type { AccountSession } from "@/stores/authStore";
 
 export async function platformApiFetch<T>(path: string, options: RequestInit & { skipAuth?: boolean } = {}): Promise<T> {
   const { skipAuth, headers, ...rest } = options;
-  const token = usePlatformAuthStore.getState().accessToken;
+  const token = useAuthStore.getState().accessToken;
 
   const response = await fetch(path, {
     ...rest,
@@ -17,11 +19,22 @@ export async function platformApiFetch<T>(path: string, options: RequestInit & {
     credentials: "include",
   });
 
+  if (response.status === 403 && !skipAuth) {
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") window.location.href = "/fg-admin/access-denied";
+    throw new Error("Forbidden");
+  }
+
   if (response.status === 401 && !skipAuth) {
     const refreshed = await refreshPlatformAccessToken();
     if (refreshed) return platformApiFetch<T>(path, options);
-    usePlatformAuthStore.getState().clearAuth();
-    if (typeof window !== "undefined") window.location.href = "/fg-admin/login";
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") {
+      window.location.href = getLoginRedirectFromPathname(
+        window.location.pathname,
+        window.location.search,
+      );
+    }
     throw new Error("Session expired");
   }
 
@@ -31,7 +44,7 @@ export async function platformApiFetch<T>(path: string, options: RequestInit & {
 }
 
 export async function platformApiUpload<T>(path: string, formData: FormData): Promise<T> {
-  const token = usePlatformAuthStore.getState().accessToken;
+  const token = useAuthStore.getState().accessToken;
 
   const response = await fetch(path, {
     method: "POST",
@@ -45,8 +58,13 @@ export async function platformApiUpload<T>(path: string, formData: FormData): Pr
   if (response.status === 401) {
     const refreshed = await refreshPlatformAccessToken();
     if (refreshed) return platformApiUpload<T>(path, formData);
-    usePlatformAuthStore.getState().clearAuth();
-    if (typeof window !== "undefined") window.location.href = "/fg-admin/login";
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") {
+      window.location.href = getLoginRedirectFromPathname(
+        window.location.pathname,
+        window.location.search,
+      );
+    }
     throw new Error("Session expired");
   }
 
@@ -57,13 +75,16 @@ export async function platformApiUpload<T>(path: string, formData: FormData): Pr
 
 export async function refreshPlatformAccessToken(): Promise<boolean> {
   try {
-    const response = await fetch("/api/fg-admin/auth/refresh", {
+    const response = await fetch("/api/auth/refresh", {
       method: "POST",
       credentials: "include",
     });
     if (!response.ok) return false;
-    const data = (await response.json()) as { accessToken: string; admin: PlatformAdminUser };
-    usePlatformAuthStore.getState().setAuth(data.accessToken, data.admin);
+    const data = (await response.json()) as { accessToken: string; account: AccountSession };
+    if (!canAccessPlatform(data.account.permissions)) {
+      return false;
+    }
+    useAuthStore.getState().setAccountAuth(data.accessToken, data.account);
     return true;
   } catch {
     return false;

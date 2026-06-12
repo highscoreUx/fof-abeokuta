@@ -7,39 +7,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useCreateUserMutation } from "@/hooks/useUsersQuery";
-import { useEventUserRolesQuery } from "@/hooks/useEventUserRolesQuery";
+import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
 
 interface AddUserModalProps {
   open: boolean;
   onClose: () => void;
   onCreated?: (credentials: {
+    email: string;
     username: string;
     password: string;
-    eventUserRoleName: string;
+    permissionProfile: string;
   }) => void;
 }
 
 export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
   const createUser = useCreateUserMutation();
-  const { data: rolesData } = useEventUserRolesQuery(open);
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [eventUserRoleId, setEventUserRoleId] = useState("");
+  const [permissionProfile, setPermissionProfile] = useState("participant");
   const [error, setError] = useState("");
 
-  const roles = rolesData?.roles ?? [];
-
   useEffect(() => {
-    if (!eventUserRoleId && roles.length > 0) {
-      const participant = roles.find((r) => r.slug === "participant");
-      setEventUserRoleId(participant?.id ?? roles[0].id);
+    if (open && !permissionProfile) {
+      setPermissionProfile("participant");
     }
-  }, [roles, eventUserRoleId]);
+  }, [open, permissionProfile]);
 
   const reset = () => {
+    setEmail("");
+    setUsername("");
     setFirstName("");
     setLastName("");
-    setEventUserRoleId(roles.find((r) => r.slug === "participant")?.id ?? "");
+    setPermissionProfile("participant");
     setError("");
   };
 
@@ -53,14 +54,17 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
     setError("");
     try {
       const result = await createUser.mutateAsync({
+        email: email.trim().toLowerCase(),
+        username: username.trim().toLowerCase(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        eventUserRoleId,
+        permissionProfile,
       });
       onCreated?.({
+        email: result.user.email,
         username: result.user.username,
-        password: result.user.password ?? "—",
-        eventUserRoleName: result.user.eventUserRoleName,
+        password: result.initialPassword ?? "—",
+        permissionProfile: result.permissionProfile ?? result.user.permissionProfile,
       });
       handleClose();
     } catch (err) {
@@ -73,7 +77,7 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
       open={open}
       onClose={handleClose}
       title="Add user"
-      description="Usernames are auto-generated. Share the password with staff at check-in."
+      description="Creates a global account and registers them for this event. Permissions apply everywhere they sign in."
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -97,16 +101,36 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
           </div>
         </div>
         <div>
-          <Label htmlFor="eventUserRoleId">Access profile</Label>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            placeholder="ada_okafor"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="permissionProfile">Permission profile</Label>
           <Select
-            id="eventUserRoleId"
+            id="permissionProfile"
             className="w-full"
-            value={eventUserRoleId}
-            onChange={(e) => setEventUserRoleId(e.target.value)}
+            value={permissionProfile}
+            onChange={(e) => setPermissionProfile(e.target.value)}
           >
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
+            {PERMISSION_PROFILES.map((profile) => (
+              <option key={profile.slug} value={profile.slug}>
+                {profile.name}
               </option>
             ))}
           </Select>
@@ -116,7 +140,7 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={createUser.isPending || !eventUserRoleId}>
+          <Button type="submit" disabled={createUser.isPending || !permissionProfile}>
             {createUser.isPending ? "Creating…" : "Create user"}
           </Button>
         </div>

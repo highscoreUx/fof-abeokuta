@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { createUserSchema } from "@/lib/validators/auth";
 import { buildUsersOrderBy, buildUsersWhere } from "@/lib/users-query";
-import { createUserFromRow, serializeUserRow } from "@/lib/users";
+import { createUserFromRow, serializeUserRow, userWithAccountInclude } from "@/lib/users";
 
 export async function GET(
   request: NextRequest,
@@ -21,7 +21,7 @@ export async function GET(
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      include: { team: true, eventUserRole: true },
+      include: userWithAccountInclude,
       orderBy: buildUsersOrderBy(query.sortBy, query.sortOrder),
       skip: query.skip,
       take: query.limit,
@@ -31,7 +31,7 @@ export async function GET(
 
   return NextResponse.json(
     toPaginatedResponse(
-      users.map((user) => serializeUserRow(user, ctx.auth.permissions)),
+      users.map((user) => serializeUserRow(user)),
       total,
       query.page,
       query.limit,
@@ -54,10 +54,15 @@ export async function POST(
   }
 
   try {
-    const user = await createUserFromRow(ctx.event.id, parsed.data);
+    const { user, initialPassword, permissionProfile } = await createUserFromRow(
+      ctx.event.id,
+      parsed.data,
+    );
     return NextResponse.json(
       {
-        user: serializeUserRow({ ...user, team: user.team }, ctx.auth.permissions),
+        user: serializeUserRow(user),
+        initialPassword,
+        permissionProfile,
       },
       { status: 201 },
     );

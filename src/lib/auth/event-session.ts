@@ -1,10 +1,11 @@
 import { verifyRefreshToken } from "@/lib/auth/jwt";
+import { resolveAccountPermissionList } from "@/lib/account-permissions";
 import { isRefreshTokenValid, rotateRefreshToken } from "@/lib/auth/refresh";
-import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
 import { requireEventBySlug } from "@/lib/events";
 import { buildAccessTokenForUser, canUserSignIn, serializeUser } from "@/lib/users";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { prisma } from "@/lib/prisma";
+import { userWithAccountInclude } from "@/lib/user-display";
 
 export class EventSessionRefreshError extends Error {
   constructor(
@@ -25,19 +26,20 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
     throw new EventSessionRefreshError("Event not found", "NOT_FOUND", 404);
   }
 
-  let userId: string;
-  let eventId: string;
+  let accountId: string;
+  let userId: string | undefined;
+  let eventId: string | undefined;
   try {
-    ({ userId, eventId } = verifyRefreshToken(refreshToken));
+    ({ accountId, userId, eventId } = verifyRefreshToken(refreshToken));
   } catch {
     throw new EventSessionRefreshError("Invalid refresh token", "INVALID_REFRESH_TOKEN");
   }
 
-  if (eventId !== event.id) {
+  if (!userId || !eventId || eventId !== event.id) {
     throw new EventSessionRefreshError("Event mismatch", "FORBIDDEN", 403);
   }
 
-  const valid = await isRefreshTokenValid(refreshToken, userId);
+  const valid = await isRefreshTokenValid(refreshToken, accountId);
   if (!valid) {
     throw new EventSessionRefreshError(
       "Refresh token revoked or expired",
@@ -47,10 +49,10 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { team: true, eventUserRole: true },
+    include: userWithAccountInclude,
   });
 
-  if (!user) {
+  if (!user || user.accountId !== accountId) {
     throw new EventSessionRefreshError("User not found", "USER_NOT_FOUND");
   }
 
@@ -62,9 +64,13 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
     );
   }
 
-  const newRefreshToken = await rotateRefreshToken(refreshToken, userId, event.id);
+  const newRefreshToken = await rotateRefreshToken(refreshToken, {
+    accountId,
+    userId,
+    eventId: event.id,
+  });
   const accessToken = await buildAccessTokenForUser(user.id, slug);
-  const permissions = resolvePermissionsFromRole(user.eventUserRole);
+  const permissions = resolveAccountPermissionList(user.account);
   const enabledActivities = await loadEnabledActivitiesSnapshot(event.id);
 
   return {

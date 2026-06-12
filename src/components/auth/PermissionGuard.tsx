@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventPathPrefix } from "@/hooks/useEventSlug";
 import { loginPath } from "@/lib/routes";
-import { hasAnyPermission, hasAdminShellAccess, hasPermission, resolveDefaultRoute } from "@/lib/permissions";
+import {
+  hasAnyPermission,
+  hasAdminShellAccess,
+  hasPermission,
+  resolveDefaultRoute,
+} from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions/catalog";
 
 export function PermissionGuard({
@@ -37,7 +42,11 @@ export function PermissionGuard({
     if (!isHydrated) return;
 
     if (!isAuthenticated || !user) {
-      router.replace(loginPath(pathPrefix));
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/home";
+      router.replace(loginPath(returnTo));
       return;
     }
     if (!allowed) {

@@ -22,10 +22,17 @@ export async function postActivityChatMessage(params: {
   broadcastToAllChats?: boolean;
 }): Promise<ChatMessage> {
   const payload = serializeActivityChat(params.body);
-  const user = await prisma.user.findUniqueOrThrow({
+  const author = await prisma.user.findUniqueOrThrow({
     where: { id: params.authorUserId },
-    select: { username: true, firstName: true, lastName: true },
+    select: {
+      account: { select: { username: true, firstName: true, lastName: true } },
+    },
   });
+  const user = {
+    username: author.account.username,
+    firstName: author.account.firstName,
+    lastName: author.account.lastName,
+  };
 
   if (params.broadcastToAllChats) {
     const globalRecord = await createGlobalChatMessage(

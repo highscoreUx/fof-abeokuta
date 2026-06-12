@@ -37,7 +37,10 @@ export async function apiFetch<T>(
     if (status === 401 && !skipAuth) {
       useAuthStore.getState().clearAuth();
       if (typeof window !== "undefined") {
-        window.location.href = getLoginRedirectFromPathname(window.location.pathname);
+        window.location.href = getLoginRedirectFromPathname(
+          window.location.pathname,
+          window.location.search,
+        );
       }
       throw new Error("Session expired");
     }

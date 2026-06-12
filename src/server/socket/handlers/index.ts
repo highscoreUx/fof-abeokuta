@@ -56,6 +56,7 @@ import {
   presenceConnect,
   presenceDisconnect,
 } from "@/server/presence";
+import { primarySocketRoleSlug } from "@/lib/account-permissions";
 import type { AccessTokenPayload } from "@/types";
 import type { Permission } from "@/lib/permissions/catalog";
 
@@ -81,15 +82,15 @@ export function registerSocketHandlers(io: SocketIOServer) {
       const payload = verifyAccessToken(token);
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },
-        include: { team: true },
+        include: { team: true, account: true },
       });
       if (!user || user.eventId !== payload.eventId) return next(new Error("User not found"));
 
       socket.auth = {
         ...payload,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        username: user.account.username,
+        firstName: user.account.firstName,
+        lastName: user.account.lastName,
         teamLetter: user.team?.letter ?? null,
       };
       next();
@@ -103,7 +104,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     const slug = auth.eventSlug;
 
     socket.join(eventRoom(slug));
-    socket.join(roleRoom(slug, auth.eventUserRoleSlug));
+    socket.join(roleRoom(slug, primarySocketRoleSlug(auth.permissions)));
     socket.join(userRoom(auth.userId));
     if (auth.teamLetter) socket.join(teamRoom(slug, auth.teamLetter));
     if (socketCan(auth, "participant.staff_chat")) socket.join(staffRoom(slug));

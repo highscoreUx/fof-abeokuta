@@ -1,0 +1,76 @@
+import { prisma } from "@/lib/prisma";
+import { hashPassword, verifyPassword } from "@/lib/auth/bcrypt";
+import { generateStrongPassword } from "@/lib/auth/password";
+import type { RolePermission } from "@/lib/permissions/catalog";
+
+export function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+export function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+export async function findAccountByEmail(email: string) {
+  return prisma.account.findUnique({
+    where: { email: normalizeEmail(email) },
+  });
+}
+
+export async function authenticateAccount(email: string, password: string) {
+  const account = await findAccountByEmail(email);
+  if (!account) return null;
+  if (!(await verifyPassword(password, account.passwordHash))) return null;
+  return account;
+}
+
+export async function createAccount(data: {
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  password?: string;
+  mustChangePassword?: boolean;
+  permissions?: RolePermission[];
+}) {
+  const email = normalizeEmail(data.email);
+  const username = normalizeUsername(data.username);
+
+  const [emailTaken, usernameTaken] = await Promise.all([
+    prisma.account.findUnique({ where: { email } }),
+    prisma.account.findUnique({ where: { username } }),
+  ]);
+
+  if (emailTaken) throw new Error("Email is already registered");
+  if (usernameTaken) throw new Error("Username is already taken");
+
+  const password = data.password ?? generateStrongPassword();
+  const passwordHash = await hashPassword(password);
+
+  const account = await prisma.account.create({
+    data: {
+      email,
+      username,
+      passwordHash,
+      firstName: data.firstName.trim(),
+      lastName: data.lastName.trim(),
+      middleName: data.middleName?.trim() || null,
+      mustChangePassword: data.mustChangePassword ?? true,
+      permissions: data.permissions ?? [],
+    },
+  });
+
+  return { account, initialPassword: password };
+}
+
+export async function changeAccountPassword(accountId: string, newPassword: string) {
+  const passwordHash = await hashPassword(newPassword);
+  return prisma.account.update({
+    where: { id: accountId },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+    },
+  });
+}

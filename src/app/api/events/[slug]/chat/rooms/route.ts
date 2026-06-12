@@ -53,8 +53,8 @@ export async function GET(
     select: {
       userId: true,
       recipientId: true,
-      user: { select: { id: true, firstName: true, lastName: true } },
-      recipient: { select: { id: true, firstName: true, lastName: true } },
+      user: { select: { id: true, account: { select: { firstName: true, lastName: true } } } },
+      recipient: { select: { id: true, account: { select: { firstName: true, lastName: true } } } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -68,7 +68,7 @@ export async function GET(
     rooms.push({
       id: dmRoomId(peer.id),
       category: "private",
-      label: `${peer.firstName} ${peer.lastName}`,
+      label: `${peer.account.firstName} ${peer.account.lastName}`,
     });
   }
 

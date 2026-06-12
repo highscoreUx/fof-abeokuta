@@ -1,3 +1,4 @@
+import { isTeamAssignableMember } from "@/lib/account-permissions";
 import { prisma } from "@/lib/prisma";
 
 export const TEAM_ASSIGN_ALGORITHMS = [
@@ -31,12 +32,10 @@ const SETTING_KEYS = {
   includeStaff: "team_assign_include_staff",
 } as const;
 
+/** @deprecated permissions-based assignment uses isTeamAssignableMember */
 export function assignableTeamRoleSlugs(includeStaff: boolean): string[] {
   return includeStaff ? ["participant", "staff"] : ["participant"];
 }
-
-/** @deprecated use assignableTeamRoleSlugs */
-export const assignableTeamRoles = assignableTeamRoleSlugs;
 
 export function isTeamAssignAlgorithm(value: string): value is TeamAssignAlgorithm {
   return (TEAM_ASSIGN_ALGORITHMS as readonly string[]).includes(value);
@@ -127,20 +126,22 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
   const algorithm = options.algorithm ?? settings.algorithm;
   const onlyUnassigned = options.onlyUnassigned ?? settings.onlyUnassigned;
   const includeStaff = options.includeStaff ?? settings.includeStaff;
-  const roleSlugs = assignableTeamRoleSlugs(includeStaff);
-
   const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
   if (teams.length === 0) throw new Error("No teams configured");
 
-  const users = await prisma.user.findMany({
+  const allCandidates = await prisma.user.findMany({
     where: {
       eventId,
-      eventUserRole: { slug: { in: roleSlugs } },
       ...(options.userIds ? { id: { in: options.userIds } } : {}),
       ...(onlyUnassigned ? { teamId: null } : {}),
     },
+    include: { account: true },
     orderBy: { createdAt: "asc" },
   });
+
+  const users = allCandidates.filter((user) =>
+    isTeamAssignableMember(user.account.permissions as never, includeStaff),
+  );
 
   if (users.length === 0) {
     return [];
@@ -169,8 +170,8 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
     }
     case "alphabetical_round_robin": {
       const sorted = [...users].sort((a, b) => {
-        const last = a.lastName.localeCompare(b.lastName);
-        return last !== 0 ? last : a.firstName.localeCompare(b.firstName);
+        const last = a.account.lastName.localeCompare(b.account.lastName);
+        return last !== 0 ? last : a.account.firstName.localeCompare(b.account.firstName);
       });
       for (let i = 0; i < sorted.length; i++) {
         await assignUser(sorted[i].id, teams[i % teams.length].id);
@@ -203,7 +204,7 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
 
   return prisma.user.findMany({
     where: { id: { in: users.map((u) => u.id) } },
-    include: { team: true },
+    include: { team: true, account: true },
   });
 }
 

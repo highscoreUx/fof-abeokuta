@@ -3,10 +3,9 @@ import type { EnabledActivitySnapshot } from "@/lib/activities/catalog";
 
 export interface AuthUser {
   id: string;
+  accountId: string;
   permissions: Permission[];
-  eventUserRoleId: string;
-  eventUserRoleSlug: string;
-  eventUserRoleName: string;
+  permissionProfile: string;
   username: string;
   email: string;
   firstName: string;
@@ -21,32 +20,16 @@ export interface AuthUser {
 
 export interface AccessTokenPayload {
   userId: string;
+  accountId: string;
   permissions: Permission[];
-  eventUserRoleId: string;
-  eventUserRoleSlug: string;
   authVersion: number;
-  permissionsVersion: number;
-  rolePermissionsVersion: number;
+  accountPermissionsVersion: number;
   permissionsFingerprint: string;
   teamId?: string | null;
   eventId: string;
   eventSlug: string;
   enabledActivities: EnabledActivitySnapshot[];
   type: "event";
-}
-
-export interface EventUserRoleRecord {
-  id: string;
-  eventId: string;
-  name: string;
-  slug: string;
-  permissions: Array<Permission | "*">;
-  permissionsVersion: number;
-  isSystem: boolean;
-  isEditable: boolean;
-  isDeletable: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface ApiError {
@@ -175,9 +158,10 @@ export interface PlatformEvent {
 }
 
 export interface PlatformCreatedEventUser {
+  email: string;
   username: string;
   password: string;
   firstName: string;
   lastName: string;
-  eventUserRoleName: string;
+  permissionProfile: string;
 }

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 export default async function HomePage() {
   const event = await getLatestEvent();
-  if (!event) redirect("/fg-admin/login");
+  if (!event) redirect("/login");
 
   return (
     <EventScopeProvider eventSlug={event.slug} pathPrefix="">

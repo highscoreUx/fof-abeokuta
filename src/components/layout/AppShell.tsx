@@ -74,7 +74,7 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
             </p>
             <div className="mt-1 flex items-center justify-between gap-2">
               <Badge variant="muted" className="max-w-[8rem] truncate uppercase">
-                {user?.eventUserRoleName}
+                {user?.permissionProfile}
               </Badge>
               <Button variant="ghost" size="sm" onClick={() => logout()}>
                 Log out
@@ -109,7 +109,7 @@ export function AppShell({ children, title, nav, showSponsors = false }: AppShel
               </div>
               <div className="hidden items-center gap-3 sm:flex lg:hidden">
                 <Badge variant="muted" className="uppercase">
-                  {user?.eventUserRoleName}
+                  {user?.permissionProfile}
                 </Badge>
                 <Button variant="outline" size="sm" onClick={() => logout()}>
                   Log out

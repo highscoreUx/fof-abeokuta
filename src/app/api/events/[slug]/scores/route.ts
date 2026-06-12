@@ -26,7 +26,11 @@ export async function GET(
       team: { eventId: ctx.event.id },
       ...(judgeId ? { judgeId } : {}),
     },
-    include: { team: true, criterion: true, judge: { select: { username: true } } },
+    include: {
+      team: true,
+      criterion: true,
+      judge: { select: { account: { select: { username: true } } } },
+    },
   });
 
   return NextResponse.json({ scores });

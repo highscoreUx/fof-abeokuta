@@ -21,7 +21,7 @@ export async function GET(
         state: { in: ["QUESTION", "RESULTS", "FINISHED"] },
       },
       orderBy: { createdAt: "desc" },
-      include: { answers: { include: { user: { include: { team: true } } } } },
+      include: { answers: { include: { user: { include: { team: true, account: true } } } } },
     });
 
     if (!activeSession) return NextResponse.json({ leaderboard: [] });
@@ -29,7 +29,7 @@ export async function GET(
     const points = new Map<string, { username: string; teamLetter: string | null; total: number }>();
     for (const answer of activeSession.answers) {
       const existing = points.get(answer.userId) ?? {
-        username: answer.user.username,
+        username: answer.user.account.username,
         teamLetter: answer.user.team?.letter ?? null,
         total: 0,
       };

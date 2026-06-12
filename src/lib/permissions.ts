@@ -8,42 +8,6 @@ import {
 export * from "@/lib/permissions/catalog";
 export * from "@/lib/permissions/default-bundles";
 
-const PIN_TIER_BY_SLUG: Record<string, { min: number; max: number }> = {
-  event_admin: { min: 0, max: 999 },
-  coordinator: { min: 1000, max: 1999 },
-  staff: { min: 1000, max: 1999 },
-  judge: { min: 2000, max: 2999 },
-  participant: { min: 3000, max: 3999 },
-};
-
-export function getPinRangeForRoleSlug(slug: string): { min: number; max: number } {
-  return PIN_TIER_BY_SLUG[slug] ?? PIN_TIER_BY_SLUG.participant;
-}
-
-export function isPinInRoleSlugRange(pin: number, roleSlug: string): boolean {
-  const range = getPinRangeForRoleSlug(roleSlug);
-  return pin >= range.min && pin <= range.max;
-}
-
-export function canViewPassword(
-  viewerPermissions: RolePermission[],
-  targetRoleSlug: string,
-  passwordDisplay?: string | null,
-): boolean {
-  if (!passwordDisplay) return false;
-  if (hasWildcardAccess(viewerPermissions)) return true;
-  if (hasPermission(viewerPermissions, "user.password.view")) {
-    if (targetRoleSlug === "event_admin") {
-      return hasWildcardAccess(viewerPermissions);
-    }
-    return true;
-  }
-  return false;
-}
-
-/** @deprecated use canViewPassword */
-export const canViewPin = canViewPassword;
-
 export function slugifyFirstName(firstName: string): string {
   const slug = firstName
     .toLowerCase()
@@ -65,10 +29,6 @@ export function formatUsername(
     .replace(/[^a-z0-9.]/g, "");
 }
 
-export function formatEmail(username: string): string {
-  return `${username}@event.local`;
-}
-
 const ADMIN_ENTRY_PERMISSIONS: Permission[] = [
   "dashboard.view",
   "user.list",
@@ -78,7 +38,6 @@ const ADMIN_ENTRY_PERMISSIONS: Permission[] = [
   "customize.branding",
   "team.list",
   "vote.list",
-  "event_user_role.list",
   "settings.broadcasting",
   "settings.diagnostics",
 ];

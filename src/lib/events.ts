@@ -1,6 +1,5 @@
 import slugify from "slugify";
 import { FIGMA_TEAMS } from "@/lib/figma-teams";
-import { seedDefaultEventUserRoles } from "@/lib/event-user-roles";
 import { ensureEventActivityRows, seedActivityTypes } from "@/lib/activities/event-activities";
 import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
 import { invalidateEventBySlug } from "@/lib/cache/invalidate";
@@ -127,7 +126,6 @@ export async function createEventWithDefaults(data: {
     include: { teams: true },
   });
 
-  await seedDefaultEventUserRoles(event.id);
   await seedActivityTypes();
   await ensureEventActivityRows(event.id);
 

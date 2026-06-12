@@ -1,9 +1,9 @@
 "use client";
 
-import { EventLoginForm } from "@/components/auth/EventLoginForm";
-import { useEventSlug } from "@/hooks/useEventSlug";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { useOptionalEventScope } from "@/contexts/EventScopeContext";
 
 export function LoginView() {
-  const eventSlug = useEventSlug();
-  return <EventLoginForm eventSlug={eventSlug} />;
+  const scope = useOptionalEventScope();
+  return <LoginForm eventSlug={scope?.eventSlug} pathPrefix={scope?.pathPrefix ?? ""} />;
 }

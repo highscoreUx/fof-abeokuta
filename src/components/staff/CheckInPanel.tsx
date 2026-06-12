@@ -11,9 +11,9 @@ interface UserRow {
   id: string;
   firstName: string;
   lastName: string;
+  email: string;
   username: string;
   teamLetter: string | null;
-  password?: string;
   checkedInAt: string | null;
 }
 
@@ -72,7 +72,7 @@ export function CheckInPanel() {
       <Card className="lg:col-span-2">
         <CardTitle>Welcome attendees</CardTitle>
         <p className="mt-2 text-sm text-muted-foreground">
-          Search by name, then share their assigned username and password before they sign in.
+          Search by name, confirm their email, then check them in so they can sign in.
         </p>
         <div className="mt-4 flex gap-2">
           <Input
@@ -128,20 +128,18 @@ export function CheckInPanel() {
           {selected ? (
             <div className="mt-4 space-y-4">
               <p className="text-sm text-muted-foreground">
-                Tell <span className="font-medium text-foreground">{selected.firstName}</span> to
-                use these at the sign-in page. They cannot choose their own — these are assigned.
+                Tell <span className="font-medium text-foreground">{selected.firstName}</span> to sign
+                in with their email and the temporary password shared at registration.
               </p>
               <div className="rounded-lg border border-border bg-muted/50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Email
+                </p>
+                <p className="mt-1 font-mono text-lg font-semibold text-primary">{selected.email}</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Username
                 </p>
-                <p className="mt-1 font-mono text-lg font-semibold text-primary">{selected.username}</p>
-                <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Password
-                </p>
-                <p className="mt-1 font-mono text-2xl font-semibold tracking-widest text-foreground">
-                  {selected.password ?? "—"}
-                </p>
+                <p className="mt-1 font-mono text-lg font-semibold text-foreground">{selected.username}</p>
               </div>
               {selected.checkedInAt ? (
                 <div className="space-y-2">
@@ -158,7 +156,7 @@ export function CheckInPanel() {
             </div>
           ) : (
             <p className="mt-4 text-sm text-muted-foreground">
-              Select an attendee to see the username and password to give them.
+              Select an attendee to confirm their sign-in details.
             </p>
           )}
         </Card>

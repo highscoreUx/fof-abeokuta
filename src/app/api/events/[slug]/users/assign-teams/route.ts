@@ -30,7 +30,7 @@ export async function POST(
       assigned: users.length,
       users: users.map((u) => ({
         id: u.id,
-        username: u.username,
+        username: u.account.username,
         teamLetter: u.team?.letter ?? null,
       })),
     });

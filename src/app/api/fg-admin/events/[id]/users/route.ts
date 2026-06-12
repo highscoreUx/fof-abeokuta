@@ -4,7 +4,7 @@ import { jsonError } from "@/lib/auth/middleware";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { buildUsersOrderBy, buildUsersWhere } from "@/lib/users-query";
-import { serializePlatformEventUser } from "@/lib/users";
+import { serializePlatformEventUser, userWithAccountInclude } from "@/lib/users";
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +26,7 @@ export async function GET(
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      include: { team: true, eventUserRole: true },
+      include: userWithAccountInclude,
       orderBy: buildUsersOrderBy(query.sortBy, query.sortOrder),
       skip: query.skip,
       take: query.limit,

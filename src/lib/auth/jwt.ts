@@ -23,8 +23,12 @@ export function signAccessToken(payload: AccessTokenInput): string {
   return jwt.sign({ ...payload, type: "event" }, getAccessSecret(), { expiresIn: ACCESS_TTL });
 }
 
-export function signRefreshToken(userId: string, eventId: string): string {
-  return jwt.sign({ userId, eventId, type: "event" }, getRefreshSecret(), { expiresIn: REFRESH_TTL });
+export function signRefreshToken(payload: {
+  accountId: string;
+  userId?: string;
+  eventId?: string;
+}): string {
+  return jwt.sign({ ...payload, type: "session" }, getRefreshSecret(), { expiresIn: REFRESH_TTL });
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
@@ -36,14 +40,12 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   const permissions = decoded.permissions;
   if (
     !decoded.userId ||
+    !decoded.accountId ||
     !decoded.eventId ||
     !decoded.eventSlug ||
-    !decoded.eventUserRoleId ||
-    !decoded.eventUserRoleSlug ||
     !Array.isArray(permissions) ||
     typeof decoded.authVersion !== "number" ||
-    typeof decoded.permissionsVersion !== "number" ||
-    typeof decoded.rolePermissionsVersion !== "number" ||
+    typeof decoded.accountPermissionsVersion !== "number" ||
     typeof decoded.permissionsFingerprint !== "string" ||
     !Array.isArray(decoded.enabledActivities)
   ) {
@@ -52,12 +54,10 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 
   return {
     userId: decoded.userId as string,
+    accountId: decoded.accountId as string,
     permissions: permissions as Permission[],
-    eventUserRoleId: decoded.eventUserRoleId as string,
-    eventUserRoleSlug: decoded.eventUserRoleSlug as string,
     authVersion: decoded.authVersion as number,
-    permissionsVersion: decoded.permissionsVersion as number,
-    rolePermissionsVersion: decoded.rolePermissionsVersion as number,
+    accountPermissionsVersion: decoded.accountPermissionsVersion as number,
     permissionsFingerprint: decoded.permissionsFingerprint as string,
     teamId: (decoded.teamId as string | null | undefined) ?? null,
     eventId: decoded.eventId as string,
@@ -67,10 +67,18 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   };
 }
 
-export function verifyRefreshToken(token: string): { userId: string; eventId: string } {
+export function verifyRefreshToken(token: string): {
+  accountId: string;
+  userId?: string;
+  eventId?: string;
+} {
   const decoded = jwt.verify(token, getRefreshSecret());
-  if (typeof decoded === "string" || decoded.type !== "event" || !decoded.userId || !decoded.eventId) {
+  if (typeof decoded === "string" || decoded.type !== "session" || !decoded.accountId) {
     throw new Error("Invalid refresh token");
   }
-  return { userId: decoded.userId as string, eventId: decoded.eventId as string };
+  return {
+    accountId: decoded.accountId as string,
+    userId: decoded.userId as string | undefined,
+    eventId: decoded.eventId as string | undefined,
+  };
 }

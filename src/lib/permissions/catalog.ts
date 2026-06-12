@@ -1,4 +1,5 @@
 export type Permission =
+  | "platform.admin"
   | "dashboard.view"
   | "user.list"
   | "user.create"
@@ -8,10 +9,6 @@ export type Permission =
   | "user.check_in"
   | "user.assign_teams"
   | "user.password.view"
-  | "event_user_role.list"
-  | "event_user_role.create"
-  | "event_user_role.update"
-  | "event_user_role.delete"
   | "agenda.list"
   | "agenda.create"
   | "agenda.update"
@@ -62,9 +59,10 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 3;
+export const PERMISSIONS_CATALOG_REVISION = 5;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
+  "platform.admin",
   "dashboard.view",
   "user.list",
   "user.create",
@@ -74,10 +72,6 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "user.check_in",
   "user.assign_teams",
   "user.password.view",
-  "event_user_role.list",
-  "event_user_role.create",
-  "event_user_role.update",
-  "event_user_role.delete",
   "agenda.list",
   "agenda.create",
   "agenda.update",
@@ -116,6 +110,11 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
 
 export const PERMISSION_CATALOG: PermissionGroup[] = [
   {
+    id: "platform",
+    label: "Platform",
+    permissions: [{ permission: "platform.admin", label: "Manage platform and events" }],
+  },
+  {
     id: "dashboard",
     label: "Dashboard",
     permissions: [{ permission: "dashboard.view", label: "View admin dashboard" }],
@@ -132,16 +131,6 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "user.check_in", label: "Check in users" },
       { permission: "user.assign_teams", label: "Assign teams" },
       { permission: "user.password.view", label: "View passwords" },
-    ],
-  },
-  {
-    id: "access",
-    label: "Access profiles",
-    permissions: [
-      { permission: "event_user_role.list", label: "List access profiles" },
-      { permission: "event_user_role.create", label: "Create access profiles" },
-      { permission: "event_user_role.update", label: "Update access profiles" },
-      { permission: "event_user_role.delete", label: "Delete access profiles" },
     ],
   },
   {

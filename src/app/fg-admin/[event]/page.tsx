@@ -21,7 +21,7 @@ export default function PlatformEventPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<FlashedCredentials | null>(null);
-  const nav = usePlatformNav(event);
+  const nav = usePlatformNav();
 
   const load = async () => {
     setLoading(true);

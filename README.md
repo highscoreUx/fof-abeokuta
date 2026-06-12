@@ -75,7 +75,7 @@ CLOUDINARY_API_SECRET=...
 
 ## Deploy
 
-Build: `pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm run build`
+Build: `pnpm run build` (runs `prebuild`: `prisma generate` + `prisma migrate deploy`, then `next build`)
 
 Start: `pnpm start`
 

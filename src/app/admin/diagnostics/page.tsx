@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { FG_ADMIN_DIAGNOSTICS } from "@/lib/fg-admin-routes";
 
 export default function AdminDiagnosticsRedirect() {
-  redirect("/admin/settings?tab=diagnostics");
+  redirect(FG_ADMIN_DIAGNOSTICS);
 }

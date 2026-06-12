@@ -35,8 +35,7 @@ export function useEventNav() {
       navIf("agenda.list", `${prefix}/admin/agenda`, "Agenda", permissions),
       hasPermission(permissions, "team.list") ||
       hasPermission(permissions, "vote.list") ||
-      hasPermission(permissions, "settings.broadcasting") ||
-      hasPermission(permissions, "settings.diagnostics")
+      hasPermission(permissions, "settings.broadcasting")
         ? { href: `${prefix}/admin/settings`, label: "Event settings" }
         : null,
     ].filter(Boolean) as NavItem[];

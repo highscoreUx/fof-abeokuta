@@ -5,24 +5,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChatSettings } from "@/components/admin/ChatSettings";
-import { DiagnosticsPanel } from "@/components/admin/DiagnosticsPanel";
 import { StreamControls } from "@/components/admin/StreamControls";
 import { TeamSettings } from "@/components/admin/TeamSettings";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useEventNav } from "@/hooks/useEventNav";
 
-type SettingsTab = "teams" | "chat" | "broadcasting" | "diagnostics";
+type SettingsTab = "teams" | "chat" | "broadcasting";
 
 const TAB_OPTIONS: Array<{ value: SettingsTab; label: string }> = [
   { value: "teams", label: "Teams" },
   { value: "chat", label: "Chat" },
   { value: "broadcasting", label: "Broadcasting" },
-  { value: "diagnostics", label: "Diagnostics" },
 ];
 
 function parseTab(value: string | null): SettingsTab {
-  if (value === "chat" || value === "broadcasting" || value === "diagnostics" || value === "teams") {
+  if (value === "chat" || value === "broadcasting" || value === "teams") {
     return value;
   }
   return "teams";
@@ -47,12 +45,7 @@ export function SettingsView() {
 
   return (
     <PermissionGuard
-      anyOf={[
-        "team.list",
-        "team.manage",
-        "settings.broadcasting",
-        "settings.diagnostics",
-      ]}
+      anyOf={["team.list", "team.manage", "settings.broadcasting"]}
     >
       <AppShell title="Event settings" nav={nav}>
         <div className="space-y-6">
@@ -61,8 +54,8 @@ export function SettingsView() {
               <div>
                 <CardTitle>Configure your event</CardTitle>
                 <CardDescription>
-                  Teams, chat, broadcasting, and diagnostics. Account permissions are managed when
-                  users are created.
+                  Teams, chat, and broadcasting. Account permissions are managed when users are
+                  created.
                 </CardDescription>
               </div>
               <SegmentedControl
@@ -77,7 +70,6 @@ export function SettingsView() {
           {tab === "teams" && <TeamSettings />}
           {tab === "chat" && <ChatSettings />}
           {tab === "broadcasting" && <StreamControls />}
-          {tab === "diagnostics" && <DiagnosticsPanel />}
         </div>
       </AppShell>
     </PermissionGuard>

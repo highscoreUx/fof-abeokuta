@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation";
+import { FG_ADMIN_DIAGNOSTICS } from "@/lib/fg-admin-routes";
 
-export default async function AdminDiagnosticsRedirect({
-  params,
-}: {
-  params: Promise<{ eventSlug: string }>;
-}) {
-  const { eventSlug } = await params;
-  redirect(`/${eventSlug}/admin/settings?tab=diagnostics`);
+export default async function AdminDiagnosticsRedirect() {
+  redirect(FG_ADMIN_DIAGNOSTICS);
 }

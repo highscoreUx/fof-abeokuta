@@ -72,7 +72,6 @@ function canAccessEventPath(permissions: RolePermission[], path: string): boolea
       "team.list",
       "team.manage",
       "settings.broadcasting",
-      "settings.diagnostics",
     ]);
   }
   if (path.startsWith("/admin")) {

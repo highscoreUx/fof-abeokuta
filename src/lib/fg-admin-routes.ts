@@ -2,6 +2,7 @@ export const FG_ADMIN_ROOT = "/fg-admin";
 export const FG_ADMIN_EVENTS = "/fg-admin/events";
 export const FG_ADMIN_MEMBERS = "/fg-admin/members";
 export const FG_ADMIN_ROLES = "/fg-admin/roles";
+export const FG_ADMIN_DIAGNOSTICS = "/fg-admin/diagnostics";
 
 export function fgAdminEventPath(eventSlug: string, query?: string) {
   return `${FG_ADMIN_EVENTS}/${eventSlug}${query ? `?${query}` : ""}`;

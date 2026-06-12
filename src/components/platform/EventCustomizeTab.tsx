@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,10 +69,28 @@ export function EventCustomizeTab({ eventSlug }: EventCustomizeTabProps) {
       <CardHeader className="border-b border-border p-6">
         <CardTitle>Customize</CardTitle>
         <CardDescription>
-          Branding for this event — starting with the sign-in slideshow participants see at login.
+          Branding for this event — landing page layout and sign-in slideshow.
         </CardDescription>
       </CardHeader>
-      <div className="p-6">
+      <div className="space-y-8 p-6">
+        <section>
+          <h3 className="text-sm font-semibold">Landing page</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Build the public page at{" "}
+            <span className="font-mono text-foreground">/{eventSlug}</span>. Visitors see the
+            published page; you can edit blocks, hero, and CTAs in the visual editor.
+          </p>
+          <Link
+            href={`/${eventSlug}?edit=1`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary-hover"
+          >
+            Customize landing page
+          </Link>
+        </section>
+
+        <section className="border-t border-border pt-8">
         <h3 className="text-sm font-semibold">Login page slides</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           Images on the left of the event sign-in page. Leave unset to use the default FOF photos.
@@ -114,6 +133,7 @@ export function EventCustomizeTab({ eventSlug }: EventCustomizeTabProps) {
           {custom && <span className="text-xs text-muted-foreground">Using custom slides</span>}
         </div>
         {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+        </section>
       </div>
     </Card>
   );

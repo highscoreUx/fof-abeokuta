@@ -1,16 +1,34 @@
 "use client";
 
-import { EventLanding } from "@/components/event/EventLanding";
-import { loginPath } from "@/lib/routes";
+import { Suspense } from "react";
+import { EventLandingPage } from "@/components/landing/EventLandingPage";
+import type { LandingPagePayload } from "@/lib/landing-page";
 import type { PlatformEvent } from "@/types";
 
 interface LandingViewProps {
   event: PlatformEvent;
+  initialLandingPage: LandingPagePayload | null;
   isLatest?: boolean;
 }
 
-export function LandingView({ event, isLatest = false }: LandingViewProps) {
+function LandingViewContent({ event, initialLandingPage, isLatest }: LandingViewProps) {
   return (
-    <EventLanding event={event} loginHref={loginPath()} isCurrent={isLatest} />
+    <EventLandingPage
+      event={event}
+      initialLandingPage={initialLandingPage}
+      isLatest={isLatest}
+    />
+  );
+}
+
+export function LandingView({ event, initialLandingPage, isLatest = false }: LandingViewProps) {
+  return (
+    <Suspense fallback={null}>
+      <LandingViewContent
+        event={event}
+        initialLandingPage={initialLandingPage}
+        isLatest={isLatest}
+      />
+    </Suspense>
   );
 }

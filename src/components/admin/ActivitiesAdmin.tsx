@@ -7,6 +7,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleton";
 import { AddActivityModal } from "@/components/admin/AddActivityModal";
 import type { ActivityDetail, KahootActivityDetail } from "@/types/activities";
 import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
@@ -42,6 +43,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const socket = useSocket();
   const [eventActivities, setEventActivities] = useState<EventActivityConfig[]>([]);
   const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<QuizStateSnapshot | null>(null);
 
@@ -52,7 +54,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const canManageSurvey = hasPermission(permissions, "survey.manage");
   const canRunSurvey = hasPermission(permissions, "survey.run");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const activityRes = await api<{ activities: EventActivityConfig[] }>("/activities").catch(
       () => ({ activities: [] as EventActivityConfig[] }),
     );
@@ -147,11 +150,12 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     }
 
     setRows(next);
+    setLoading(false);
     return next;
   }, [api, canManageKahoot, canManageSpin, canManageSurvey, canRunKahoot, canRunSpin, canRunSurvey]);
 
   const refresh = useCallback(async () => {
-    await load();
+    await load(true);
   }, [load]);
 
   useEffect(() => {
@@ -235,6 +239,10 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     if (a.slug === ACTIVITY_SURVEY) return canManageSurvey;
     return false;
   }).length;
+
+  if (loading) {
+    return <ActivitiesListSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

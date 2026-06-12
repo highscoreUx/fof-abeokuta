@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ActivitiesAdmin } from "@/components/admin/ActivitiesAdmin";
+import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleton";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useEventApi } from "@/hooks/useEventApi";
 import { selectUserPermissions, useAuthStore } from "@/stores/authStore";
@@ -53,7 +54,9 @@ export function ActivitiesView() {
           </Card>
         ) : anyEnabled === true ? (
           <ActivitiesAdmin permissions={permissions} />
-        ) : null}
+        ) : (
+          <ActivitiesListSkeleton />
+        )}
       </AppShell>
     </PermissionGuard>
   );

@@ -9,8 +9,10 @@ import {
   ACTIVITY_CATALOG,
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
+  ACTIVITY_TIC_TAC_TOE,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
+import type { TicTacToeMode } from "@/lib/tic-tac-toe/types";
 import type { SpinnerParticipationMode } from "@/lib/spinner/types";
 import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
@@ -34,6 +36,7 @@ interface AddActivityModalProps {
     allowGeneralParticipants: boolean;
     allowGroupParticipants: boolean;
     participationMode?: SpinnerParticipationMode;
+    ticTacToeMode?: TicTacToeMode;
   }) => Promise<void>;
 }
 
@@ -56,6 +59,7 @@ export function AddActivityModal({
   const [allowGroup, setAllowGroup] = useState(false);
   const [participationMode, setParticipationMode] =
     useState<SpinnerParticipationMode>("ONE_AT_A_TIME");
+  const [ticTacToeMode, setTicTacToeMode] = useState<TicTacToeMode>("CHAMPION");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,6 +109,7 @@ export function AddActivityModal({
         allowGeneralParticipants: type === ACTIVITY_KAHOOT ? true : allowGeneral,
         allowGroupParticipants: type === ACTIVITY_KAHOOT ? false : allowGroup,
         participationMode: type === ACTIVITY_SPINNER ? participationMode : undefined,
+        ticTacToeMode: type === ACTIVITY_TIC_TAC_TOE ? ticTacToeMode : undefined,
       });
       onClose();
     } catch (e) {
@@ -207,6 +212,20 @@ export function AddActivityModal({
             >
               <option value="ONE_AT_A_TIME">One person at a time (spectators watch)</option>
               <option value="CONCURRENT">Anyone can spin</option>
+            </select>
+          </div>
+        )}
+
+        {type === ACTIVITY_TIC_TAC_TOE && (
+          <div>
+            <label className="mb-2 block text-sm font-medium">Play mode</label>
+            <select
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={ticTacToeMode}
+              onChange={(e) => setTicTacToeMode(e.target.value as TicTacToeMode)}
+            >
+              <option value="CHAMPION">Champion — one mover per team</option>
+              <option value="COUNCIL">Council — team votes on moves</option>
             </select>
           </div>
         )}

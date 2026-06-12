@@ -15,12 +15,18 @@ export function ChatActivityCard({ activity }: ChatActivityCardProps) {
   const href =
     activity.kind === "kahoot"
       ? `${homeActivities}?trivia=${activity.instanceId}`
-      : `${homeActivities}?spinner=${activity.instanceId}&session=${activity.sessionId}`;
+      : activity.kind === "tic_tac_toe"
+        ? `${homeActivities}?ttt=${activity.instanceId}&match=${activity.sessionId}`
+        : `${homeActivities}?spinner=${activity.instanceId}&session=${activity.sessionId}`;
 
   return (
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-        {activity.kind === "kahoot" ? "Live Trivia" : "Spinner"}
+        {activity.kind === "kahoot"
+          ? "Live Trivia"
+          : activity.kind === "tic_tac_toe"
+            ? "Team Tic-Tac-Toe"
+            : "Spinner"}
         {isLive ? " · Live" : " · Ended"}
       </p>
       <p className="mt-1 font-semibold">{activity.title}</p>
@@ -40,7 +46,13 @@ export function ChatActivityCard({ activity }: ChatActivityCardProps) {
             </>
           ) : (
             <Link href={href}>
-              <Button size="sm">{activity.action === "spin_result" ? "View" : "Open"}</Button>
+              <Button size="sm">
+                {activity.kind === "tic_tac_toe"
+                  ? "Watch"
+                  : activity.action === "spin_result"
+                    ? "View"
+                    : "Open"}
+              </Button>
             </Link>
           )}
         </div>

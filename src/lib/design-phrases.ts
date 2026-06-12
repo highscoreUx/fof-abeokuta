@@ -1,6 +1,7 @@
-/** Design terms — combined into 2000+ unique login phrase tokens */
+/** Single-word design terms used as login suffixes (e.g. abdulbasit.wireframe). */
 const NOUNS = [
   "wireframe", "prototype", "mockup", "layout", "grid", "pixel", "vector", "bezier",
+  "pencil", "sketch", "stencil", "eraser", "marker", "brush", "ink", "pen", "chalk",
   "canvas", "artboard", "component", "variant", "token", "palette", "gradient", "shadow",
   "blur", "opacity", "contrast", "spacing", "margin", "padding", "radius", "border",
   "stroke", "fill", "layer", "frame", "group", "mask", "clip", "path", "anchor",
@@ -47,34 +48,8 @@ const NOUNS = [
   "isr", "edge", "cloud", "local", "offline", "online", "realtime", "live", "draft",
 ];
 
-const ADJECTIVES = [
-  "bold", "calm", "clean", "clear", "crisp", "flat", "fluid", "fresh", "glass",
-  "grand", "keen", "lite", "lush", "mint", "neat", "open", "pure", "quick", "raw",
-  "rich", "sharp", "sleek", "smart", "soft", "solid", "swift", "thin", "true", "warm",
-  "wide", "wild", "wise", "zero", "agile", "brave", "brisk", "civic", "cozy", "daily",
-  "deep", "dual", "epic", "fair", "fast", "fine", "free", "full", "glow", "gold",
-  "good", "gray", "high", "huge", "idle", "kind", "live", "long", "loud", "main",
-  "mild", "mini", "mono", "new", "next", "nice", "nova", "odd", "pale", "peak",
-  "pink", "plus", "prime", "rare", "real", "red", "safe", "sage", "slim", "slow",
-  "snow", "solo", "star", "sunny", "super", "teal", "tiny", "top", "ultra", "vivid",
-];
-
 function buildDesignPhrases(): string[] {
-  const phrases = new Set<string>();
-
-  for (const noun of NOUNS) {
-    phrases.add(noun);
-  }
-
-  for (const adj of ADJECTIVES) {
-    for (const noun of NOUNS) {
-      phrases.add(`${adj}-${noun}`);
-      if (phrases.size >= 2200) break;
-    }
-    if (phrases.size >= 2200) break;
-  }
-
-  return [...phrases];
+  return [...new Set(NOUNS)];
 }
 
 export const DESIGN_PHRASES = buildDesignPhrases();

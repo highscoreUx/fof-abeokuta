@@ -1,4 +1,4 @@
-export type ActivityChatKind = "spinner" | "kahoot";
+export type ActivityChatKind = "spinner" | "kahoot" | "tic_tac_toe";
 
 export interface ActivityChatBody {
   type: "activity";
@@ -7,7 +7,7 @@ export interface ActivityChatBody {
   instanceId: string;
   title: string;
   status: "live" | "ended";
-  action: "started" | "spin_result" | "ended";
+  action: "started" | "spin_result" | "ended" | "move";
   text: string;
   metadata?: Record<string, unknown>;
 }
@@ -22,7 +22,9 @@ export function parseActivityChatBody(body: string): ActivityChatBody | null {
     const parsed = JSON.parse(body) as Partial<ActivityChatBody>;
     if (
       parsed.type !== "activity" ||
-      (parsed.kind !== "spinner" && parsed.kind !== "kahoot") ||
+      (parsed.kind !== "spinner" &&
+        parsed.kind !== "kahoot" &&
+        parsed.kind !== "tic_tac_toe") ||
       typeof parsed.sessionId !== "string" ||
       typeof parsed.instanceId !== "string" ||
       typeof parsed.title !== "string" ||

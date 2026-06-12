@@ -25,3 +25,7 @@ export function quizRoom(eventSlug: string) {
 export function spinnerSessionRoom(sessionId: string) {
   return `spinner:${sessionId}`;
 }
+
+export function ticTacToeMatchRoom(matchId: string) {
+  return `ttt:${matchId}`;
+}

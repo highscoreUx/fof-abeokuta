@@ -42,6 +42,17 @@ enum SpinnerSessionState {
   COMPLETED
 }
 
+enum TicTacToeMode {
+  CHAMPION
+  COUNCIL
+}
+
+enum TicTacToeMatchState {
+  WAITING
+  ACTIVE
+  FINISHED
+}
+
 enum TriviaQuestionType {
   QUIZ
   QUIZ_IMAGE
@@ -112,6 +123,8 @@ model Event {
   scoreCriteria   ScoreCriterion[]
   spinChallenges  SpinChallenge[]
   spinnerSessions SpinnerSession[]
+  ticTacToeChallenges TicTacToeChallenge[]
+  ticTacToeMatches    TicTacToeMatch[]
   surveys         Survey[]
   eventActivities EventActivity[]
   appSettings     AppSetting[]
@@ -159,6 +172,9 @@ model Team {
   quizzes       Quiz[]
   spinChallenges SpinChallenge[]
   spinnerSessions SpinnerSession[]
+  ticTacToeMatchesAsX TicTacToeMatch[] @relation("TttTeamX")
+  ticTacToeMatchesAsO TicTacToeMatch[] @relation("TttTeamO")
+  ticTacToeWins       TicTacToeMatch[] @relation("TttWinner")
 
   @@unique([eventId, letter])
 }
@@ -211,6 +227,8 @@ model User {
   spinnerSpins SpinnerSpin[]
   spinnerSessionsStarted SpinnerSession[] @relation("SpinnerStartedBy")
   spinnerSessionsActive SpinnerSession[] @relation("SpinnerActiveUser")
+  tttChampionX        TicTacToeMatch[] @relation("TttChampionX")
+  tttChampionO        TicTacToeMatch[] @relation("TttChampionO")
   surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
 
@@ -437,6 +455,50 @@ model SpinnerSpin {
   createdAt      DateTime       @default(now())
 
   @@index([sessionId, createdAt])
+}
+
+model TicTacToeChallenge {
+  id                       String            @id @default(cuid())
+  eventId                  String
+  event                    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title                    String
+  mode                     TicTacToeMode     @default(CHAMPION)
+  config                   Json              @default("{}")
+  allowGeneralParticipants Boolean           @default(false)
+  allowGroupParticipants   Boolean           @default(true)
+  matches                  TicTacToeMatch[]
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+}
+
+model TicTacToeMatch {
+  id              String              @id @default(cuid())
+  challengeId     String
+  challenge       TicTacToeChallenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  eventId         String
+  event           Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamXId         String
+  teamX           Team                @relation("TttTeamX", fields: [teamXId], references: [id])
+  teamOId         String
+  teamO           Team                @relation("TttTeamO", fields: [teamOId], references: [id])
+  state           TicTacToeMatchState @default(WAITING)
+  board           Json
+  currentTurn     String              @default("X")
+  turnNumber      Int                 @default(0)
+  councilVotes    Json                @default("{}")
+  championXUserId String?
+  championX       User?               @relation("TttChampionX", fields: [championXUserId], references: [id])
+  championOUserId String?
+  championO       User?               @relation("TttChampionO", fields: [championOUserId], references: [id])
+  winnerTeamId    String?
+  winnerTeam      Team?               @relation("TttWinner", fields: [winnerTeamId], references: [id])
+  isDraw          Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  finishedAt      DateTime?
+
+  @@index([eventId, state])
+  @@index([challengeId, state])
 }
 
 model SpinSubmission {

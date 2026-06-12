@@ -5,7 +5,7 @@ export const loginSchema = z.object({
     .string()
     .min(3, "Username is required")
     .max(80)
-    .regex(/^[a-z0-9][a-z0-9.-]*$/, "Use your assigned username (e.g. ada.wireframe)"),
+    .regex(/^[a-z0-9]+(\.[a-z0-9]+)+$/, "Use your assigned username (e.g. ada.wireframe)"),
   password: z.string().regex(/^\d{4}$/, "Password must be exactly 4 digits"),
 });
 

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loginSchema } from "@/lib/validators/auth";
-import { findUserByCredentials, serializeUser, buildAccessTokenForUser } from "@/lib/users";
+import {
+  canUserSignIn,
+  findUserByCredentials,
+  serializeUser,
+  buildAccessTokenForUser,
+} from "@/lib/users";
 import { createRefreshToken } from "@/lib/auth/refresh";
 import {
   EVENT_SLUG_COOKIE,
@@ -34,6 +39,14 @@ export async function POST(
   const user = await findUserByCredentials(event.id, parsed.data.username, parsed.data.password);
   if (!user) {
     return jsonError("Invalid username or password", "INVALID_CREDENTIALS", 401);
+  }
+
+  if (!canUserSignIn(user)) {
+    return jsonError(
+      "You must check in with staff before signing in.",
+      "CHECK_IN_REQUIRED",
+      403,
+    );
   }
 
   const permissions = resolvePermissionsFromRole(user.eventUserRole);

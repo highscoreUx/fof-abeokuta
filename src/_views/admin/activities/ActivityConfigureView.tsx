@@ -18,6 +18,7 @@ import { TRIVIA_TYPE_LABELS } from "@/lib/trivia/types";
 import { isMediaUrl } from "@/lib/trivia/media";
 import { SurveyConfigurePanel } from "@/components/admin/SurveyConfigurePanel";
 import { SpinnerConfigurePanel } from "@/components/admin/SpinnerConfigurePanel";
+import { TicTacToeConfigurePanel } from "@/components/admin/TicTacToeConfigurePanel";
 import type { ActivityConfigureKind, KahootActivityDetail } from "@/types/activities";
 
 export function ActivityConfigureView() {
@@ -61,8 +62,8 @@ export function ActivityConfigureView() {
             options: Array.isArray(q.options) ? (q.options as string[]) : undefined,
           })),
         });
-      } else if (configureKind === "spinner") {
-        // Spinner detail loaded by SpinnerConfigurePanel
+      } else if (configureKind === "spinner" || configureKind === "tic_tac_toe") {
+        // Detail loaded by configure panel
       } else if (configureKind === "survey") {
         // Survey detail loaded by SurveyConfigurePanel
       } else {
@@ -91,13 +92,17 @@ export function ActivityConfigureView() {
       ? "Live Trivia"
       : configureKind === "survey"
         ? "Survey"
-        : "Spinner";
+        : configureKind === "tic_tac_toe"
+          ? "Team Tic-Tac-Toe"
+          : "Spinner";
   const permission =
     configureKind === "kahoot"
       ? "quiz.manage"
       : configureKind === "survey"
         ? "survey.manage"
-        : "spin.manage";
+        : configureKind === "tic_tac_toe"
+          ? "tic_tac_toe.manage"
+          : "spin.manage";
 
   return (
     <PermissionGuard permission={permission}>
@@ -239,6 +244,10 @@ export function ActivityConfigureView() {
 
         {!loading && !loadError && configureKind === "spinner" && (
           <SpinnerConfigurePanel spinnerId={id} onReload={load} />
+        )}
+
+        {!loading && !loadError && configureKind === "tic_tac_toe" && (
+          <TicTacToeConfigurePanel challengeId={id} onReload={load} />
         )}
       </AppShell>
     </PermissionGuard>

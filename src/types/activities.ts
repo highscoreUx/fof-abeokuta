@@ -33,6 +33,18 @@ export interface SpinnerActivityDetail {
 /** @deprecated use SpinnerActivityDetail */
 export type SpinActivityDetail = SpinnerActivityDetail;
 
+export interface TicTacToeActivityDetail {
+  kind: "tic_tac_toe";
+  id: string;
+  title: string;
+  mode: "CHAMPION" | "COUNCIL";
+  allowGeneralParticipants: boolean;
+  allowGroupParticipants: boolean;
+  activeMatchId?: string | null;
+  activeMatchState?: string | null;
+  matchCount?: number;
+}
+
 export interface SurveyActivityDetail {
   kind: "survey";
   id: string;
@@ -54,6 +66,10 @@ export interface SurveyActivityDetail {
   responseCount?: number;
 }
 
-export type ActivityDetail = KahootActivityDetail | SpinnerActivityDetail | SurveyActivityDetail;
+export type ActivityDetail =
+  | KahootActivityDetail
+  | SpinnerActivityDetail
+  | TicTacToeActivityDetail
+  | SurveyActivityDetail;
 
 export type ActivityConfigureKind = ActivityDetail["kind"];

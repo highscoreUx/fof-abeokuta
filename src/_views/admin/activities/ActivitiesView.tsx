@@ -8,7 +8,12 @@ import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleto
 import { useEventNav } from "@/hooks/useEventNav";
 import { useEventApi } from "@/hooks/useEventApi";
 import { selectUserPermissions, useAuthStore } from "@/stores/authStore";
-import { ACTIVITY_KAHOOT, ACTIVITY_SPINNER, ACTIVITY_SURVEY } from "@/lib/activities/catalog";
+import {
+  ACTIVITY_KAHOOT,
+  ACTIVITY_SPINNER,
+  ACTIVITY_SURVEY,
+  ACTIVITY_TIC_TAC_TOE,
+} from "@/lib/activities/catalog";
 import { Card, CardTitle } from "@/components/ui/card";
 
 export function ActivitiesView() {
@@ -26,7 +31,8 @@ export function ActivitiesView() {
             (a.slug === ACTIVITY_KAHOOT ||
               a.slug === ACTIVITY_SPINNER ||
               a.slug === "spin_to_build" ||
-              a.slug === ACTIVITY_SURVEY),
+              a.slug === ACTIVITY_SURVEY ||
+              a.slug === ACTIVITY_TIC_TAC_TOE),
         );
         setAnyEnabled(enabled);
       })
@@ -38,9 +44,11 @@ export function ActivitiesView() {
       anyOf={[
         "quiz.manage",
         "spin.manage",
+        "tic_tac_toe.manage",
         "survey.manage",
         "quiz.run",
         "spin.run",
+        "tic_tac_toe.run",
         "survey.run",
       ]}
     >

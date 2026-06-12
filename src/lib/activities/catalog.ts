@@ -5,11 +5,13 @@ export const ACTIVITY_SPINNER = "spinner" as const;
 /** @deprecated use ACTIVITY_SPINNER */
 export const ACTIVITY_SPIN_TO_BUILD = ACTIVITY_SPINNER;
 export const ACTIVITY_SURVEY = "survey" as const;
+export const ACTIVITY_TIC_TAC_TOE = "tic_tac_toe" as const;
 
 export type ActivitySlug =
   | typeof ACTIVITY_KAHOOT
   | typeof ACTIVITY_SPINNER
-  | typeof ACTIVITY_SURVEY;
+  | typeof ACTIVITY_SURVEY
+  | typeof ACTIVITY_TIC_TAC_TOE;
 
 export interface ActivityTypeDefinition {
   slug: ActivitySlug;
@@ -48,6 +50,15 @@ export const ACTIVITY_CATALOG: ActivityTypeDefinition[] = [
     runPermission: "survey.run",
     participantPermission: "participant.survey",
     sortOrder: 3,
+  },
+  {
+    slug: ACTIVITY_TIC_TAC_TOE,
+    name: "Team Tic-Tac-Toe",
+    description: "Teams compete on a 3×3 grid — champion or council mode with live spectating.",
+    managePermission: "tic_tac_toe.manage",
+    runPermission: "tic_tac_toe.run",
+    participantPermission: "participant.tic_tac_toe",
+    sortOrder: 4,
   },
 ];
 

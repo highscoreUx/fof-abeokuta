@@ -16,6 +16,7 @@ import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
   ACTIVITY_SURVEY,
+  ACTIVITY_TIC_TAC_TOE,
   formatInstanceScope,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
@@ -53,6 +54,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const canRunSpin = hasPermission(permissions, "spin.run");
   const canManageSurvey = hasPermission(permissions, "survey.manage");
   const canRunSurvey = hasPermission(permissions, "survey.run");
+  const canManageTtt = hasPermission(permissions, "tic_tac_toe.manage");
+  const canRunTtt = hasPermission(permissions, "tic_tac_toe.run");
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -116,6 +119,32 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       }
     }
 
+    if (canManageTtt || canRunTtt) {
+      const tttRes = await api<{
+        challenges: Array<{
+          id: string;
+          title: string;
+          mode: "CHAMPION" | "COUNCIL";
+          allowGeneralParticipants: boolean;
+          allowGroupParticipants: boolean;
+          activeMatchId?: string | null;
+          activeMatchState?: string | null;
+        }>;
+      }>("/tic-tac-toe-challenges").catch(() => ({ challenges: [] }));
+      for (const c of tttRes.challenges) {
+        next.push({
+          kind: "tic_tac_toe",
+          id: c.id,
+          title: c.title,
+          mode: c.mode,
+          allowGeneralParticipants: c.allowGeneralParticipants,
+          allowGroupParticipants: c.allowGroupParticipants,
+          activeMatchId: c.activeMatchId,
+          activeMatchState: c.activeMatchState,
+        });
+      }
+    }
+
     if (canManageSurvey || canRunSurvey) {
       const surveyRes = await api<{
         surveys: Array<{
@@ -155,7 +184,17 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     setRows(next);
     setLoading(false);
     return next;
-  }, [api, canManageKahoot, canManageSpin, canManageSurvey, canRunKahoot, canRunSpin, canRunSurvey]);
+  }, [
+    api,
+    canManageKahoot,
+    canManageSpin,
+    canManageSurvey,
+    canManageTtt,
+    canRunKahoot,
+    canRunSpin,
+    canRunSurvey,
+    canRunTtt,
+  ]);
 
   const refresh = useCallback(async () => {
     await load(true);
@@ -172,11 +211,14 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       if (snapshot.state === "FINISHED") void refresh();
     };
     const onSpinner = () => void refresh();
+    const onTtt = () => void refresh();
     socket.on("quiz:state", onQuiz);
     socket.on("spinner:state", onSpinner);
+    socket.on("ttt:state", onTtt);
     return () => {
       socket.off("quiz:state", onQuiz);
       socket.off("spinner:state", onSpinner);
+      socket.off("ttt:state", onTtt);
     };
   }, [socket, refresh]);
 
@@ -186,6 +228,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     allowGeneralParticipants: boolean;
     allowGroupParticipants: boolean;
     participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
+    ticTacToeMode?: "CHAMPION" | "COUNCIL";
   }) => {
     if (data.type === ACTIVITY_KAHOOT) {
       await api("/quizzes", {
@@ -206,6 +249,16 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           allowEditsUntilClose: true,
         }),
       });
+    } else if (data.type === ACTIVITY_TIC_TAC_TOE) {
+      await api("/tic-tac-toe-challenges", {
+        method: "POST",
+        body: JSON.stringify({
+          title: data.title,
+          allowGeneralParticipants: data.allowGeneralParticipants,
+          allowGroupParticipants: data.allowGroupParticipants,
+          mode: data.ticTacToeMode ?? "CHAMPION",
+        }),
+      });
     } else {
       await api("/spin-challenges", {
         method: "POST",
@@ -223,6 +276,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const typeLabel = (row: ActivityRow) => {
     if (row.kind === "kahoot") return "Live Trivia";
     if (row.kind === "survey") return "Survey";
+    if (row.kind === "tic_tac_toe") return "Team Tic-Tac-Toe";
     return "Spinner";
   };
 
@@ -234,6 +288,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       return "Draft";
     }
     if (row.kind === "spinner" && row.activeSessionId) return "Live";
+    if (row.kind === "tic_tac_toe" && row.activeMatchState === "ACTIVE") return "Live";
+    if (row.kind === "tic_tac_toe" && row.activeMatchState === "WAITING") return "Waiting";
     return "Ready";
   };
 
@@ -242,6 +298,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     if (a.slug === ACTIVITY_KAHOOT) return canManageKahoot;
     if (a.slug === ACTIVITY_SPINNER) return canManageSpin;
     if (a.slug === ACTIVITY_SURVEY) return canManageSurvey;
+    if (a.slug === ACTIVITY_TIC_TAC_TOE) return canManageTtt;
     return false;
   }).length;
 
@@ -308,7 +365,9 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                     <p className="text-sm text-muted-foreground">
                       {row.kind === "kahoot" || row.kind === "survey"
                         ? `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`
-                        : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}
+                        : row.kind === "tic_tac_toe"
+                          ? `${row.mode === "COUNCIL" ? "Council" : "Champion"} mode`
+                          : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}
                       {" · "}
                       {scope}
                     </p>
@@ -317,6 +376,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                   <div className="flex flex-wrap gap-2">
                     {((row.kind === "kahoot" && canManageKahoot) ||
                       (row.kind === "spinner" && canManageSpin) ||
+                      (row.kind === "tic_tac_toe" && canManageTtt) ||
                       (row.kind === "survey" && canManageSurvey)) && (
                       <Link
                         href={activityConfigure(row.kind, row.id)}

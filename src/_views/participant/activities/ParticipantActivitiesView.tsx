@@ -8,7 +8,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { hasAdminShellAccess } from "@/lib/permissions";
 import { SurveyPlayer } from "@/components/survey/SurveyPlayer";
 import { SpinnerActivitiesPanel } from "@/components/spinner/SpinnerActivitiesPanel";
-import { ACTIVITY_KAHOOT, ACTIVITY_SPINNER, ACTIVITY_SURVEY } from "@/lib/activities/catalog";
+import { TicTacToeActivitiesPanel } from "@/components/tic-tac-toe/TicTacToeActivitiesPanel";
+import {
+  ACTIVITY_KAHOOT,
+  ACTIVITY_SPINNER,
+  ACTIVITY_SURVEY,
+  ACTIVITY_TIC_TAC_TOE,
+} from "@/lib/activities/catalog";
 import { userHasEnabledActivity } from "@/lib/activities/client";
 import { Card, CardTitle } from "@/components/ui/card";
 
@@ -20,7 +26,8 @@ export function ParticipantActivitiesView() {
   const kahootEnabled = userHasEnabledActivity(user, ACTIVITY_KAHOOT);
   const spinnerEnabled = userHasEnabledActivity(user, ACTIVITY_SPINNER);
   const surveyEnabled = userHasEnabledActivity(user, ACTIVITY_SURVEY);
-  const anyEnabled = kahootEnabled || spinnerEnabled || surveyEnabled;
+  const tttEnabled = userHasEnabledActivity(user, ACTIVITY_TIC_TAC_TOE);
+  const anyEnabled = kahootEnabled || spinnerEnabled || surveyEnabled || tttEnabled;
 
   return (
     <PermissionGuard permission="participant.activities" allowAdminShell>
@@ -35,6 +42,7 @@ export function ParticipantActivitiesView() {
         ) : (
           <div className="space-y-6">
             {surveyEnabled && <SurveyPlayer />}
+            {tttEnabled && <TicTacToeActivitiesPanel />}
             {spinnerEnabled && <SpinnerActivitiesPanel />}
             {kahootEnabled && <QuizPlayer />}
           </div>

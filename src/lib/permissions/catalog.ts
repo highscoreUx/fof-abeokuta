@@ -21,6 +21,8 @@ export type Permission =
   | "quiz.run"
   | "spin.manage"
   | "spin.run"
+  | "tic_tac_toe.manage"
+  | "tic_tac_toe.run"
   | "survey.manage"
   | "survey.run"
   | "survey.view_results"
@@ -40,6 +42,7 @@ export type Permission =
   | "participant.chat"
   | "participant.staff_chat"
   | "participant.quiz"
+  | "participant.tic_tac_toe"
   | "participant.survey"
   | "participant.vote"
   | "stage.view";
@@ -59,7 +62,7 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 2;
+export const PERMISSIONS_CATALOG_REVISION = 3;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
   "dashboard.view",
@@ -84,6 +87,8 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "quiz.run",
   "spin.manage",
   "spin.run",
+  "tic_tac_toe.manage",
+  "tic_tac_toe.run",
   "survey.manage",
   "survey.run",
   "survey.view_results",
@@ -103,6 +108,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "participant.chat",
   "participant.staff_chat",
   "participant.quiz",
+  "participant.tic_tac_toe",
   "participant.survey",
   "participant.vote",
   "stage.view",
@@ -157,6 +163,8 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "quiz.run", label: "Run live trivia sessions" },
       { permission: "spin.manage", label: "Manage spinner activities" },
       { permission: "spin.run", label: "Run spinner sessions" },
+      { permission: "tic_tac_toe.manage", label: "Manage tic-tac-toe tournaments" },
+      { permission: "tic_tac_toe.run", label: "Start tic-tac-toe matches" },
       { permission: "survey.manage", label: "Manage surveys" },
       { permission: "survey.run", label: "Open and close surveys" },
       { permission: "survey.view_results", label: "View survey results" },
@@ -204,6 +212,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "participant.chat", label: "Team chat" },
       { permission: "participant.staff_chat", label: "Staff group chat" },
       { permission: "participant.quiz", label: "Join live trivia activities" },
+      { permission: "participant.tic_tac_toe", label: "Play team tic-tac-toe" },
       { permission: "participant.survey", label: "Complete surveys" },
       { permission: "participant.vote", label: "Cast votes" },
     ],

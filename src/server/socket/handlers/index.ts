@@ -8,6 +8,7 @@ import {
   spinnerSessionRoom,
   staffRoom,
   teamRoom,
+  ticTacToeMatchRoom,
   userRoom,
 } from "@/server/socket/rooms";
 import {
@@ -24,6 +25,12 @@ import {
   startSpinnerSession,
 } from "@/server/games/spinnerEngine";
 import {
+  broadcastTttState,
+  handleTttMove,
+  setTttChampion,
+  startTttMatch,
+} from "@/server/games/ticTacToeEngine";
+import {
   castChatPollVote,
   createDirectChatMessage,
   createGlobalChatMessage,
@@ -38,6 +45,7 @@ import { isActivityEnabledForEvent } from "@/lib/activities/event-activities";
 import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
+  ACTIVITY_TIC_TAC_TOE,
   userCanAccessActivityInstance,
 } from "@/lib/activities/catalog";
 import { hasPermission } from "@/lib/permissions";
@@ -397,6 +405,93 @@ export function registerSocketHandlers(io: SocketIOServer) {
         socket.emit("sync:toast", {
           type: "error",
           message: error instanceof Error ? error.message : "Failed to spin",
+        });
+      }
+    });
+
+    socket.on("ttt:match:join", async (matchId: string) => {
+      if (typeof matchId !== "string" || !matchId) return;
+      socket.join(ticTacToeMatchRoom(matchId));
+      const snapshot = await broadcastTttState(io, matchId, slug);
+      if (snapshot) socket.emit("ttt:state", snapshot);
+    });
+
+    socket.on("ttt:match:start", async (matchId: string) => {
+      try {
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_TIC_TAC_TOE);
+        if (!enabled) return;
+
+        const match = await prisma.ticTacToeMatch.findFirst({
+          where: { id: matchId, eventId: auth.eventId },
+          include: { challenge: true },
+        });
+        if (!match) return;
+
+        const canRun =
+          socketCan(auth, "tic_tac_toe.run") || socketCan(auth, "tic_tac_toe.manage");
+        if (
+          !canRun &&
+          !userCanAccessActivityInstance(auth, {
+            allowGeneralParticipants: match.challenge.allowGeneralParticipants,
+            allowGroupParticipants: match.challenge.allowGroupParticipants,
+          })
+        ) {
+          return;
+        }
+
+        const snapshot = await startTttMatch(io, matchId, auth.eventId, slug, auth.userId);
+        if (snapshot) socket.join(ticTacToeMatchRoom(matchId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to start match",
+        });
+      }
+    });
+
+    socket.on(
+      "ttt:champion:set",
+      async (data: { matchId: string; teamId: string; championUserId: string }) => {
+        try {
+          const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_TIC_TAC_TOE);
+          if (!enabled) return;
+          if (!data?.matchId || !data.teamId || !data.championUserId) return;
+
+          await setTttChampion(io, {
+            matchId: data.matchId,
+            eventId: auth.eventId,
+            eventSlug: slug,
+            userId: auth.userId,
+            teamId: data.teamId,
+            championUserId: data.championUserId,
+          });
+        } catch (error) {
+          socket.emit("sync:toast", {
+            type: "error",
+            message: error instanceof Error ? error.message : "Failed to set champion",
+          });
+        }
+      },
+    );
+
+    socket.on("ttt:move", async (data: { matchId: string; cellIndex: number }) => {
+      try {
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_TIC_TAC_TOE);
+        if (!enabled) return;
+        if (!data?.matchId || typeof data.cellIndex !== "number") return;
+
+        await handleTttMove(io, {
+          matchId: data.matchId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+          userId: auth.userId,
+          teamId: auth.teamId ?? null,
+          cellIndex: data.cellIndex,
+        });
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Invalid move",
         });
       }
     });

@@ -2,7 +2,7 @@ import { verifyRefreshToken } from "@/lib/auth/jwt";
 import { isRefreshTokenValid, rotateRefreshToken } from "@/lib/auth/refresh";
 import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
 import { requireEventBySlug } from "@/lib/events";
-import { buildAccessTokenForUser, serializeUser } from "@/lib/users";
+import { buildAccessTokenForUser, canUserSignIn, serializeUser } from "@/lib/users";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { prisma } from "@/lib/prisma";
 
@@ -52,6 +52,14 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
 
   if (!user) {
     throw new EventSessionRefreshError("User not found", "USER_NOT_FOUND");
+  }
+
+  if (!canUserSignIn(user)) {
+    throw new EventSessionRefreshError(
+      "You must check in with staff before signing in.",
+      "CHECK_IN_REQUIRED",
+      403,
+    );
   }
 
   const newRefreshToken = await rotateRefreshToken(refreshToken, userId, event.id);

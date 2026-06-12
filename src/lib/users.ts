@@ -88,6 +88,14 @@ export async function buildAccessTokenForUser(userId: string, eventSlug: string)
   });
 }
 
+export function canUserSignIn(user: {
+  checkedInAt: Date | null;
+  eventUserRole: { slug: string };
+}): boolean {
+  if (user.eventUserRole.slug !== "participant") return true;
+  return Boolean(user.checkedInAt);
+}
+
 export async function findUserByCredentials(
   eventId: string,
   username: string,

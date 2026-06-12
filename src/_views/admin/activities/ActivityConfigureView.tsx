@@ -14,6 +14,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { formatInstanceScope } from "@/lib/activities/catalog";
 import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
+import { SurveyConfigurePanel } from "@/components/admin/SurveyConfigurePanel";
 import type { ActivityConfigureKind, KahootActivityDetail, SpinActivityDetail } from "@/types/activities";
 
 export function ActivityConfigureView() {
@@ -96,8 +97,10 @@ export function ActivityConfigureView() {
         allowGroupParticipants: activity.allowGroupParticipants,
       })
     : "";
-  const typeLabel = kind === "kahoot" ? "Live Trivia" : "Spin to Build";
-  const permission = kind === "kahoot" ? "quiz.manage" : "spin.manage";
+  const typeLabel =
+    kind === "kahoot" ? "Live Trivia" : kind === "survey" ? "Survey" : "Spin to Build";
+  const permission =
+    kind === "kahoot" ? "quiz.manage" : kind === "survey" ? "survey.manage" : "spin.manage";
 
   return (
     <PermissionGuard permission={permission}>
@@ -202,6 +205,10 @@ export function ActivityConfigureView() {
               onImported={load}
             />
           </>
+        )}
+
+        {!loading && !loadError && kind === "survey" && (
+          <SurveyConfigurePanel surveyId={id} onReload={load} />
         )}
 
         {!loading && !loadError && spin && kind === "spin" && (

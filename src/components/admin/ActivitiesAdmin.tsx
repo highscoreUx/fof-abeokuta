@@ -14,6 +14,7 @@ import { CardTitle } from "@/components/ui/card";
 import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPIN_TO_BUILD,
+  ACTIVITY_SURVEY,
   formatInstanceScope,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
@@ -48,6 +49,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const canRunKahoot = hasPermission(permissions, "quiz.run");
   const canManageSpin = hasPermission(permissions, "spin.manage");
   const canRunSpin = hasPermission(permissions, "spin.run");
+  const canManageSurvey = hasPermission(permissions, "survey.manage");
+  const canRunSurvey = hasPermission(permissions, "survey.run");
 
   const load = useCallback(async () => {
     const activityRes = await api<{ activities: EventActivityConfig[] }>("/activities").catch(
@@ -107,9 +110,45 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       }
     }
 
+    if (canManageSurvey || canRunSurvey) {
+      const surveyRes = await api<{
+        surveys: Array<{
+          id: string;
+          title: string;
+          status: string;
+          allowGeneralParticipants: boolean;
+          allowGroupParticipants: boolean;
+          opensAt: string | null;
+          closesAt: string | null;
+          allowEditsUntilClose: boolean;
+          questions: Array<{ id: string; type: string; text: string }>;
+          _count?: { responses: number };
+        }>;
+      }>("/surveys").catch(() => ({ surveys: [] }));
+      for (const s of surveyRes.surveys) {
+        next.push({
+          kind: "survey",
+          id: s.id,
+          title: s.title,
+          status: s.status,
+          allowGeneralParticipants: s.allowGeneralParticipants,
+          allowGroupParticipants: s.allowGroupParticipants,
+          opensAt: s.opensAt,
+          closesAt: s.closesAt,
+          allowEditsUntilClose: s.allowEditsUntilClose,
+          questions: s.questions.map((q) => ({
+            id: q.id,
+            type: q.type as "POLL",
+            text: q.text,
+          })),
+          responseCount: s._count?.responses,
+        });
+      }
+    }
+
     setRows(next);
     return next;
-  }, [api, canManageKahoot, canManageSpin, canRunKahoot, canRunSpin]);
+  }, [api, canManageKahoot, canManageSpin, canManageSurvey, canRunKahoot, canRunSpin, canRunSurvey]);
 
   const refresh = useCallback(async () => {
     await load();
@@ -149,6 +188,16 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           allowGroupParticipants: data.allowGroupParticipants,
         }),
       });
+    } else if (data.type === ACTIVITY_SURVEY) {
+      await api("/surveys", {
+        method: "POST",
+        body: JSON.stringify({
+          title: data.title,
+          allowGeneralParticipants: data.allowGeneralParticipants,
+          allowGroupParticipants: data.allowGroupParticipants,
+          allowEditsUntilClose: true,
+        }),
+      });
     } else {
       await api("/spin-challenges", {
         method: "POST",
@@ -162,11 +211,19 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     await refresh();
   };
 
-  const typeLabel = (row: ActivityRow) =>
-    row.kind === "kahoot" ? "Live Trivia" : "Spin to Build";
+  const typeLabel = (row: ActivityRow) => {
+    if (row.kind === "kahoot") return "Live Trivia";
+    if (row.kind === "survey") return "Survey";
+    return "Spin to Build";
+  };
 
   const stateLabel = (row: ActivityRow) => {
     if (row.kind === "kahoot") return null;
+    if (row.kind === "survey") {
+      if (row.status === "OPEN") return "Open";
+      if (row.status === "CLOSED") return "Closed";
+      return "Draft";
+    }
     if (row.state === "ACTIVE" || row.state === "REVIEWING") return "Live";
     return "Draft";
   };
@@ -175,6 +232,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     if (!a.enabled) return false;
     if (a.slug === ACTIVITY_KAHOOT) return canManageKahoot;
     if (a.slug === ACTIVITY_SPIN_TO_BUILD) return canManageSpin;
+    if (a.slug === ACTIVITY_SURVEY) return canManageSurvey;
     return false;
   }).length;
 
@@ -235,7 +293,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                     </div>
                     <h3 className="mt-2 font-semibold">{row.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {row.kind === "kahoot"
+                      {row.kind === "kahoot" || row.kind === "survey"
                         ? `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`
                         : "Design challenge"}
                       {" · "}
@@ -245,7 +303,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
 
                   <div className="flex flex-wrap gap-2">
                     {((row.kind === "kahoot" && canManageKahoot) ||
-                      (row.kind === "spin" && canManageSpin)) && (
+                      (row.kind === "spin" && canManageSpin) ||
+                      (row.kind === "survey" && canManageSurvey)) && (
                       <Link
                         href={activityConfigure(row.kind, row.id)}
                         className="inline-flex h-10 items-center justify-center rounded-lg bg-secondary px-4 text-sm font-medium text-secondary-foreground shadow-sm transition hover:bg-secondary-hover"
@@ -293,6 +352,31 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                         onClick={() => socket?.emit("spin:admin:complete", row.id)}
                       >
                         Complete
+                      </Button>
+                    )}
+                    {row.kind === "survey" && canRunSurvey && row.status !== "OPEN" && (
+                      <Button
+                        onClick={() =>
+                          api(`/surveys/${row.id}`, {
+                            method: "PATCH",
+                            body: JSON.stringify({ status: "OPEN" }),
+                          }).then(refresh)
+                        }
+                      >
+                        Open survey
+                      </Button>
+                    )}
+                    {row.kind === "survey" && canRunSurvey && row.status === "OPEN" && (
+                      <Button
+                        variant="danger"
+                        onClick={() =>
+                          api(`/surveys/${row.id}`, {
+                            method: "PATCH",
+                            body: JSON.stringify({ status: "CLOSED" }),
+                          }).then(refresh)
+                        }
+                      >
+                        Close survey
                       </Button>
                     )}
                   </div>

@@ -27,7 +27,9 @@ export function useEventNav() {
         ? { href: `${prefix}/home`, label: "Home" }
         : null,
       navIf("user.list", `${prefix}/admin/users`, "Users", permissions),
-      hasPermission(permissions, "quiz.manage") || hasPermission(permissions, "spin.manage")
+      hasPermission(permissions, "quiz.manage") ||
+      hasPermission(permissions, "spin.manage") ||
+      hasPermission(permissions, "survey.manage")
         ? { href: `${prefix}/admin/activities`, label: "Activities" }
         : null,
       navIf("agenda.list", `${prefix}/admin/agenda`, "Agenda", permissions),

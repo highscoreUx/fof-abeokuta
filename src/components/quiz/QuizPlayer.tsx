@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
+import { TriviaAnswerInput } from "@/components/trivia/TriviaAnswerInput";
 import {
   formatPoints,
   formatResponseTime,
   getServerSyncedRemainingMs,
-  KAHOOT_OPTIONS,
 } from "@/lib/kahoot-ui";
-import type { QuizAnswerResult, QuizStateSnapshot } from "@/types";
+import type { QuizAnswerResult, QuizStateSnapshot, TriviaAnswerPayload } from "@/types";
 import { cn } from "@/lib/utils";
 
 function KahootTimerBar({
@@ -76,7 +76,7 @@ export function QuizPlayer() {
   const { user } = useAuth();
   const [state, setState] = useState<QuizStateSnapshot | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [answerResult, setAnswerResult] = useState<QuizAnswerResult | null>(null);
   const activeQuestionId = useRef<string | null>(null);
 
@@ -87,7 +87,7 @@ export function QuizPlayer() {
       const newQuestionId = snapshot.currentQuestion?.id ?? null;
       if (newQuestionId !== activeQuestionId.current) {
         activeQuestionId.current = newQuestionId;
-        setSelectedIndex(null);
+        setSubmitted(false);
         setAnswerResult(null);
       }
       setState(snapshot);
@@ -95,7 +95,7 @@ export function QuizPlayer() {
 
     const onAnswerResult = (result: QuizAnswerResult) => {
       setAnswerResult(result);
-      setSelectedIndex(result.answerIndex);
+      setSubmitted(true);
     };
 
     socket.on("quiz:state", onState);
@@ -127,13 +127,14 @@ export function QuizPlayer() {
     return () => clearInterval(interval);
   }, [state]);
 
-  const submitAnswer = (index: number) => {
-    if (!socket || !state?.currentQuestion || selectedIndex !== null) return;
-    setSelectedIndex(index);
+  const submitAnswer = (payload: TriviaAnswerPayload) => {
+    if (!socket || !state?.currentQuestion || submitted) return;
+    setSubmitted(true);
     socket.emit("quiz:answer", {
       sessionId: state.sessionId,
       questionId: state.currentQuestion.id,
-      answerIndex: index,
+      answerValue: payload,
+      answerIndex: payload.answerIndex,
     });
   };
 
@@ -209,8 +210,6 @@ export function QuizPlayer() {
   if (!question) return null;
 
   const totalMs = question.timeLimitSec * 1000;
-  const waiting = selectedIndex !== null;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -227,37 +226,21 @@ export function QuizPlayer() {
 
       <KahootTimerBar remainingMs={remainingMs} totalMs={totalMs} />
 
-      {waiting && (
+      {submitted && (
         <p className="text-center text-sm font-medium text-muted-foreground">
           Answer locked in — waiting for others…
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        {question.options.map((option, index) => {
-          const style = KAHOOT_OPTIONS[index % KAHOOT_OPTIONS.length];
-          const isSelected = selectedIndex === index;
-          return (
-            <button
-              key={index}
-              type="button"
-              disabled={waiting}
-              onClick={() => submitAnswer(index)}
-              className={cn(
-                "flex min-h-[88px] items-center gap-3 rounded-xl px-4 py-4 text-left text-white transition-transform",
-                style.bg,
-                !waiting && style.hover,
-                !waiting && "active:scale-95",
-                waiting && !isSelected && "opacity-40",
-                waiting && isSelected && "ring-4 ring-white",
-              )}
-            >
-              <span className="text-2xl font-black">{style.shape}</span>
-              <span className="font-semibold leading-snug">{option}</span>
-            </button>
-          );
-        })}
-      </div>
+      <TriviaAnswerInput
+        type={question.type ?? "QUIZ"}
+        text={question.text}
+        options={question.options}
+        config={question.config ?? {}}
+        mediaUrl={question.mediaUrl}
+        disabled={submitted}
+        onSubmit={submitAnswer}
+      />
     </div>
   );
 }

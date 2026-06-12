@@ -32,6 +32,32 @@ enum SpinChallengeState {
   COMPLETED
 }
 
+enum TriviaQuestionType {
+  QUIZ
+  TRUE_FALSE
+  TYPE_ANSWER
+  PUZZLE
+  SLIDER
+  PIN_ANSWER
+  QUIZ_AUDIO
+}
+
+enum SurveyStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum SurveyQuestionType {
+  POLL
+  WORD_CLOUD
+  BRAINSTORM
+  DROP_PIN
+  OPEN_ENDED
+  SCALE
+  NPS
+}
+
 model PlatformAdmin {
   id           String                 @id @default(cuid())
   email        String                 @unique
@@ -73,6 +99,7 @@ model Event {
   votes           Vote[]
   scoreCriteria   ScoreCriterion[]
   spinChallenges  SpinChallenge[]
+  surveys         Survey[]
   eventActivities EventActivity[]
   appSettings     AppSetting[]
   auditLogs       AuditLog[]
@@ -167,6 +194,7 @@ model User {
   scoresGiven   Score[]        @relation("JudgeScores")
   voteBallots   VoteBallot[]
   spinSubmissions SpinSubmission[]
+  surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
 
   @@unique([eventId, username])
@@ -241,14 +269,18 @@ model Quiz {
 }
 
 model QuizQuestion {
-  id           String       @id @default(cuid())
+  id           String             @id @default(cuid())
   quizId       String
-  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz         Quiz               @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type         TriviaQuestionType @default(QUIZ)
   text         String
-  options      Json
-  correctIndex Int
-  timeLimitSec Int          @default(20)
-  sortOrder    Int          @default(0)
+  options      Json               @default("[]")
+  correctIndex Int                @default(0)
+  config       Json               @default("{}")
+  mediaKey     String?
+  mediaUrl     String?
+  timeLimitSec Int                @default(20)
+  sortOrder    Int                @default(0)
   answers      QuizAnswer[]
 }
 
@@ -277,7 +309,8 @@ model QuizAnswer {
   user           User         @relation(fields: [userId], references: [id])
   teamId         String?
   team           Team?        @relation(fields: [teamId], references: [id])
-  answerIndex    Int
+  answerIndex    Int          @default(-1)
+  answerValue    Json?
   points         Int          @default(0)
   responseTimeMs Int          @default(0)
   isCorrect      Boolean      @default(false)
@@ -387,4 +420,61 @@ model AuditLog {
   action    String
   details   Json?
   createdAt DateTime @default(now())
+}
+
+model Survey {
+  id                       String           @id @default(cuid())
+  eventId                  String
+  event                    Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title                    String
+  status                   SurveyStatus     @default(DRAFT)
+  allowGeneralParticipants Boolean          @default(true)
+  allowGroupParticipants   Boolean          @default(false)
+  opensAt                  DateTime?
+  closesAt                 DateTime?
+  allowEditsUntilClose     Boolean          @default(true)
+  questions                SurveyQuestion[]
+  responses                SurveyResponse[]
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+}
+
+model SurveyQuestion {
+  id        String             @id @default(cuid())
+  surveyId  String
+  survey    Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  type      SurveyQuestionType
+  text      String
+  config    Json               @default("{}")
+  mediaKey  String?
+  mediaUrl  String?
+  required  Boolean            @default(false)
+  sortOrder Int                @default(0)
+  answers   SurveyAnswer[]
+}
+
+model SurveyResponse {
+  id          String         @id @default(cuid())
+  surveyId    String
+  survey      Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User           @relation(fields: [userId], references: [id])
+  submittedAt DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  answers     SurveyAnswer[]
+
+  @@unique([surveyId, userId])
+}
+
+model SurveyAnswer {
+  id         String         @id @default(cuid())
+  responseId String
+  response   SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  value      Json
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([responseId, questionId])
 }

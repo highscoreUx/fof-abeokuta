@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { quizQuestionSchema } from "@/lib/validators/auth";
+import { triviaQuestionSchema } from "@/lib/validators/trivia";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
 
@@ -63,16 +64,30 @@ export async function POST(
   }
 
   const body = await request.json();
-  const parsed = quizQuestionSchema.safeParse(body);
+  const parsed = triviaQuestionSchema.safeParse(body);
   if (!parsed.success) return jsonError(parsed.error.message, "VALIDATION_ERROR", 400);
+
+  const type = parsed.data.type;
+  const options =
+    type === "TRUE_FALSE"
+      ? ["True", "False"]
+      : parsed.data.options.length >= 2
+        ? parsed.data.options
+        : type === "PUZZLE" && Array.isArray(parsed.data.config.items)
+          ? (parsed.data.config.items as string[])
+          : parsed.data.options;
 
   const count = await prisma.quizQuestion.count({ where: { quizId } });
   const question = await prisma.quizQuestion.create({
     data: {
       quizId,
+      type,
       text: parsed.data.text,
-      options: parsed.data.options,
+      options,
       correctIndex: parsed.data.correctIndex,
+      config: parsed.data.config as object,
+      mediaKey: parsed.data.mediaKey ?? null,
+      mediaUrl: parsed.data.mediaUrl ?? null,
       timeLimitSec: parsed.data.timeLimitSec ?? 20,
       sortOrder: count,
     },

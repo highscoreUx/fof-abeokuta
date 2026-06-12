@@ -66,8 +66,40 @@ export interface QuizLeaderboardEntry {
   accuracy: number;
 }
 
+export type TriviaQuestionType =
+  | "QUIZ"
+  | "TRUE_FALSE"
+  | "TYPE_ANSWER"
+  | "PUZZLE"
+  | "SLIDER"
+  | "PIN_ANSWER"
+  | "QUIZ_AUDIO";
+
+export interface TriviaQuestionConfig {
+  acceptedAnswers?: string[];
+  caseSensitive?: boolean;
+  items?: string[];
+  correctOrder?: number[];
+  min?: number;
+  max?: number;
+  correct?: number;
+  tolerance?: number;
+  pins?: Array<{ x: number; y: number }>;
+  pinTolerance?: number;
+}
+
+export interface TriviaAnswerPayload {
+  answerIndex?: number;
+  text?: string;
+  order?: number[];
+  value?: number;
+  pins?: Array<{ x: number; y: number }>;
+}
+
 export interface QuizQuestionResults {
-  correctIndex: number;
+  correctIndex?: number | null;
+  correctValue?: number | null;
+  correctOrder?: number[] | null;
   optionCounts: number[];
   topScorers: Array<{
     userId: string;
@@ -88,8 +120,11 @@ export interface QuizStateSnapshot {
   totalQuestions: number;
   currentQuestion?: {
     id: string;
+    type: TriviaQuestionType;
     text: string;
     options: string[];
+    config: TriviaQuestionConfig;
+    mediaUrl?: string | null;
     timeLimitSec: number;
   } | null;
   correctIndex?: number | null;
@@ -104,7 +139,8 @@ export interface QuizStateSnapshot {
 export interface QuizAnswerResult {
   sessionId: string;
   questionId: string;
-  answerIndex: number;
+  answerIndex?: number;
+  answerValue?: TriviaAnswerPayload;
   isCorrect: boolean;
   points: number;
   speedPoints: number;

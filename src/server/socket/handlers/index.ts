@@ -263,7 +263,14 @@ export function registerSocketHandlers(io: SocketIOServer) {
       });
     });
 
-    socket.on("quiz:answer", async (data: { sessionId: string; questionId: string; answerIndex: number }) => {
+    socket.on(
+      "quiz:answer",
+      async (data: {
+        sessionId: string;
+        questionId: string;
+        answerIndex?: number;
+        answerValue?: Record<string, unknown>;
+      }) => {
       try {
         const session = await prisma.quizSession.findUnique({
           where: { id: data.sessionId },
@@ -284,13 +291,14 @@ export function registerSocketHandlers(io: SocketIOServer) {
           return;
         }
 
+        const payload = data.answerValue ?? { answerIndex: data.answerIndex ?? -1 };
         const { result } = await submitQuizAnswer(
           io,
           data.sessionId,
           auth.userId,
           auth.teamId ?? null,
           data.questionId,
-          data.answerIndex,
+          payload,
         );
         socket.emit("quiz:answer:result", result);
       } catch (error) {
@@ -299,7 +307,8 @@ export function registerSocketHandlers(io: SocketIOServer) {
           message: error instanceof Error ? error.message : "Failed to submit answer",
         });
       }
-    });
+    },
+    );
 
     socket.on("quiz:admin:start", async (quizId: string) => {
       if (!socketCan(auth, "quiz.run")) return;

@@ -21,6 +21,9 @@ export type Permission =
   | "quiz.run"
   | "spin.manage"
   | "spin.run"
+  | "survey.manage"
+  | "survey.run"
+  | "survey.view_results"
   | "vote.list"
   | "vote.create"
   | "vote.manage"
@@ -37,6 +40,7 @@ export type Permission =
   | "participant.chat"
   | "participant.staff_chat"
   | "participant.quiz"
+  | "participant.survey"
   | "participant.vote"
   | "stage.view";
 
@@ -55,7 +59,7 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 1;
+export const PERMISSIONS_CATALOG_REVISION = 2;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
   "dashboard.view",
@@ -80,6 +84,9 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "quiz.run",
   "spin.manage",
   "spin.run",
+  "survey.manage",
+  "survey.run",
+  "survey.view_results",
   "vote.list",
   "vote.create",
   "vote.manage",
@@ -96,6 +103,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "participant.chat",
   "participant.staff_chat",
   "participant.quiz",
+  "participant.survey",
   "participant.vote",
   "stage.view",
 ] as const;
@@ -149,6 +157,9 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "quiz.run", label: "Run live trivia sessions" },
       { permission: "spin.manage", label: "Manage spin to build activities" },
       { permission: "spin.run", label: "Run spin to build sessions" },
+      { permission: "survey.manage", label: "Manage surveys" },
+      { permission: "survey.run", label: "Open and close surveys" },
+      { permission: "survey.view_results", label: "View survey results" },
     ],
   },
   {
@@ -193,6 +204,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "participant.chat", label: "Team chat" },
       { permission: "participant.staff_chat", label: "Staff group chat" },
       { permission: "participant.quiz", label: "Join live trivia activities" },
+      { permission: "participant.survey", label: "Complete surveys" },
       { permission: "participant.vote", label: "Cast votes" },
     ],
   },

@@ -58,6 +58,7 @@ async function main() {
 
   const kahootType = await prisma.activityType.findUnique({ where: { slug: "kahoot" } });
   const spinType = await prisma.activityType.findUnique({ where: { slug: "spin_to_build" } });
+  const surveyType = await prisma.activityType.findUnique({ where: { slug: "survey" } });
   if (kahootType) {
     await prisma.eventActivity.update({
       where: { eventId_activityTypeId: { eventId: event.id, activityTypeId: kahootType.id } },
@@ -68,6 +69,12 @@ async function main() {
     await prisma.eventActivity.update({
       where: { eventId_activityTypeId: { eventId: event.id, activityTypeId: spinType.id } },
       data: { enabled: true, allowGeneral: false, allowGroup: true },
+    });
+  }
+  if (surveyType) {
+    await prisma.eventActivity.update({
+      where: { eventId_activityTypeId: { eventId: event.id, activityTypeId: surveyType.id } },
+      data: { enabled: true, allowGeneral: true, allowGroup: true },
     });
   }
 

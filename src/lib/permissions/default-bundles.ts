@@ -35,6 +35,9 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
   "quiz.run",
   "spin.manage",
   "spin.run",
+  "survey.manage",
+  "survey.run",
+  "survey.view_results",
   "vote.list",
   "vote.create",
   "vote.manage",
@@ -50,6 +53,7 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
   "participant.chat",
   "participant.staff_chat",
   "participant.quiz",
+  "participant.survey",
   "participant.vote",
 ];
 
@@ -70,6 +74,7 @@ const PARTICIPANT_PERMISSIONS: Permission[] = [
   "participant.activities",
   "participant.chat",
   "participant.quiz",
+  "participant.survey",
   "participant.vote",
   "stage.view",
 ];

@@ -7,7 +7,15 @@ import {
   computeStreakBeforeAnswer,
   KAHOOT_RESULTS_DURATION_MS,
 } from "@/server/games/kahootScoring";
-import type { QuizAnswerResult, QuizQuestionResults, QuizStateSnapshot } from "@/types";
+import { scoreTriviaAnswer, toTriviaQuestionRecord } from "@/lib/trivia/scoring";
+import type {
+  QuizAnswerResult,
+  QuizQuestionResults,
+  QuizStateSnapshot,
+  TriviaAnswerPayload,
+  TriviaQuestionConfig,
+  TriviaQuestionType,
+} from "@/types";
 
 const activeTimers = new Map<string, NodeJS.Timeout>();
 
@@ -69,10 +77,21 @@ function buildLeaderboard(
 
 async function buildQuestionResults(
   sessionId: string,
-  question: { id: string; correctIndex: number; options: unknown },
+  question: {
+    id: string;
+    type: string;
+    correctIndex: number;
+    options: unknown;
+    config: unknown;
+  },
 ): Promise<QuizQuestionResults> {
-  const options = (question.options as string[]) ?? [];
-  const optionCounts = new Array(options.length).fill(0);
+  const record = toTriviaQuestionRecord({
+    ...question,
+    text: "",
+    timeLimitSec: 20,
+  });
+  const options = record.options;
+  const optionCounts = new Array(Math.max(options.length, 1)).fill(0);
 
   const answers = await prisma.quizAnswer.findMany({
     where: { sessionId, questionId: question.id },
@@ -86,8 +105,14 @@ async function buildQuestionResults(
     }
   }
 
+  const config = record.config;
   return {
-    correctIndex: question.correctIndex,
+    correctIndex:
+      record.type === "QUIZ" || record.type === "TRUE_FALSE" || record.type === "QUIZ_AUDIO"
+        ? question.correctIndex
+        : null,
+    correctValue: record.type === "SLIDER" ? (config.correct ?? question.correctIndex) : null,
+    correctOrder: record.type === "PUZZLE" ? (config.correctOrder ?? null) : null,
     optionCounts,
     topScorers: answers.slice(0, 5).map((a) => ({
       userId: a.userId,
@@ -152,8 +177,11 @@ export async function buildQuizSnapshot(sessionId: string): Promise<QuizStateSna
     currentQuestion: currentQuestion
       ? {
           id: currentQuestion.id,
+          type: currentQuestion.type as TriviaQuestionType,
           text: currentQuestion.text,
           options: (currentQuestion.options as string[]) ?? [],
+          config: (currentQuestion.config as TriviaQuestionConfig) ?? {},
+          mediaUrl: currentQuestion.mediaUrl,
           timeLimitSec: currentQuestion.timeLimitSec,
         }
       : null,
@@ -280,7 +308,7 @@ export async function submitQuizAnswer(
   userId: string,
   teamId: string | null,
   questionId: string,
-  answerIndex: number,
+  payload: TriviaAnswerPayload,
 ): Promise<{ answer: Awaited<ReturnType<typeof prisma.quizAnswer.create>>; result: QuizAnswerResult }> {
   const session = await prisma.quizSession.findUnique({
     where: { id: sessionId },
@@ -306,7 +334,8 @@ export async function submitQuizAnswer(
       result: {
         sessionId,
         questionId,
-        answerIndex: existing.answerIndex,
+        answerIndex: existing.answerIndex >= 0 ? existing.answerIndex : undefined,
+        answerValue: (existing.answerValue as TriviaAnswerPayload | null) ?? undefined,
         isCorrect: existing.isCorrect,
         points: existing.points,
         speedPoints: existing.points,
@@ -322,7 +351,9 @@ export async function submitQuizAnswer(
     };
   }
 
-  const isCorrect = question.correctIndex === answerIndex;
+  const record = toTriviaQuestionRecord(question);
+  const isCorrect = scoreTriviaAnswer(record, payload);
+  const answerIndex = payload.answerIndex ?? -1;
   const timeLimitMs = question.timeLimitSec * 1000;
   const responseTimeMs = session.questionStartedAt
     ? Math.max(0, Date.now() - session.questionStartedAt.getTime())
@@ -349,6 +380,7 @@ export async function submitQuizAnswer(
       userId,
       teamId,
       answerIndex,
+      answerValue: payload as object,
       points,
       responseTimeMs,
       isCorrect,
@@ -363,7 +395,8 @@ export async function submitQuizAnswer(
   const result: QuizAnswerResult = {
     sessionId,
     questionId,
-    answerIndex,
+    answerIndex: answerIndex >= 0 ? answerIndex : undefined,
+    answerValue: payload,
     isCorrect,
     points,
     speedPoints,

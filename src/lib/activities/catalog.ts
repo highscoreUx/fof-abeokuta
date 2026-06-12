@@ -2,8 +2,12 @@ import type { Permission } from "@/lib/permissions/catalog";
 
 export const ACTIVITY_KAHOOT = "kahoot" as const;
 export const ACTIVITY_SPIN_TO_BUILD = "spin_to_build" as const;
+export const ACTIVITY_SURVEY = "survey" as const;
 
-export type ActivitySlug = typeof ACTIVITY_KAHOOT | typeof ACTIVITY_SPIN_TO_BUILD;
+export type ActivitySlug =
+  | typeof ACTIVITY_KAHOOT
+  | typeof ACTIVITY_SPIN_TO_BUILD
+  | typeof ACTIVITY_SURVEY;
 
 export interface ActivityTypeDefinition {
   slug: ActivitySlug;
@@ -33,6 +37,15 @@ export const ACTIVITY_CATALOG: ActivityTypeDefinition[] = [
     runPermission: "spin.run",
     participantPermission: "participant.activities",
     sortOrder: 2,
+  },
+  {
+    slug: ACTIVITY_SURVEY,
+    name: "Survey",
+    description: "Collect opinions and feedback with polls, scales, word clouds, and more.",
+    managePermission: "survey.manage",
+    runPermission: "survey.run",
+    participantPermission: "participant.survey",
+    sortOrder: 3,
   },
 ];
 

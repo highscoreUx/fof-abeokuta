@@ -7,7 +7,8 @@ import { QuizPlayer } from "@/components/quiz/QuizPlayer";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useAuth } from "@/hooks/useAuth";
 import { hasAdminShellAccess } from "@/lib/permissions";
-import { ACTIVITY_KAHOOT, ACTIVITY_SPIN_TO_BUILD } from "@/lib/activities/catalog";
+import { SurveyPlayer } from "@/components/survey/SurveyPlayer";
+import { ACTIVITY_KAHOOT, ACTIVITY_SPIN_TO_BUILD, ACTIVITY_SURVEY } from "@/lib/activities/catalog";
 import { userHasEnabledActivity } from "@/lib/activities/client";
 import { Card, CardTitle } from "@/components/ui/card";
 
@@ -18,7 +19,8 @@ export function ParticipantActivitiesView() {
 
   const kahootEnabled = userHasEnabledActivity(user, ACTIVITY_KAHOOT);
   const spinEnabled = userHasEnabledActivity(user, ACTIVITY_SPIN_TO_BUILD);
-  const anyEnabled = kahootEnabled || spinEnabled;
+  const surveyEnabled = userHasEnabledActivity(user, ACTIVITY_SURVEY);
+  const anyEnabled = kahootEnabled || spinEnabled || surveyEnabled;
 
   return (
     <PermissionGuard permission="participant.activities" allowAdminShell>
@@ -32,6 +34,7 @@ export function ParticipantActivitiesView() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {surveyEnabled && <SurveyPlayer />}
             {spinEnabled && <SpinToBuild />}
             {kahootEnabled && <QuizPlayer />}
           </div>

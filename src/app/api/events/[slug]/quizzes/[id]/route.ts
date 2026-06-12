@@ -35,9 +35,13 @@ export async function GET(
         orderBy: { sortOrder: "asc" },
         select: {
           id: true,
+          type: true,
           text: true,
           options: true,
           correctIndex: true,
+          config: true,
+          mediaKey: true,
+          mediaUrl: true,
           timeLimitSec: true,
           sortOrder: true,
         },

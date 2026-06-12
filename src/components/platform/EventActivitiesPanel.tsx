@@ -75,12 +75,6 @@ export function EventActivitiesPanel({
           </p>
         </div>
       )}
-      {embedded && (
-        <p className="text-sm text-muted-foreground">
-          Enable activity types and choose which participant scopes event admins may use per
-          instance. Team scope means every team participates separately within their own team.
-        </p>
-      )}
       <div className="space-y-4">
         {activities.map((row) => (
           <div key={row.slug} className="rounded-lg border border-border p-4">

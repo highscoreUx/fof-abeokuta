@@ -56,7 +56,7 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
       <section className="space-y-4">
         <div>
           <h3 className="text-base font-semibold">Event details</h3>
@@ -64,7 +64,7 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
             Update the event title, description, and schedule. Slug stays the same after creation.
           </p>
         </div>
-        <div className="grid max-w-xl gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="settings-title">Title</Label>
             <Input
@@ -72,15 +72,6 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-            />
-          </div>
-          <div>
-            <Label htmlFor="settings-description">Description</Label>
-            <Input
-              id="settings-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional"
             />
           </div>
           <div>
@@ -93,6 +84,15 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
               required
             />
           </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="settings-description">Description</Label>
+            <Input
+              id="settings-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
         {saved && <p className="text-sm text-emerald-600">Settings saved.</p>}
@@ -101,7 +101,14 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
         </Button>
       </section>
 
-      <section className="border-t border-border pt-8">
+      <section className="space-y-4 lg:border-l lg:border-border lg:pl-8">
+        <div>
+          <h3 className="text-base font-semibold">Activities</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enable activity types and choose participant scopes. Team scope means each team
+            participates separately within their own team.
+          </p>
+        </div>
         <EventActivitiesPanel eventId={event.id} embedded />
       </section>
     </div>

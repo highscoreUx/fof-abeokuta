@@ -16,6 +16,7 @@ export function useChatRealtime(
   const socket = useSocket();
   const { user } = useAuth();
   const upsertMessage = useChatStore((s) => s.upsertMessage);
+  const setOnlineUserIds = useChatStore((s) => s.setOnlineUserIds);
   const teamRoomIds = useMemo(
     () => new Set(rooms.filter((room) => room.category === "team").map((room) => room.id)),
     [rooms],
@@ -88,12 +89,26 @@ export function useChatRealtime(
       upsertMessage(payload.targetRoomId, payload);
     };
 
+    const onPresenceState = (payload: { onlineUserIds: string[] }) => {
+      if (Array.isArray(payload.onlineUserIds)) {
+        setOnlineUserIds(payload.onlineUserIds);
+      }
+    };
+
+    const onPresenceUpdate = (payload: { onlineUserIds: string[] }) => {
+      if (Array.isArray(payload.onlineUserIds)) {
+        setOnlineUserIds(payload.onlineUserIds);
+      }
+    };
+
     instance.on("global:message", onGlobal);
     instance.on("staff:message", onStaff);
     instance.on("team:message", onTeam);
     instance.on("dm:message", onDm);
     instance.on("poll:update", onPollUpdate);
     instance.on(CHAT_SYSTEM_EVENT, onSystem);
+    instance.on("presence:state", onPresenceState);
+    instance.on("presence:update", onPresenceUpdate);
 
     return () => {
       instance.off("global:message", onGlobal);
@@ -102,6 +117,17 @@ export function useChatRealtime(
       instance.off("dm:message", onDm);
       instance.off("poll:update", onPollUpdate);
       instance.off(CHAT_SYSTEM_EVENT, onSystem);
+      instance.off("presence:state", onPresenceState);
+      instance.off("presence:update", onPresenceUpdate);
     };
-  }, [socket, teamRoomIds, dmRoomIds, hasStaffRoom, upsertMessage, user?.id, onIncomingDm]);
+  }, [
+    socket,
+    teamRoomIds,
+    dmRoomIds,
+    hasStaffRoom,
+    upsertMessage,
+    setOnlineUserIds,
+    user?.id,
+    onIncomingDm,
+  ]);
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
-import { ensureEventActivityRows } from "@/lib/activities/event-activities";
+import { ensureEventActivityRows, invalidateEventCaches } from "@/lib/activities/event-activities";
 
 export async function GET(
   _request: NextRequest,
@@ -90,6 +90,8 @@ export async function PATCH(
       },
     });
   }
+
+  await invalidateEventCaches(event.id, event.slug);
 
   const activities = await prisma.eventActivity.findMany({
     where: { eventId: event.id },

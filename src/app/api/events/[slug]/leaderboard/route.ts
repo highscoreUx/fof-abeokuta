@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext } from "@/lib/auth/event-middleware";
+import { buildCompetitionLeaderboard } from "@/lib/leaderboard";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -44,27 +45,6 @@ export async function GET(
     return NextResponse.json({ leaderboard });
   }
 
-  const teams = await prisma.team.findMany({ where: { eventId }, orderBy: { letter: "asc" } });
-  const scores = await prisma.score.findMany({ where: { team: { eventId } } });
-
-  const leaderboard = teams
-    .map((team) => {
-      const teamScores = scores.filter((s) => s.teamId === team.id);
-      const judgeIds = new Set(teamScores.map((s) => s.judgeId));
-      const totalPoints = teamScores.reduce((sum, s) => sum + s.points, 0);
-      const averageScore = judgeIds.size > 0 ? totalPoints / judgeIds.size : 0;
-      return {
-        teamId: team.id,
-        teamLetter: team.letter,
-        teamName: team.name,
-        averageScore: Math.round(averageScore * 100) / 100,
-        judgeCount: judgeIds.size,
-        totalPoints,
-        rank: 0,
-      };
-    })
-    .sort((a, b) => b.averageScore - a.averageScore)
-    .map((entry, index) => ({ ...entry, rank: index + 1 }));
-
+  const leaderboard = await buildCompetitionLeaderboard(eventId);
   return NextResponse.json({ leaderboard });
 }

@@ -24,6 +24,8 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
   );
   const participantsLoaded = useChatStore((s) => s.participantsLoaded[room.id] ?? false);
   const setParticipants = useChatStore((s) => s.setParticipants);
+  const setOnlineUserIds = useChatStore((s) => s.setOnlineUserIds);
+  const onlineUserIds = useChatStore((s) => s.onlineUserIds);
   const markParticipantsLoaded = useChatStore((s) => s.markParticipantsLoaded);
 
   useEffect(() => {
@@ -32,6 +34,9 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
     api<{ participants: ChatParticipant[] }>(`/chat/rooms/${room.id}/participants`)
       .then((data) => {
         setParticipants(room.id, data.participants);
+        setOnlineUserIds(
+          data.participants.filter((person) => person.online).map((person) => person.id),
+        );
         markParticipantsLoaded(room.id);
       })
       .catch(() => {
@@ -43,8 +48,13 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
     room.id,
     participantsLoaded,
     setParticipants,
+    setOnlineUserIds,
     markParticipantsLoaded,
   ]);
+
+  const onlineCount = participants.filter(
+    (person) => person.online || onlineUserIds[person.id],
+  ).length;
 
   return (
     <div
@@ -60,7 +70,7 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
         <p className="text-xs text-muted-foreground">
           {!participantsLoaded
             ? "Loading..."
-            : `${participants.length} in ${room.label}`}
+            : `${participants.length} in ${room.label}${onlineCount > 0 ? ` · ${onlineCount} online` : ""}`}
         </p>
       </div>
 
@@ -69,13 +79,21 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
           <p className="px-1 text-sm text-muted-foreground">No participants yet.</p>
         ) : (
           <ul className="space-y-1">
-            {participants.map((person) => (
+            {participants.map((person) => {
+              const isOnline = Boolean(person.online || onlineUserIds[person.id]);
+              return (
               <li
                 key={person.id}
                 className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-muted/60"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                   {initials(person.firstName, person.lastName)}
+                  {isOnline && (
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-success"
+                      aria-label="Online"
+                    />
+                  )}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
@@ -86,7 +104,8 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
                   </p>
                 </div>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </div>

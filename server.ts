@@ -3,6 +3,7 @@ import { parse } from "node:url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import "dotenv/config";
+import { recoverQuizTimers } from "./src/server/games/quizEngine";
 import { ensurePlatformBootstrap } from "./src/server/bootstrap";
 import { setIO } from "./src/server/socket/io";
 import { registerSocketHandlers } from "./src/server/socket/handlers";
@@ -38,6 +39,7 @@ app.prepare().then(async () => {
 
   setIO(io);
   registerSocketHandlers(io);
+  await recoverQuizTimers(io);
 
   httpServer.listen(port, hostname, () => {
     console.log(`> FOF Event Platform ready on http://${hostname}:${port}`);

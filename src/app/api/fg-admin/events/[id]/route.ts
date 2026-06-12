@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
+import { invalidateEventCaches } from "@/lib/cache/invalidate";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
 
@@ -25,6 +26,8 @@ export async function PATCH(
     return jsonError(parsed.error.message, "VALIDATION_ERROR", 400);
   }
 
+  const before = await prisma.event.findUnique({ where: { id }, select: { slug: true } });
+
   const event = await prisma.event.update({
     where: { id },
     data: {
@@ -34,6 +37,11 @@ export async function PATCH(
       status: parsed.data.status,
     },
   });
+
+  await invalidateEventCaches(event.id, before?.slug);
+  if (before?.slug && before.slug !== event.slug) {
+    await invalidateEventCaches(event.id, event.slug);
+  }
 
   return NextResponse.json({
     event: {

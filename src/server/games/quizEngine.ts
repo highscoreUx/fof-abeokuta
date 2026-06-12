@@ -1,4 +1,5 @@
 import type { Server as SocketIOServer } from "socket.io";
+import { CACHE_TTL, cacheGetOrSet, cacheDelete } from "@/lib/cache/index";
 import { prisma, withRetry } from "@/lib/prisma";
 import { eventRoom, quizRoom } from "@/server/socket/rooms";
 import {
@@ -19,6 +20,7 @@ import type {
 } from "@/types";
 
 const activeTimers = new Map<string, NodeJS.Timeout>();
+const pendingBroadcasts = new Map<string, NodeJS.Timeout>();
 
 function clearSessionTimer(sessionId: string) {
   const timer = activeTimers.get(sessionId);
@@ -132,7 +134,7 @@ async function buildQuestionResults(
   };
 }
 
-export async function buildQuizSnapshot(sessionId: string): Promise<QuizStateSnapshot | null> {
+async function buildQuizSnapshotFromDb(sessionId: string): Promise<QuizStateSnapshot | null> {
   const session = await prisma.quizSession.findUnique({
     where: { id: sessionId },
     include: {
@@ -202,7 +204,28 @@ export async function buildQuizSnapshot(sessionId: string): Promise<QuizStateSna
   };
 }
 
+export async function buildQuizSnapshot(sessionId: string): Promise<QuizStateSnapshot | null> {
+  return cacheGetOrSet(`quiz:snapshot:${sessionId}`, CACHE_TTL.quizSnapshot, () =>
+    buildQuizSnapshotFromDb(sessionId),
+  );
+}
+
+async function invalidateQuizSnapshot(sessionId: string) {
+  await cacheDelete(`quiz:snapshot:${sessionId}`);
+}
+
 export async function broadcastQuizState(io: SocketIOServer, sessionId: string) {
+  if (pendingBroadcasts.has(sessionId)) return;
+
+  const timer = setTimeout(() => {
+    pendingBroadcasts.delete(sessionId);
+    void broadcastQuizStateNow(io, sessionId);
+  }, 250);
+  pendingBroadcasts.set(sessionId, timer);
+}
+
+async function broadcastQuizStateNow(io: SocketIOServer, sessionId: string) {
+  await invalidateQuizSnapshot(sessionId);
   const snapshot = await buildQuizSnapshot(sessionId);
   if (!snapshot) return;
 
@@ -466,4 +489,42 @@ export async function endQuizGame(io: SocketIOServer, sessionId: string) {
   });
   await prisma.quiz.updateMany({ data: { active: false } });
   await broadcastQuizState(io, sessionId);
+}
+
+export async function recoverQuizTimers(io: SocketIOServer) {
+  const sessions = await prisma.quizSession.findMany({
+    where: { state: { in: ["QUESTION", "RESULTS"] } },
+    include: { quiz: { include: { questions: { orderBy: { sortOrder: "asc" } } } } },
+  });
+
+  for (const session of sessions) {
+    if (session.state === "QUESTION" && session.questionStartedAt) {
+      const question = session.quiz.questions[session.questionIndex];
+      if (!question) continue;
+
+      const elapsed = Date.now() - session.questionStartedAt.getTime();
+      const remaining = question.timeLimitSec * 1000 - elapsed;
+      clearSessionTimer(session.id);
+
+      if (remaining <= 0) {
+        void endQuestion(io, session.id);
+      } else {
+        const timer = setTimeout(() => void endQuestion(io, session.id), remaining);
+        activeTimers.set(session.id, timer);
+      }
+      continue;
+    }
+
+    if (session.state === "RESULTS" && session.resultsEndsAt) {
+      const remaining = session.resultsEndsAt.getTime() - Date.now();
+      clearSessionTimer(session.id);
+
+      if (remaining <= 0) {
+        void advanceFromResults(io, session.id);
+      } else {
+        const timer = setTimeout(() => void advanceFromResults(io, session.id), remaining);
+        activeTimers.set(session.id, timer);
+      }
+    }
+  }
 }

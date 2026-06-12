@@ -26,4 +26,5 @@ export interface ChatParticipant {
   lastName: string;
   teamLetter: string | null;
   roleName: string;
+  online?: boolean;
 }

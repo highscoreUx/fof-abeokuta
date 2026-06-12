@@ -6,6 +6,7 @@ Multi-event platform for FOF Abeokuta. Host many events from one deployment.
 
 - Next.js 16 + custom Node server (Socket.io)
 - Prisma 7 + PostgreSQL
+- Optional Upstash Redis (read cache + rate limits; in-memory fallback when unset)
 - pnpm
 - Platform admin: email + password at `/fg-admin`
 - Event access: username + password at `/login` (current event) or `/{slug}/login`
@@ -24,6 +25,8 @@ Multi-event platform for FOF Abeokuta. Host many events from one deployment.
 
 Set an event’s status to **LIVE** in platform admin to make it the current event at `/` and `/login`.
 
+If no events exist yet, `/` redirects to `/fg-admin/login`.
+
 ## Roles & passwords (per event)
 
 | Role | Password range |
@@ -33,7 +36,7 @@ Set an event’s status to **LIVE** in platform admin to make it the current eve
 | Judge | 2000–2999 |
 | Participant | 3000–3999 |
 
-Usernames are auto-assigned (`firstname.design-phrase`). Staff share credentials at check-in.
+Usernames are auto-assigned (`firstname.wireframe`). Staff share credentials at check-in. Only checked-in participants can sign in.
 
 ## Local Development
 
@@ -41,20 +44,23 @@ Usernames are auto-assigned (`firstname.design-phrase`). Staff share credentials
 cp .env.example .env
 pnpm install
 pnpm run db:migrate
-pnpm run db:seed
 pnpm dev
 ```
 
-**Platform admin** (after seed): `admin@fofabeokuta.com` / `fofadmin123`
+On first startup the server bootstraps activity types and a platform admin (no manual seed required).
 
-**Current event admin**: `/login` — username `admin.portal`, password `0001`
+**Platform admin** (defaults): `admin@fofabeokuta.com` / `fofadmin123`
 
-## Create Events
+Create events at `/fg-admin` after signing in.
 
-1. Sign in at `/fg-admin` with platform credentials
-2. Create an event — slug is auto-generated from the title
-3. Set status to **LIVE** when it should be the public homepage
-4. Share `/` and `/login`, or `/{slug}` and `/{slug}/login` for direct links
+## Redis (optional, recommended for production)
+
+Add Upstash REST credentials to cache hot reads and rate-limit login attempts. All cached keys use TTLs and fall back to PostgreSQL if Redis is unavailable or evicts entries.
+
+```env
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+```
 
 ## Media storage (optional)
 
@@ -65,16 +71,12 @@ STORAGE_PROVIDER=cloudinary   # or r2
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
-# R2 (S3-compatible):
-# R2_ACCOUNT_ID=...
-# R2_ACCESS_KEY_ID=...
-# R2_SECRET_ACCESS_KEY=...
-# R2_BUCKET=...
-# R2_PUBLIC_URL=https://...
 ```
 
-## Deploy to Render
+## Deploy
 
-Build: `corepack enable && pnpm install && pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm run build`
+Build: `pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm run build`
 
 Start: `pnpm start`
+
+Configure env vars on your host (Render, etc.): `DATABASE_URL`, JWT secrets, `NEXT_PUBLIC_APP_URL`, platform admin credentials, and optionally Upstash Redis.

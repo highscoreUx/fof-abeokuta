@@ -6,6 +6,7 @@ import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { STAFF_CHAT_ROLE_SLUGS, STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isUserOnline } from "@/server/presence";
 
 const participantSelect = {
   id: true,
@@ -41,6 +42,7 @@ export async function GET(
         lastName: user.lastName,
         teamLetter: user.team?.letter ?? null,
         roleName: user.eventUserRole.name,
+        online: isUserOnline(user.id),
       })),
     });
   }
@@ -66,6 +68,7 @@ export async function GET(
         lastName: user.lastName,
         teamLetter: user.team?.letter ?? null,
         roleName: user.eventUserRole.name,
+        online: isUserOnline(user.id),
       })),
     });
   }
@@ -86,6 +89,7 @@ export async function GET(
           lastName: peer.lastName,
           teamLetter: peer.team?.letter ?? null,
           roleName: peer.eventUserRole.name,
+          online: isUserOnline(peer.id),
         },
       ],
     });
@@ -112,6 +116,7 @@ export async function GET(
       lastName: user.lastName,
       teamLetter: user.team?.letter ?? null,
       roleName: user.eventUserRole.name,
+      online: isUserOnline(user.id),
     })),
   });
 }

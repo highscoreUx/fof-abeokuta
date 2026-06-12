@@ -1,5 +1,15 @@
 import { prisma } from "@/lib/prisma";
+import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
+import { invalidateEventCaches } from "@/lib/cache/invalidate";
 import { ACTIVITY_CATALOG, type EnabledActivitySnapshot } from "@/lib/activities/catalog";
+
+export interface CachedEventActivityRow {
+  slug: string;
+  enabled: boolean;
+  allowGeneral: boolean;
+  allowGroup: boolean;
+  allowStaff: boolean;
+}
 
 function defaultEventActivityConfig(slug: string) {
   if (slug === "kahoot") {
@@ -36,18 +46,56 @@ export async function seedActivityTypes() {
 export async function ensureEventActivityRows(eventId: string) {
   await seedActivityTypes();
   const types = await prisma.activityType.findMany({ orderBy: { sortOrder: "asc" } });
+  let created = false;
+
   for (const type of types) {
     const defaults = defaultEventActivityConfig(type.slug);
-    await prisma.eventActivity.upsert({
+    const existing = await prisma.eventActivity.findUnique({
       where: { eventId_activityTypeId: { eventId, activityTypeId: type.id } },
-      update: {},
-      create: {
+    });
+    if (existing) continue;
+
+    await prisma.eventActivity.create({
+      data: {
         eventId,
         activityTypeId: type.id,
         ...defaults,
       },
     });
+    created = true;
   }
+
+  if (created) {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { slug: true },
+    });
+    await invalidateEventCaches(eventId, event?.slug);
+  }
+}
+
+async function loadActivityRowsFromDb(eventId: string): Promise<CachedEventActivityRow[]> {
+  const rows = await prisma.eventActivity.findMany({
+    where: { eventId },
+    include: { activityType: true },
+    orderBy: { activityType: { sortOrder: "asc" } },
+  });
+
+  return rows.map((row) => ({
+    slug: row.activityType.slug,
+    enabled: row.enabled,
+    allowGeneral: row.allowGeneral,
+    allowGroup: row.allowGroup,
+    allowStaff: row.allowStaff,
+  }));
+}
+
+export async function getCachedEventActivities(eventId: string): Promise<CachedEventActivityRow[]> {
+  return cacheGetOrSet(
+    `event:id:${eventId}:activities`,
+    CACHE_TTL.activities,
+    () => loadActivityRowsFromDb(eventId),
+  );
 }
 
 export async function loadEventActivities(eventId: string) {
@@ -62,11 +110,11 @@ export async function loadEventActivities(eventId: string) {
 export async function loadEnabledActivitiesSnapshot(
   eventId: string,
 ): Promise<EnabledActivitySnapshot[]> {
-  const rows = await loadEventActivities(eventId);
+  const rows = await getCachedEventActivities(eventId);
   return rows
     .filter((row) => row.enabled)
     .map((row) => ({
-      slug: row.activityType.slug as EnabledActivitySnapshot["slug"],
+      slug: row.slug as EnabledActivitySnapshot["slug"],
       allowGeneral: row.allowGeneral,
       allowGroup: row.allowGroup,
       allowStaff: row.allowStaff,
@@ -83,14 +131,22 @@ function slugCandidates(activitySlug: string): string[] {
 }
 
 export async function getEventActivityBySlug(eventId: string, activitySlug: string) {
-  await ensureEventActivityRows(eventId);
+  const rows = await getCachedEventActivities(eventId);
+  const candidates = slugCandidates(activitySlug);
+  const cached = rows.find((row) => candidates.includes(row.slug));
+  if (!cached) return null;
+
   return prisma.eventActivity.findFirst({
-    where: { eventId, activityType: { slug: { in: slugCandidates(activitySlug) } } },
+    where: { eventId, activityType: { slug: { in: candidates } } },
     include: { activityType: true },
   });
 }
 
 export async function isActivityEnabledForEvent(eventId: string, activitySlug: string) {
-  const row = await getEventActivityBySlug(eventId, activitySlug);
+  const rows = await getCachedEventActivities(eventId);
+  const candidates = slugCandidates(activitySlug);
+  const row = rows.find((r) => candidates.includes(r.slug));
   return Boolean(row?.enabled);
 }
+
+export { invalidateEventCaches };

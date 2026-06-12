@@ -1,3 +1,4 @@
+import { CACHE_TTL, cacheGetOrSet, cacheDelete } from "@/lib/cache/index";
 import { prisma } from "@/lib/prisma";
 import {
   permissionsFingerprint,
@@ -20,7 +21,7 @@ export interface SessionAuthContext {
   eventId: string;
 }
 
-export async function loadSessionAuthContext(userId: string): Promise<SessionAuthContext | null> {
+async function loadSessionAuthContextFromDb(userId: string): Promise<SessionAuthContext | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -46,6 +47,16 @@ export async function loadSessionAuthContext(userId: string): Promise<SessionAut
     teamId: user.teamId,
     eventId: user.eventId,
   };
+}
+
+export async function loadSessionAuthContext(userId: string): Promise<SessionAuthContext | null> {
+  return cacheGetOrSet(`session:ctx:${userId}`, CACHE_TTL.session, () =>
+    loadSessionAuthContextFromDb(userId),
+  );
+}
+
+export async function invalidateSessionAuthContext(userId: string) {
+  await cacheDelete(`session:ctx:${userId}`);
 }
 
 export function assertSessionVersions(

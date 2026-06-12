@@ -77,7 +77,7 @@ export async function PATCH(
   }
 
   if (body.teamChatEnabled !== undefined) {
-    await setTeamChatEnabled(ctx.event.id, Boolean(body.teamChatEnabled));
+    await setTeamChatEnabled(ctx.event.id, Boolean(body.teamChatEnabled), slug);
   }
 
   return NextResponse.json({ success: true });

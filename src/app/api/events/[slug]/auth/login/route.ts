@@ -16,6 +16,7 @@ import { jsonError } from "@/lib/auth/middleware";
 import { requireEventBySlug } from "@/lib/events";
 import { resolvePermissionsFromRole } from "@/lib/event-user-roles";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
+import { rateLimitAllow } from "@/lib/cache/index";
 
 export async function POST(
   request: NextRequest,
@@ -34,6 +35,12 @@ export async function POST(
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(parsed.error.issues[0]?.message ?? "Invalid credentials", "VALIDATION_ERROR", 400);
+  }
+
+  const rateKey = `${event.id}:${parsed.data.username.trim().toLowerCase()}`;
+  const allowed = await rateLimitAllow(`login:${rateKey}`, 15, 300);
+  if (!allowed) {
+    return jsonError("Too many login attempts. Try again in a few minutes.", "RATE_LIMITED", 429);
   }
 
   const user = await findUserByCredentials(event.id, parsed.data.username, parsed.data.password);

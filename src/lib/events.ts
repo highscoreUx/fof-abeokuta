@@ -2,6 +2,8 @@ import slugify from "slugify";
 import { FIGMA_TEAMS } from "@/lib/figma-teams";
 import { seedDefaultEventUserRoles } from "@/lib/event-user-roles";
 import { ensureEventActivityRows, seedActivityTypes } from "@/lib/activities/event-activities";
+import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
+import { invalidateEventBySlug } from "@/lib/cache/invalidate";
 import { prisma } from "@/lib/prisma";
 
 export { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
@@ -18,8 +20,12 @@ export function slugifyEventTitle(title: string): string {
 }
 
 export async function getEventBySlug(slug: string) {
-  return prisma.event.findUnique({ where: { slug } });
+  return cacheGetOrSet(`event:slug:${slug}`, CACHE_TTL.event, () =>
+    prisma.event.findUnique({ where: { slug } }),
+  );
 }
+
+export { invalidateEventBySlug };
 
 export async function requireEventBySlug(slug: string) {
   const event = await getEventBySlug(slug);

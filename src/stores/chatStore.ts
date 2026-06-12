@@ -9,6 +9,7 @@ export const EMPTY_CHAT_PARTICIPANTS: ChatParticipant[] = [];
 interface ChatStore {
   messagesByRoom: Record<string, ChatMessage[]>;
   participantsByRoom: Record<string, ChatParticipant[]>;
+  onlineUserIds: Record<string, boolean>;
   draftsByRoom: Record<string, string>;
   replyToByRoom: Record<string, ChatReplyRef | null>;
   messagesLoaded: Record<string, boolean>;
@@ -18,6 +19,8 @@ interface ChatStore {
   upsertMessage: (roomId: string, message: ChatMessage) => void;
   removeMessage: (roomId: string, messageId: string) => void;
   setParticipants: (roomId: string, participants: ChatParticipant[]) => void;
+  setOnlineUserIds: (userIds: string[]) => void;
+  patchParticipantOnline: (userId: string, online: boolean) => void;
   setDraft: (roomId: string, draft: string) => void;
   setReplyTo: (roomId: string, reply: ChatReplyRef | null) => void;
   markMessagesLoaded: (roomId: string) => void;
@@ -27,6 +30,7 @@ interface ChatStore {
 export const useChatStore = create<ChatStore>((set) => ({
   messagesByRoom: {},
   participantsByRoom: {},
+  onlineUserIds: {},
   draftsByRoom: {},
   replyToByRoom: {},
   messagesLoaded: {},
@@ -87,6 +91,39 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       participantsByRoom: { ...state.participantsByRoom, [roomId]: participants },
     })),
+
+  setOnlineUserIds: (userIds) =>
+    set((state) => {
+      const onlineSet = new Set(userIds);
+      const onlineUserIds: Record<string, boolean> = {};
+      for (const id of userIds) onlineUserIds[id] = true;
+
+      const participantsByRoom: Record<string, ChatParticipant[]> = {};
+      for (const [roomId, list] of Object.entries(state.participantsByRoom)) {
+        participantsByRoom[roomId] = list.map((person) => ({
+          ...person,
+          online: onlineSet.has(person.id),
+        }));
+      }
+
+      return { onlineUserIds, participantsByRoom };
+    }),
+
+  patchParticipantOnline: (userId, online) =>
+    set((state) => {
+      const nextOnline = { ...state.onlineUserIds };
+      if (online) nextOnline[userId] = true;
+      else delete nextOnline[userId];
+
+      const participantsByRoom: Record<string, ChatParticipant[]> = {};
+      for (const [roomId, list] of Object.entries(state.participantsByRoom)) {
+        participantsByRoom[roomId] = list.map((person) =>
+          person.id === userId ? { ...person, online } : person,
+        );
+      }
+
+      return { onlineUserIds: nextOnline, participantsByRoom };
+    }),
 
   setDraft: (roomId, draft) =>
     set((state) => ({

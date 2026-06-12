@@ -9,10 +9,11 @@ import { setIO } from "./src/server/socket/io";
 import { registerSocketHandlers } from "./src/server/socket/handlers";
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOSTNAME ?? "0.0.0.0";
+/** Always bind all interfaces in containers. Do not use OS HOSTNAME (Render sets it to the pod id). */
+const bindHost = process.env.BIND_HOST ?? "0.0.0.0";
 const port = parseInt(process.env.PORT ?? "3000", 10);
 
-const app = next({ dev, hostname, port });
+const app = next({ dev, hostname: bindHost, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(async () => {
@@ -39,10 +40,17 @@ app.prepare().then(async () => {
 
   setIO(io);
   registerSocketHandlers(io);
-  await recoverQuizTimers(io);
 
-  httpServer.listen(port, hostname, () => {
-    console.log(`> FOF Event Platform ready on http://${hostname}:${port}`);
+  try {
+    await recoverQuizTimers(io);
+  } catch (error) {
+    console.warn("[startup] Quiz timer recovery skipped:", error);
+  }
+
+  httpServer.listen(port, bindHost, () => {
+    const publicUrl = process.env.NEXT_PUBLIC_APP_URL;
+    console.log(`> FOF Event Platform listening on ${bindHost}:${port}`);
+    if (publicUrl) console.log(`> Public URL: ${publicUrl}`);
   });
 }).catch((error) => {
   console.error("Failed to start server:", error);

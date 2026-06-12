@@ -5,18 +5,18 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { QuestionFormFields } from "@/components/admin/QuestionFormFields";
+import { TriviaQuestionFormFields } from "@/components/admin/TriviaQuestionFormFields";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useAuthStore } from "@/stores/authStore";
 import { privateApi } from "@/lib/axios";
 import { TRIVIA_TYPE_LABELS } from "@/lib/trivia/types";
 import type { TriviaQuestionType } from "@/lib/trivia/types";
 import {
-  emptyQuestionDraft,
-  questionDraftToPayload,
-  validateQuestionDraft,
-  type QuestionDraft,
-} from "@/lib/quiz-question-form";
+  buildTriviaQuestionPayload,
+  defaultFormStateForType,
+  validateTriviaQuestionForm,
+} from "@/lib/trivia/question-form-defaults";
+import type { QuestionDraft } from "@/lib/quiz-question-form";
 
 interface AddQuestionModalProps {
   open: boolean;
@@ -28,31 +28,36 @@ interface AddQuestionModalProps {
 export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestionModalProps) {
   const { api, path } = useEventApi();
   const [questionType, setQuestionType] = useState<TriviaQuestionType>("QUIZ");
-  const [draft, setDraft] = useState<QuestionDraft>(emptyQuestionDraft());
+  const [draft, setDraft] = useState<QuestionDraft>(defaultFormStateForType("QUIZ").draft);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const resetForType = (type: TriviaQuestionType) => {
+    const defaults = defaultFormStateForType(type);
+    setDraft(defaults.draft);
+    setConfig(defaults.config);
+    setMediaUrl(null);
+    setError(null);
+  };
+
   useEffect(() => {
     if (!open) {
       setQuestionType("QUIZ");
-      setDraft(emptyQuestionDraft());
-      setConfig({});
-      setMediaUrl(null);
-      setError(null);
+      resetForType("QUIZ");
     }
   }, [open]);
 
-  useEffect(() => {
-    if (questionType === "TRUE_FALSE") {
-      setDraft((d) => ({ ...d, options: ["True", "False"] }));
-    }
-  }, [questionType]);
+  const handleTypeChange = (type: TriviaQuestionType) => {
+    setQuestionType(type);
+    resetForType(type);
+  };
 
   const uploadMedia = async (file: File) => {
     setUploading(true);
+    setError(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -73,63 +78,20 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
     }
   };
 
-  const buildPayload = () => {
-    const base = questionDraftToPayload(draft);
-    let options = base.options;
-    let correctIndex = base.correctIndex;
-    const mergedConfig = { ...config };
-
-    if (questionType === "TRUE_FALSE") {
-      options = ["True", "False"];
-    }
-    if (questionType === "PUZZLE") {
-      mergedConfig.items = options;
-      mergedConfig.correctOrder = options.map((_, i) => i);
-    }
-    if (questionType === "TYPE_ANSWER") {
-      mergedConfig.acceptedAnswers = options.length ? options : [draft.text];
-      options = options.length ? options : ["answer"];
-    }
-    if (questionType === "SLIDER") {
-      mergedConfig.min = mergedConfig.min ?? 0;
-      mergedConfig.max = mergedConfig.max ?? 100;
-      mergedConfig.correct = mergedConfig.correct ?? correctIndex;
-      mergedConfig.tolerance = mergedConfig.tolerance ?? 2;
-    }
-    if (questionType === "PIN_ANSWER") {
-      mergedConfig.pins = mergedConfig.pins ?? [{ x: 0.5, y: 0.5 }];
-      mergedConfig.pinTolerance = mergedConfig.pinTolerance ?? 0.08;
-    }
-
-    return {
-      type: questionType,
-      text: base.text,
-      options,
-      correctIndex,
-      config: mergedConfig,
-      mediaUrl,
-      timeLimitSec: base.timeLimitSec,
-    };
-  };
-
   const handleSubmit = async () => {
-    if (questionType === "QUIZ" || questionType === "QUIZ_AUDIO" || questionType === "TRUE_FALSE") {
-      const validation = validateQuestionDraft(draft);
-      if (validation) {
-        setError(validation);
-        return;
-      }
-    } else if (!draft.text.trim()) {
-      setError("Question text is required.");
+    const validation = validateTriviaQuestionForm(questionType, draft, config, mediaUrl);
+    if (validation) {
+      setError(validation);
       return;
     }
 
     setSaving(true);
     setError(null);
     try {
+      const payload = buildTriviaQuestionPayload(questionType, draft, config, mediaUrl);
       await api(`/quizzes/${quizId}/questions`, {
         method: "POST",
-        body: JSON.stringify(buildPayload()),
+        body: JSON.stringify(payload),
       });
       onClose();
       await onAdded();
@@ -139,6 +101,9 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
       setSaving(false);
     }
   };
+
+  const needsMediaUpload =
+    questionType === "PIN_ANSWER" || questionType === "QUIZ_AUDIO";
 
   return (
     <Modal
@@ -155,7 +120,7 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
             <Select
               className="w-full"
               value={questionType}
-              onChange={(e) => setQuestionType(e.target.value as TriviaQuestionType)}
+              onChange={(e) => handleTypeChange(e.target.value as TriviaQuestionType)}
             >
               {Object.entries(TRIVIA_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -179,7 +144,7 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
           </div>
         </div>
 
-        {(questionType === "PIN_ANSWER" || questionType === "QUIZ_AUDIO") && (
+        {needsMediaUpload && (
           <label className="block">
             <span className="mb-1 block text-xs text-muted-foreground">
               {questionType === "QUIZ_AUDIO" ? "Audio file" : "Image"}
@@ -193,38 +158,22 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
                 if (file) void uploadMedia(file);
               }}
             />
-            {mediaUrl && <p className="mt-1 text-xs text-success">Uploaded</p>}
+            {mediaUrl && questionType === "QUIZ_AUDIO" && (
+              <audio controls src={mediaUrl} className="mt-2 w-full" />
+            )}
+            {mediaUrl && questionType === "PIN_ANSWER" && (
+              <p className="mt-1 text-xs text-success">Image uploaded — set pin below</p>
+            )}
           </label>
         )}
 
-        {questionType === "SLIDER" && (
-          <div className="grid grid-cols-3 gap-2">
-            <Input
-              type="number"
-              placeholder="Min"
-              onChange={(e) => setConfig((c) => ({ ...c, min: Number(e.target.value) }))}
-            />
-            <Input
-              type="number"
-              placeholder="Max"
-              onChange={(e) => setConfig((c) => ({ ...c, max: Number(e.target.value) }))}
-            />
-            <Input
-              type="number"
-              placeholder="Correct"
-              onChange={(e) => setConfig((c) => ({ ...c, correct: Number(e.target.value) }))}
-            />
-          </div>
-        )}
-
-        <QuestionFormFields
-          draft={
-            questionType === "TRUE_FALSE"
-              ? { ...draft, options: ["True", "False"] }
-              : draft
-          }
-          onChange={setDraft}
-          showTimeLimit={false}
+        <TriviaQuestionFormFields
+          questionType={questionType}
+          draft={draft}
+          config={config}
+          mediaUrl={mediaUrl}
+          onDraftChange={setDraft}
+          onConfigChange={setConfig}
         />
 
         {error && <p className="text-sm text-danger">{error}</p>}

@@ -1,13 +1,16 @@
 import { Suspense } from "react";
+import { GuestHomeRedirect } from "@/components/auth/GuestHomeRedirect";
 import { LatestEventScope } from "@/components/event/LatestEventScope";
 import { ParticipantView } from "@/_views/participant/ParticipantView";
 
 export default async function HomePage() {
   return (
     <LatestEventScope>
-      <Suspense fallback={null}>
-        <ParticipantView />
-      </Suspense>
+      <GuestHomeRedirect>
+        <Suspense fallback={null}>
+          <ParticipantView />
+        </Suspense>
+      </GuestHomeRedirect>
     </LatestEventScope>
   );
 }

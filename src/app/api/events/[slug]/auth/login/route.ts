@@ -51,6 +51,18 @@ export async function POST(
       });
     }
 
+    if ("registered" in result && result.registered === false) {
+      const response = NextResponse.json({
+        accessToken: result.accessToken,
+        account: result.account,
+        eventSlug: slug,
+        registered: false,
+      });
+      response.cookies.set(REFRESH_COOKIE_NAME, result.refreshToken, getRefreshCookieOptions());
+      response.cookies.set(EVENT_SLUG_COOKIE, slug, getRefreshCookieOptions());
+      return response;
+    }
+
     const response = NextResponse.json({
       accessToken: result.accessToken,
       user: result.user,

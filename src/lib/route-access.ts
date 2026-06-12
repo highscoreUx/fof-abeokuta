@@ -96,6 +96,7 @@ function canAccessEventPath(permissions: RolePermission[], path: string): boolea
 export function canAccessPath(permissions: RolePermission[], targetPath: string): boolean {
   const pathname = normalizePathname(targetPath);
   if (pathname === "/login" || pathname === "/change-password") return true;
+  if (pathname === "/not-registered" || pathname.endsWith("/not-registered")) return true;
   if (pathname === "/fg-admin/access-denied") return true;
   if (isPlatformPath(pathname)) {
     return canAccessPlatform(permissions);

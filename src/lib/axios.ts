@@ -42,9 +42,13 @@ export async function refreshAccessToken(): Promise<boolean> {
       accessToken: string;
       user?: AuthUser;
       account?: AccountSession;
+      eventSlug?: string;
+      registered?: boolean;
     }>(SESSION_REFRESH_PATH);
     if (data.user) {
       useAuthStore.getState().setEventAuth(data.accessToken, data.user);
+    } else if (data.account && data.registered === false && data.eventSlug) {
+      useAuthStore.getState().setGuestEventAuth(data.accessToken, data.account, data.eventSlug);
     } else if (data.account) {
       useAuthStore.getState().setAccountAuth(data.accessToken, data.account);
     } else {

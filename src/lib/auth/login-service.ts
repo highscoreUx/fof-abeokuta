@@ -82,11 +82,19 @@ export async function loginToEvent(
   });
 
   if (!user) {
-    throw new LoginError(
-      "No registration found for this event. Contact event staff.",
-      "NOT_REGISTERED",
-      403,
-    );
+    const refreshToken = await createRefreshToken({
+      accountId: account.id,
+      eventId,
+    });
+
+    return {
+      mustChangePassword: false as const,
+      accessToken: signAccountAccessToken(accountAccessTokenFields(account)),
+      refreshToken,
+      account: serializeAccount(account),
+      eventSlug,
+      registered: false as const,
+    };
   }
 
   if (!canUserSignIn(user)) {

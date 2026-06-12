@@ -22,6 +22,8 @@ type LoginResponse =
       accessToken: string;
       user?: AuthUser;
       account?: AccountSession;
+      eventSlug?: string;
+      registered?: boolean;
     };
 
 interface UseLoginOptions {
@@ -35,6 +37,7 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
   const next = searchParams.get("next");
   const setEventAuth = useAuthStore((s) => s.setEventAuth);
   const setAccountAuth = useAuthStore((s) => s.setAccountAuth);
+  const setGuestEventAuth = useAuthStore((s) => s.setGuestEventAuth);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -79,6 +82,17 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
         return;
       }
 
+      if (
+        "account" in data &&
+        data.account &&
+        data.registered === false &&
+        data.eventSlug
+      ) {
+        setGuestEventAuth(data.accessToken, data.account, data.eventSlug);
+        router.push(`/${data.eventSlug}/not-registered`);
+        return;
+      }
+
       if ("user" in data && data.user) {
         setEventAuth(data.accessToken, data.user);
         const userPrefix = data.user.eventSlug ? `/${data.user.eventSlug}` : pathPrefix;
@@ -113,7 +127,7 @@ export function useLogin({ eventSlug, pathPrefix = "" }: UseLoginOptions = {}) {
 
       throw new Error("Login failed");
     },
-    [eventSlug, next, pathPrefix, router, setAccountAuth, setEventAuth],
+    [eventSlug, next, pathPrefix, router, setAccountAuth, setEventAuth, setGuestEventAuth],
   );
 
   return { login, next };

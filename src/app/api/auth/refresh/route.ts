@@ -8,6 +8,8 @@ import {
 } from "@/lib/auth/cookies";
 import { AccountSessionRefreshError, refreshAccountSession } from "@/lib/auth/account-session";
 import { EventSessionRefreshError, refreshEventSession } from "@/lib/auth/event-session";
+import { refreshGuestEventSession } from "@/lib/auth/event-guest-session";
+import { verifyRefreshToken } from "@/lib/auth/jwt";
 import { jsonError } from "@/lib/auth/middleware";
 
 export async function POST() {
@@ -20,10 +22,30 @@ export async function POST() {
 
   try {
     if (slug) {
-      const session = await refreshEventSession(slug, refreshToken);
+      let userId: string | undefined;
+      try {
+        ({ userId } = verifyRefreshToken(refreshToken));
+      } catch {
+        return jsonError("Invalid refresh token", "INVALID_REFRESH_TOKEN", 401);
+      }
+
+      if (userId) {
+        const session = await refreshEventSession(slug, refreshToken);
+        const response = NextResponse.json({
+          accessToken: session.accessToken,
+          user: session.user,
+        });
+        response.cookies.set(REFRESH_COOKIE_NAME, session.refreshToken, getRefreshCookieOptions());
+        response.cookies.set(EVENT_SLUG_COOKIE, session.slug, getRefreshCookieOptions());
+        return response;
+      }
+
+      const session = await refreshGuestEventSession(slug, refreshToken);
       const response = NextResponse.json({
         accessToken: session.accessToken,
-        user: session.user,
+        account: session.account,
+        eventSlug: session.slug,
+        registered: false,
       });
       response.cookies.set(REFRESH_COOKIE_NAME, session.refreshToken, getRefreshCookieOptions());
       response.cookies.set(EVENT_SLUG_COOKIE, session.slug, getRefreshCookieOptions());

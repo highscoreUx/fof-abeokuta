@@ -22,10 +22,12 @@ interface AuthState {
   accessToken: string | null;
   user: AuthUser | null;
   account: AccountSession | null;
+  guestEventSlug: string | null;
   isHydrated: boolean;
   isHydrating: boolean;
   setEventAuth: (accessToken: string, user: AuthUser) => void;
   setAccountAuth: (accessToken: string, account: AccountSession) => void;
+  setGuestEventAuth: (accessToken: string, account: AccountSession, eventSlug: string) => void;
   setAuth: (accessToken: string, user: AuthUser) => void;
   setAccessToken: (accessToken: string | null) => void;
   clearAuth: () => void;
@@ -36,6 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
   account: null,
+  guestEventSlug: null,
   isHydrated: false,
   isHydrating: false,
 
@@ -44,6 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken,
       user,
       account: null,
+      guestEventSlug: null,
       isHydrated: true,
     }),
 
@@ -52,6 +56,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken,
       user: null,
       account,
+      guestEventSlug: null,
+      isHydrated: true,
+    }),
+
+  setGuestEventAuth: (accessToken, account, eventSlug) =>
+    set({
+      accessToken,
+      user: null,
+      account,
+      guestEventSlug: eventSlug,
       isHydrated: true,
     }),
 
@@ -64,6 +78,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: null,
       user: null,
       account: null,
+      guestEventSlug: null,
       isHydrated: true,
     }),
 
@@ -74,7 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isHydrating: true });
 
     try {
-      if (state.accessToken && (state.user || state.account)) {
+      if (state.accessToken && (state.user || state.account || state.guestEventSlug)) {
         set({ isHydrated: true });
         return;
       }

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { GuestHomeRedirect } from "@/components/auth/GuestHomeRedirect";
 import { EventScopeProvider } from "@/contexts/EventScopeContext";
 import { ParticipantView } from "@/_views/participant/ParticipantView";
 
@@ -11,9 +12,11 @@ export default async function HomePage({
 
   return (
     <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <Suspense fallback={null}>
-        <ParticipantView />
-      </Suspense>
+      <GuestHomeRedirect>
+        <Suspense fallback={null}>
+          <ParticipantView />
+        </Suspense>
+      </GuestHomeRedirect>
     </EventScopeProvider>
   );
 }

@@ -42,6 +42,11 @@ function loginRedirect(request: NextRequest, returnTo: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hasRefresh = request.cookies.has("fof_refresh_token");
+
+  if (pathname === "/login" && hasRefresh) {
+    return NextResponse.redirect(new URL("/home", request.url));
+  }
 
   if (
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
@@ -64,10 +69,6 @@ export function proxy(request: NextRequest) {
     const slug = legacyEventLogin[1];
     const next = request.nextUrl.searchParams.get("next") ?? `/${slug}/home`;
     return loginRedirect(request, next);
-  }
-
-  if (pathname === "/login") {
-    return NextResponse.next();
   }
 
   const eventLoginSlidesMatch = pathname.match(/^\/api\/events\/([^/]+)\/login-slides$/);
@@ -94,7 +95,6 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hasRefresh = request.cookies.has("fof_refresh_token");
   const returnTo = `${pathname}${request.nextUrl.search}`;
 
   if (pathname.startsWith("/fg-admin")) {

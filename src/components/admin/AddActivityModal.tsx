@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   ACTIVITY_CATALOG,
   ACTIVITY_KAHOOT,
@@ -54,6 +55,7 @@ export function AddActivityModal({
   const [error, setError] = useState<string | null>(null);
 
   const selectedConfig = eventActivities.find((a) => a.slug === type);
+  const selectedType = creatableTypes.find((entry) => entry.slug === type);
 
   useEffect(() => {
     if (!open) return;
@@ -112,34 +114,6 @@ export function AddActivityModal({
     >
       <div className="space-y-5">
         <div>
-          <p className="mb-2 text-sm font-medium">Activity type</p>
-          <div className="grid gap-2">
-            {creatableTypes.map((entry) => (
-              <label
-                key={entry.slug}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
-                  type === entry.slug
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-foreground/5"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="activity-type"
-                  className="mt-1"
-                  checked={type === entry.slug}
-                  onChange={() => setType(entry.slug)}
-                />
-                <div>
-                  <p className="font-semibold">{entry.name}</p>
-                  <p className="text-sm text-muted-foreground">{entry.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div>
           <label className="mb-2 block text-sm font-medium" htmlFor="activity-title">
             Title
           </label>
@@ -149,6 +123,27 @@ export function AddActivityModal({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Round 1 — Design sprint"
           />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium" htmlFor="activity-type">
+            Activity type
+          </label>
+          <Select
+            id="activity-type"
+            className="w-full"
+            value={type}
+            onChange={(e) => setType(e.target.value as ActivitySlug)}
+          >
+            {creatableTypes.map((entry) => (
+              <option key={entry.slug} value={entry.slug}>
+                {entry.name}
+              </option>
+            ))}
+          </Select>
+          {selectedType?.description && (
+            <p className="mt-2 text-sm text-muted-foreground">{selectedType.description}</p>
+          )}
         </div>
 
         <div className="space-y-2">

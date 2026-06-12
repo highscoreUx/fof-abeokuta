@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
 
 interface EventActivityRow {
   id: string;
@@ -60,13 +59,15 @@ export function EventActivitiesPanel({ eventId }: { eventId: string }) {
   if (activities.length === 0) return null;
 
   return (
-    <Card className="mt-4">
-      <CardTitle>Activities</CardTitle>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <div className="space-y-4 border-t border-border pt-6">
+      <div>
+        <h3 className="text-base font-semibold">Activities</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
         Enable activity types and choose which participant scopes event admins may use per
         instance. Team scope means every team participates separately within their own team.
-      </p>
-      <div className="mt-4 space-y-4">
+        </p>
+      </div>
+      <div className="space-y-4">
         {activities.map((row) => (
           <div key={row.slug} className="rounded-lg border border-border p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -108,9 +109,9 @@ export function EventActivitiesPanel({ eventId }: { eventId: string }) {
           </div>
         ))}
       </div>
-      <Button className="mt-4" onClick={save} disabled={saving}>
+      <Button onClick={save} disabled={saving}>
         {saving ? "Saving..." : "Save activities"}
       </Button>
-    </Card>
+    </div>
   );
 }

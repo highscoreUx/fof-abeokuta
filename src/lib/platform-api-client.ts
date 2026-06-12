@@ -30,6 +30,31 @@ export async function platformApiFetch<T>(path: string, options: RequestInit & {
   return data as T;
 }
 
+export async function platformApiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const token = usePlatformAuthStore.getState().accessToken;
+
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshPlatformAccessToken();
+    if (refreshed) return platformApiUpload<T>(path, formData);
+    usePlatformAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") window.location.href = "/fg-admin/login";
+    throw new Error("Session expired");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Upload failed");
+  return data as T;
+}
+
 export async function refreshPlatformAccessToken(): Promise<boolean> {
   try {
     const response = await fetch("/api/fg-admin/auth/refresh", {

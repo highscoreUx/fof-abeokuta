@@ -55,6 +55,7 @@ const publicEventSelect = {
   slug: true,
   title: true,
   description: true,
+  coverImageUrl: true,
   date: true,
   status: true,
 } as const;
@@ -80,6 +81,7 @@ export async function getPublicEventBySlug(slug: string) {
 export async function createEventWithDefaults(data: {
   title: string;
   description?: string;
+  coverImageUrl?: string;
   date: Date;
   status?: "DRAFT" | "LIVE" | "ARCHIVED";
 }) {
@@ -96,6 +98,7 @@ export async function createEventWithDefaults(data: {
       slug,
       title: data.title,
       description: data.description,
+      coverImageUrl: data.coverImageUrl,
       date: data.date,
       status: data.status ?? "DRAFT",
       teams: { create: [...FIGMA_TEAMS] },

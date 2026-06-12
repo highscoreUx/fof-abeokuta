@@ -106,6 +106,7 @@ model Event {
   slug        String      @unique
   title       String
   description String?
+  coverImageUrl String?
   date        DateTime
   status             EventStatus @default(DRAFT)
   permissionsVersion Int         @default(1)

@@ -168,6 +168,7 @@ export interface PlatformEvent {
   slug: string;
   title: string;
   description: string | null;
+  coverImageUrl?: string | null;
   date: string;
   status: "DRAFT" | "LIVE" | "ARCHIVED";
   userCount?: number;

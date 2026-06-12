@@ -10,6 +10,7 @@ const updateSchema = z.object({
   description: z.string().optional(),
   date: z.string().optional(),
   status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).optional(),
+  coverImageUrl: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -35,6 +36,7 @@ export async function PATCH(
       description: parsed.data.description,
       date: parsed.data.date ? new Date(parsed.data.date) : undefined,
       status: parsed.data.status,
+      coverImageUrl: parsed.data.coverImageUrl,
     },
   });
 
@@ -51,6 +53,7 @@ export async function PATCH(
       description: event.description,
       date: event.date.toISOString(),
       status: event.status,
+      coverImageUrl: event.coverImageUrl,
     },
   });
 }

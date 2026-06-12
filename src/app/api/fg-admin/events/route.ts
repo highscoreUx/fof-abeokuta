@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       description: e.description,
       date: e.date.toISOString(),
       status: e.status,
+      coverImageUrl: e.coverImageUrl,
       userCount: e._count.users,
     })),
   });
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
       description: event.description,
       date: event.date.toISOString(),
       status: event.status,
+      coverImageUrl: event.coverImageUrl,
     },
     adminUser,
     loginPath: adminUser ? `/${event.slug}/login` : undefined,

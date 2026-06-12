@@ -71,7 +71,7 @@ export async function POST(
       );
       const profile = pickUserProfile(user);
       created.push({
-        email: profile.email,
+        email: profile.email ?? "(no email — set at check-in)",
         username: profile.username,
         password: initialPassword ?? "(existing account — password unchanged)",
         permissionProfile,

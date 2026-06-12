@@ -63,7 +63,9 @@ export function PlatformCommunityUsersTable({
       ? roles.filter((profile) =>
           (COMMUNITY_STAFF_PROFILE_SLUGS as readonly string[]).includes(profile.slug),
         )
-      : roles;
+      : audience === "participants"
+        ? roles.filter((profile) => profile.slug === "participant")
+        : roles;
 
   const loadTeams = useCallback(async () => {
     try {
@@ -138,6 +140,10 @@ export function PlatformCommunityUsersTable({
   };
 
   const toggleCheckIn = async (user: EventUserRow) => {
+    if (!user.checkedInAt && (user.needsEmail || !user.email)) {
+      setDetailsUser(user);
+      return;
+    }
     setTogglingId(user.id);
     try {
       await platformApiFetch(`/api/fg-admin/events/${eventId}/users/${user.id}/check-in`, {
@@ -174,22 +180,29 @@ export function PlatformCommunityUsersTable({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <div className="xl:col-span-2">
+      <div
+        className={cn(
+          "grid gap-3 md:grid-cols-2",
+          audience === "participants" ? "xl:grid-cols-4" : "xl:grid-cols-5",
+        )}
+      >
+        <div className={audience === "participants" ? "md:col-span-2" : "xl:col-span-2"}>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or username…"
           />
         </div>
-        <Select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="all">All profiles</option>
-          {profileOptions.map((profile) => (
-            <option key={profile.slug} value={profile.slug}>
-              {profile.name}
-            </option>
-          ))}
-        </Select>
+        {audience !== "participants" && (
+          <Select value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="all">All profiles</option>
+            {profileOptions.map((profile) => (
+              <option key={profile.slug} value={profile.slug}>
+                {profile.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <Select
           value={checkedIn}
           onChange={(e) => setCheckedIn(e.target.value as CheckedInFilter)}

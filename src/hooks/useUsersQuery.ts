@@ -101,11 +101,14 @@ export function useCheckInUserMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (userId: string) =>
+    mutationFn: ({ userId, email }: { userId: string; email?: string }) =>
       apiFetch<{
         user: CheckInUserPayload;
         alreadyCheckedIn?: boolean;
-      }>(eventSlug, `/users/${userId}/check-in`, { method: "PATCH" }),
+      }>(eventSlug, `/users/${userId}/check-in`, {
+        method: "PATCH",
+        body: JSON.stringify(email ? { email } : {}),
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["event-users", eventSlug] });
       void queryClient.invalidateQueries({ queryKey: ["teams", eventSlug] });

@@ -23,8 +23,9 @@ export default function PlatformEventPage() {
   const [createdCredentials, setCreatedCredentials] = useState<FlashedCredentials | null>(null);
   const nav = usePlatformNav();
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setLoading(true);
     setNotFound(false);
     try {
       const data = await platformApiFetch<{ event: PlatformEvent }>(
@@ -32,10 +33,12 @@ export default function PlatformEventPage() {
       );
       setEvent(data.event);
     } catch {
-      setEvent(null);
-      setNotFound(true);
+      if (!silent) {
+        setEvent(null);
+        setNotFound(true);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -81,7 +84,7 @@ export default function PlatformEventPage() {
             <EventDetailPanel
               event={event}
               fallbackIndex={0}
-              onUpdated={load}
+              onUpdated={() => void load({ silent: true })}
               onCredentials={handleCredentials}
             />
           </Suspense>

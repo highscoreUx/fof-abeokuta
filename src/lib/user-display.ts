@@ -16,5 +16,6 @@ export function pickUserProfile(user: UserWithAccount) {
     firstName: user.account.firstName,
     lastName: user.account.lastName,
     middleName: user.account.middleName,
+    maskedEmail: user.account.maskedEmail,
   };
 }

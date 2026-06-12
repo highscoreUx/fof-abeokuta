@@ -15,7 +15,7 @@ interface AddCommunityUserModalProps {
   open: boolean;
   eventId: string;
   eventTitle: string;
-  mode: "members" | "staff";
+  mode: "members" | "staff" | "participants";
   onClose: () => void;
   onCreated?: (credentials: {
     email: string;
@@ -41,7 +41,9 @@ export function AddCommunityUserModal({
       ? roles.filter((profile) =>
           (COMMUNITY_STAFF_PROFILE_SLUGS as readonly string[]).includes(profile.slug),
         )
-      : roles;
+      : mode === "participants"
+        ? roles.filter((profile) => profile.slug === "participant")
+        : roles;
 
   const defaultProfile: SystemEventUserRoleSlug =
     mode === "staff" ? "staff" : "participant";
@@ -108,11 +110,18 @@ export function AddCommunityUserModal({
     }
   };
 
-  const title = mode === "staff" ? "Add community staff" : "Add community member";
+  const title =
+    mode === "staff"
+      ? "Add community staff"
+      : mode === "participants"
+        ? "Add participant"
+        : "Add community member";
   const description =
     mode === "staff"
       ? `Registers staff for ${eventTitle}. Staff are also community members with elevated access.`
-      : `Registers a community member for ${eventTitle}. Share email and temporary password after creating the account.`;
+      : mode === "participants"
+        ? `Registers a participant for ${eventTitle}. Share email and temporary password after creating the account.`
+        : `Registers a community member for ${eventTitle}. Share email and temporary password after creating the account.`;
 
   return (
     <Modal open={open} onClose={handleClose} title={title} description={description}>
@@ -156,21 +165,23 @@ export function AddCommunityUserModal({
             required
           />
         </div>
-        <div>
-          <Label htmlFor="member-profile">Permission profile</Label>
-          <Select
-            id="member-profile"
-            className="w-full"
-            value={permissionProfile}
-            onChange={(e) => setPermissionProfile(e.target.value)}
-          >
-            {profileOptions.map((profile) => (
-              <option key={profile.slug} value={profile.slug}>
-                {profile.name}
-              </option>
-            ))}
-          </Select>
-        </div>
+        {mode !== "participants" && (
+          <div>
+            <Label htmlFor="member-profile">Permission profile</Label>
+            <Select
+              id="member-profile"
+              className="w-full"
+              value={permissionProfile}
+              onChange={(e) => setPermissionProfile(e.target.value)}
+            >
+              {profileOptions.map((profile) => (
+                <option key={profile.slug} value={profile.slug}>
+                  {profile.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>

@@ -5,6 +5,7 @@ import type { EventUserRow } from "@/types/users";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   useCheckInUserMutation,
   useUncheckInUserMutation,
@@ -21,6 +22,10 @@ interface UserCheckInModalProps {
   onUpdated?: () => void;
 }
 
+function displayEmail(user: EventUserRow): string {
+  return user.email ?? user.maskedEmail ?? "Not set";
+}
+
 function UserCheckInModalContent({
   open,
   onClose,
@@ -28,6 +33,8 @@ function UserCheckInModalContent({
   isCheckedIn,
   busy,
   error,
+  emailInput,
+  onEmailChange,
   onCheckIn,
   onUncheck,
 }: {
@@ -37,10 +44,13 @@ function UserCheckInModalContent({
   isCheckedIn: boolean;
   busy: boolean;
   error: string;
+  emailInput: string;
+  onEmailChange: (value: string) => void;
   onCheckIn: () => Promise<void>;
   onUncheck: () => Promise<void>;
 }) {
   const fullName = `${details.firstName} ${details.lastName}`.trim();
+  const needsEmail = details.needsEmail ?? !details.email;
 
   return (
     <Modal
@@ -63,10 +73,34 @@ function UserCheckInModalContent({
         </div>
 
         <div className="rounded-xl border border-border bg-muted/40 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Email
-          </p>
-          <p className="mt-1 font-mono text-lg font-semibold text-primary">{details.email}</p>
+          {needsEmail && !isCheckedIn ? (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Email (required for check-in)
+              </p>
+              {details.maskedEmail && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Ticket export: <span className="font-mono">{details.maskedEmail}</span>
+                </p>
+              )}
+              <Input
+                type="email"
+                value={emailInput}
+                onChange={(e) => onEmailChange(e.target.value)}
+                placeholder="Ask attendee for their email"
+                className="mt-2"
+              />
+            </div>
+          ) : (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Email
+              </p>
+              <p className="mt-1 font-mono text-lg font-semibold text-primary">
+                {displayEmail(details)}
+              </p>
+            </>
+          )}
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Username
@@ -84,7 +118,9 @@ function UserCheckInModalContent({
         <p className="text-sm text-muted-foreground">
           {isCheckedIn
             ? "This person is checked in and can sign in. Undo check-in if you need to correct a mistake."
-            : "Confirm their email, then check them in when ready."}
+            : needsEmail
+              ? "Collect their real email, then check them in so they can sign in."
+              : "Confirm their email, then check them in when ready."}
         </p>
 
         {error && <p className="text-sm text-danger">{error}</p>}
@@ -122,11 +158,13 @@ function EventUserCheckInModal({
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
   const [details, setDetails] = useState<EventUserRow | null>(null);
+  const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open && user) {
       setDetails(user);
+      setEmailInput("");
       setError("");
     }
   }, [open, user]);
@@ -135,6 +173,7 @@ function EventUserCheckInModal({
 
   const isCheckedIn = Boolean(details.checkedInAt);
   const busy = checkInUser.isPending || uncheckInUser.isPending;
+  const needsEmail = details.needsEmail ?? !details.email;
 
   return (
     <UserCheckInModalContent
@@ -144,11 +183,26 @@ function EventUserCheckInModal({
       isCheckedIn={isCheckedIn}
       busy={busy}
       error={error}
+      emailInput={emailInput}
+      onEmailChange={setEmailInput}
       onCheckIn={async () => {
         setError("");
         try {
-          const result = await checkInUser.mutateAsync(details.id);
-          setDetails((prev) => (prev ? { ...prev, ...result.user } : prev));
+          const result = await checkInUser.mutateAsync({
+            userId: details.id,
+            email: needsEmail ? emailInput.trim() : undefined,
+          });
+          setDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  ...result.user,
+                  email: result.user.email,
+                  needsEmail: result.user.needsEmail,
+                  maskedEmail: result.user.maskedEmail,
+                }
+              : prev,
+          );
         } catch (err) {
           setError(err instanceof Error ? err.message : "Failed to check in user");
         }
@@ -175,17 +229,21 @@ function PlatformUserCheckInModal({
 }: Required<Pick<UserCheckInModalProps, "platformEventId">> &
   Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated">) {
   const [details, setDetails] = useState<EventUserRow | null>(null);
+  const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open && user) {
       setDetails(user);
+      setEmailInput("");
       setError("");
     }
   }, [open, user]);
 
   if (!details) return null;
+
+  const needsEmail = details.needsEmail ?? !details.email;
 
   const applyCheckInResult = (payload: CheckInUserPayload) => {
     setDetails((prev) =>
@@ -194,6 +252,9 @@ function PlatformUserCheckInModal({
             ...prev,
             teamLetter: payload.teamLetter,
             checkedInAt: payload.checkedInAt,
+            email: payload.email,
+            maskedEmail: payload.maskedEmail,
+            needsEmail: payload.needsEmail,
           }
         : prev,
     );
@@ -208,13 +269,18 @@ function PlatformUserCheckInModal({
       isCheckedIn={Boolean(details.checkedInAt)}
       busy={busy}
       error={error}
+      emailInput={emailInput}
+      onEmailChange={setEmailInput}
       onCheckIn={async () => {
         setError("");
         setBusy(true);
         try {
           const result = await platformApiFetch<{ user: CheckInUserPayload }>(
             `/api/fg-admin/events/${platformEventId}/users/${details.id}/check-in`,
-            { method: "PATCH" },
+            {
+              method: "PATCH",
+              body: JSON.stringify(needsEmail ? { email: emailInput.trim() } : {}),
+            },
           );
           applyCheckInResult(result.user);
         } catch (err) {

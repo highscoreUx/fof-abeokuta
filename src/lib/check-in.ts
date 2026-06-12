@@ -12,6 +12,8 @@ export function serializeCheckInUser(user: UserWithAccount) {
     lastName: user.account.lastName,
     username: user.account.username,
     email: user.account.email,
+    maskedEmail: user.account.maskedEmail,
+    needsEmail: !user.account.email,
     teamId: user.teamId,
     teamLetter: user.team?.letter ?? null,
     checkedInAt: user.checkedInAt?.toISOString() ?? null,

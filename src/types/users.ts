@@ -1,6 +1,8 @@
 export interface EventUserRow {
   id: string;
-  email: string;
+  email: string | null;
+  maskedEmail?: string | null;
+  needsEmail?: boolean;
   firstName: string;
   lastName: string;
   username: string;

@@ -1,4 +1,8 @@
-import { buildCommunityStaffAccountFilter, type CommunityAudience } from "@/lib/community-audience";
+import {
+  buildCommunityParticipantAccountFilter,
+  buildCommunityStaffAccountFilter,
+  type CommunityAudience,
+} from "@/lib/community-audience";
 import { getProfilePermissions } from "@/lib/permission-profiles";
 import { parsePaginationParams } from "@/lib/pagination";
 
@@ -53,7 +57,9 @@ export function buildUsersWhere(
   const audienceFilter =
     params.audience === "staff"
       ? { account: buildCommunityStaffAccountFilter() }
-      : undefined;
+      : params.audience === "participants"
+        ? { account: buildCommunityParticipantAccountFilter() }
+        : undefined;
   const searchAccount = accountFromSearch.account as Record<string, unknown> | undefined;
   const audienceAccount =
     audienceFilter?.account as Record<string, unknown> | undefined;

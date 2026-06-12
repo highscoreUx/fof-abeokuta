@@ -51,7 +51,7 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
         permissionProfile: "participant",
       });
       onCreated?.({
-        email: result.user.email,
+        email: result.user.email ?? "",
         username: result.user.username,
         password: result.initialPassword ?? "—",
         permissionProfile: result.permissionProfile ?? result.user.permissionProfile,

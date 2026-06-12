@@ -8,12 +8,18 @@ export const COMMUNITY_STAFF_PROFILE_SLUGS = [
   "judge",
 ] as const satisfies readonly SystemEventUserRoleSlug[];
 
-export type CommunityAudience = "members" | "staff";
+export type CommunityAudience = "members" | "staff" | "participants";
 
 export function buildCommunityStaffAccountFilter() {
   return {
     OR: COMMUNITY_STAFF_PROFILE_SLUGS.map((slug) => ({
       permissions: { equals: getProfilePermissions(slug) },
     })),
+  };
+}
+
+export function buildCommunityParticipantAccountFilter() {
+  return {
+    permissions: { equals: getProfilePermissions("participant") },
   };
 }

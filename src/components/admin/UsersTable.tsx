@@ -78,12 +78,16 @@ export function UsersTable() {
   const accessProfiles = PERMISSION_PROFILES;
 
   const toggleCheckIn = async (user: EventUserRow) => {
+    if (!user.checkedInAt && (user.needsEmail || !user.email)) {
+      setDetailsUser(user);
+      return;
+    }
     setTogglingId(user.id);
     try {
       if (user.checkedInAt) {
         await uncheckInUser.mutateAsync(user.id);
       } else {
-        await checkInUser.mutateAsync(user.id);
+        await checkInUser.mutateAsync({ userId: user.id });
       }
     } catch (err) {
       window.alert(err instanceof Error ? err.message : "Failed to update check-in");

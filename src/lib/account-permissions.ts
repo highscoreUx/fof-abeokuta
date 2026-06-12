@@ -25,7 +25,7 @@ export function canAccessPlatform(permissions: RolePermission[]): boolean {
 
 export function accountAccessTokenFields(account: {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   permissions: unknown;
   permissionsVersion: number;
@@ -34,7 +34,7 @@ export function accountAccessTokenFields(account: {
   const permissions = resolveAccountPermissions(account);
   return {
     accountId: account.id,
-    email: account.email,
+    email: account.email ?? "",
     username: account.username,
     permissions: resolvePermissionsList(permissions),
     permissionsFingerprint: permissionsFingerprint(permissions),

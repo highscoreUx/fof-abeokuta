@@ -11,10 +11,16 @@ interface UserRow {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email: string | null;
+  maskedEmail?: string | null;
+  needsEmail?: boolean;
   username: string;
   teamLetter: string | null;
   checkedInAt: string | null;
+}
+
+function displayEmail(user: UserRow): string {
+  return user.email ?? user.maskedEmail ?? "Not set yet";
 }
 
 export function CheckInPanel() {
@@ -24,6 +30,8 @@ export function CheckInPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [recent, setRecent] = useState<UserRow[]>([]);
   const [selected, setSelected] = useState<UserRow | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [checkInError, setCheckInError] = useState("");
 
   const search = async () => {
     const data = await api<{ data: UserRow[] }>(
@@ -55,10 +63,25 @@ export function CheckInPanel() {
     };
   }, [socket, selected?.id]);
 
+  const selectUser = (user: UserRow) => {
+    setSelected(user);
+    setEmailInput("");
+    setCheckInError("");
+  };
+
   const checkIn = async (user: UserRow) => {
-    const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, { method: "PATCH" });
-    setSelected((prev) => ({ ...(prev?.id === user.id ? prev : user), ...result.user }));
-    await search();
+    setCheckInError("");
+    const needsEmail = user.needsEmail ?? !user.email;
+    try {
+      const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, {
+        method: "PATCH",
+        body: JSON.stringify(needsEmail ? { email: emailInput.trim() } : {}),
+      });
+      setSelected((prev) => ({ ...(prev?.id === user.id ? prev : user), ...result.user }));
+      await search();
+    } catch (err) {
+      setCheckInError(err instanceof Error ? err.message : "Failed to check in");
+    }
   };
 
   const uncheckIn = async (user: UserRow) => {
@@ -66,6 +89,8 @@ export function CheckInPanel() {
     setSelected((prev) => (prev ? { ...prev, ...result.user } : result.user));
     await search();
   };
+
+  const selectedNeedsEmail = selected ? (selected.needsEmail ?? !selected.email) : false;
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -100,11 +125,7 @@ export function CheckInPanel() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setSelected(user)}
-                >
+                <Button size="sm" variant="secondary" onClick={() => selectUser(user)}>
                   Show login
                 </Button>
                 {user.checkedInAt ? (
@@ -112,7 +133,7 @@ export function CheckInPanel() {
                     Undo
                   </Button>
                 ) : (
-                  <Button size="sm" onClick={() => void checkIn(user)}>
+                  <Button size="sm" onClick={() => selectUser(user)}>
                     Check in
                   </Button>
                 )}
@@ -132,15 +153,42 @@ export function CheckInPanel() {
                 in with their email and the temporary password shared at registration.
               </p>
               <div className="rounded-lg border border-border bg-muted/50 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Email
-                </p>
-                <p className="mt-1 font-mono text-lg font-semibold text-primary">{selected.email}</p>
+                {selectedNeedsEmail && !selected.checkedInAt ? (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Email (required)
+                    </p>
+                    {selected.maskedEmail && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Ticket: <span className="font-mono">{selected.maskedEmail}</span>
+                      </p>
+                    )}
+                    <Input
+                      type="email"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      placeholder="Ask attendee for email"
+                      className="mt-2"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Email
+                    </p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-primary">
+                      {displayEmail(selected)}
+                    </p>
+                  </>
+                )}
                 <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Username
                 </p>
-                <p className="mt-1 font-mono text-lg font-semibold text-foreground">{selected.username}</p>
+                <p className="mt-1 font-mono text-lg font-semibold text-foreground">
+                  {selected.username}
+                </p>
               </div>
+              {checkInError && <p className="text-sm text-danger">{checkInError}</p>}
               {selected.checkedInAt ? (
                 <div className="space-y-2">
                   <p className="text-sm text-green-600">Checked in — they can sign in now.</p>

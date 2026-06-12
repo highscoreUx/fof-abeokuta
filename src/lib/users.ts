@@ -34,7 +34,7 @@ const TEAM_LETTERS = ["F", "I", "G", "M", "A"];
 
 export function serializeAccount(account: {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   firstName: string;
   lastName: string;
@@ -65,7 +65,7 @@ export function serializeUser(
     permissions,
     permissionProfile: getProfileLabelForPermissions(user.account.permissions),
     username: profile.username,
-    email: profile.email,
+    email: profile.email ?? "",
     firstName: profile.firstName,
     lastName: profile.lastName,
     middleName: profile.middleName,
@@ -218,7 +218,7 @@ export function serializePlatformCreatedUser(
 export function serializeMemberRow(
   account: {
     id: string;
-    email: string;
+    email: string | null;
     username: string;
     firstName: string;
     lastName: string;
@@ -229,7 +229,7 @@ export function serializeMemberRow(
 ): PlatformMemberRow {
   return {
     id: account.id,
-    email: account.email,
+    email: account.email ?? "",
     username: account.username,
     firstName: account.firstName,
     lastName: account.lastName,
@@ -251,6 +251,8 @@ export function serializeUserRow(user: UserWithAccount) {
     lastName: profile.lastName,
     username: profile.username,
     email: profile.email,
+    maskedEmail: user.account.maskedEmail,
+    needsEmail: !user.account.email,
     permissionProfile: getProfileLabelForPermissions(user.account.permissions),
     teamId: user.teamId,
     teamLetter: user.team?.letter ?? null,

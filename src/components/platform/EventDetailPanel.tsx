@@ -10,16 +10,18 @@ import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { CommunityStaffTab } from "@/components/platform/CommunityStaffTab";
 import { EventCustomizeTab } from "@/components/platform/EventCustomizeTab";
+import { EventParticipantsTab } from "@/components/platform/EventParticipantsTab";
 import { EventSettingsTab } from "@/components/platform/EventSettingsTab";
 import { fgAdminEventPath } from "@/lib/fg-admin-routes";
 import { getEventCoverUrl } from "@/lib/event-cover";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
-type EventConfigTab = "settings" | "staff" | "customize";
+type EventConfigTab = "settings" | "participants" | "staff" | "customize";
 
 const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
   { value: "settings", label: "Settings" },
+  { value: "participants", label: "Participants" },
   { value: "staff", label: "Staff" },
   { value: "customize", label: "Customize" },
 ];
@@ -27,7 +29,8 @@ const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
 function parseTab(value: string | null): EventConfigTab {
   if (value === "staff" || value === "admin") return "staff";
   if (value === "customize") return "customize";
-  if (value === "settings" || value === "activities" || value === "members") return "settings";
+  if (value === "participants" || value === "members") return "participants";
+  if (value === "settings" || value === "activities") return "settings";
   return "settings";
 }
 
@@ -162,6 +165,13 @@ export function EventDetailPanel({
         </div>
 
         {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
+        {tab === "participants" && (
+          <EventParticipantsTab
+            event={event}
+            onUpdated={onUpdated}
+            onCredentials={onCredentials}
+          />
+        )}
         {tab === "staff" && (
           <CommunityStaffTab
             event={event}

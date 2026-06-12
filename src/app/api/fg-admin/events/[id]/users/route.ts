@@ -10,7 +10,9 @@ import { buildUsersOrderBy, buildUsersWhere } from "@/lib/users-query";
 import { createUserFromRow, serializeUserRow, userWithAccountInclude } from "@/lib/users";
 
 function parseAudience(value: string | null): CommunityAudience {
-  return value === "staff" ? "staff" : "members";
+  if (value === "staff") return "staff";
+  if (value === "participants") return "participants";
+  return "members";
 }
 
 export async function GET(

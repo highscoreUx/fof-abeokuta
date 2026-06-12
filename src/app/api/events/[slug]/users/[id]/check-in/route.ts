@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { isTeamAssignableMember } from "@/lib/account-permissions";
 import { serializeCheckInUser } from "@/lib/check-in";
+import { CheckInEmailError, resolveEmailForCheckIn } from "@/lib/check-in-email";
 import { pickUserProfile, userWithAccountInclude } from "@/lib/user-display";
 import { broadcastCheckInAnnouncement } from "@/lib/check-in-chat-broadcast";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +11,10 @@ import { assignTeams } from "@/lib/team-assign";
 import { getIO } from "@/server/socket/io";
 import { emitCheckInUpdate } from "@/server/socket/handlers";
 import { jsonError } from "@/lib/auth/middleware";
+
+const checkInBodySchema = z.object({
+  email: z.string().email().optional(),
+});
 
 export async function PATCH(
   request: NextRequest,
@@ -30,6 +36,21 @@ export async function PATCH(
       user: serializeCheckInUser(user),
       alreadyCheckedIn: true,
     });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const parsed = checkInBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(parsed.error.message, "VALIDATION_ERROR", 400);
+  }
+
+  try {
+    await resolveEmailForCheckIn(user.accountId, parsed.data.email);
+  } catch (error) {
+    if (error instanceof CheckInEmailError) {
+      return jsonError(error.message, "EMAIL_REQUIRED", 400);
+    }
+    throw error;
   }
 
   let updated = await prisma.user.update({

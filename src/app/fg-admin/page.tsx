@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { platformApiUpload } from "@/lib/platform-api-client";
-import { consumePlatformCredentials, flashPlatformCredentials } from "@/lib/platform-credentials-flash";
+import { consumePlatformCredentials } from "@/lib/platform-credentials-flash";
 import { CreateEventModal } from "@/components/platform/CreateEventModal";
 import { EventCredentialsBanner } from "@/components/platform/EventCredentialsBanner";
 import { EventsPanel } from "@/components/platform/EventsPanel";
@@ -42,19 +41,7 @@ export default function PlatformAdminPage() {
       <CreateEventModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        onCreated={async ({ event, credentials, loginPath }, coverFile) => {
-          flashPlatformCredentials({
-            eventTitle: event.title,
-            loginPath,
-            user: credentials,
-          });
-
-          if (coverFile) {
-            const form = new FormData();
-            form.append("file", coverFile);
-            await platformApiUpload(`/api/fg-admin/events/${event.id}/cover`, form);
-          }
-
+        onCreated={(event) => {
           setRefreshKey((key) => key + 1);
           router.push(`/fg-admin/${event.slug}`);
         }}

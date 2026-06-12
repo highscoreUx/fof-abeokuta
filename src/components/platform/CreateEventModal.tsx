@@ -5,30 +5,34 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { platformApiFetch } from "@/lib/platform-api-client";
-import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
+import type { PlatformEvent } from "@/types";
 
-export interface CreatedEventResult {
-  event: PlatformEvent;
-  credentials: PlatformCreatedEventUser;
-  loginPath: string;
-}
+type CoverMode = "upload" | "url";
 
 interface CreateEventModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated?: (result: CreatedEventResult, coverFile?: File) => void;
+  onCreated?: (event: PlatformEvent) => void;
+}
+
+function isValidImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminUsername, setAdminUsername] = useState("");
-  const [adminFirstName, setAdminFirstName] = useState("");
-  const [adminLastName, setAdminLastName] = useState("");
+  const [coverMode, setCoverMode] = useState<CoverMode>("upload");
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverUrl, setCoverUrl] = useState("");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,11 +41,9 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     setTitle("");
     setDescription("");
     setDate("");
-    setAdminEmail("");
-    setAdminUsername("");
-    setAdminFirstName("");
-    setAdminLastName("");
+    setCoverMode("upload");
     setCoverFile(null);
+    setCoverUrl("");
     setCoverPreview(null);
     setError("");
   };
@@ -52,13 +54,35 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     onClose();
   };
 
-  const canSubmit =
-    Boolean(title.trim()) &&
-    Boolean(date) &&
-    Boolean(adminEmail.trim()) &&
-    Boolean(adminUsername.trim()) &&
-    Boolean(adminFirstName.trim()) &&
-    Boolean(adminLastName.trim());
+  const switchCoverMode = (mode: CoverMode) => {
+    setCoverMode(mode);
+    setCoverFile(null);
+    setCoverUrl("");
+    setCoverPreview(null);
+    setError("");
+  };
+
+  const canSubmit = Boolean(title.trim()) && Boolean(date);
+
+  const applyCover = async (event: PlatformEvent) => {
+    if (coverMode === "upload" && coverFile) {
+      const form = new FormData();
+      form.append("file", coverFile);
+      await platformApiUpload(`/api/fg-admin/events/${event.id}/cover`, form);
+      return;
+    }
+
+    const trimmedUrl = coverUrl.trim();
+    if (coverMode === "url" && trimmedUrl) {
+      if (!isValidImageUrl(trimmedUrl)) {
+        throw new Error("Enter a valid image URL (http or https).");
+      }
+      await platformApiFetch(`/api/fg-admin/events/${event.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ coverImageUrl: trimmedUrl }),
+      });
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -68,35 +92,17 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     setError("");
 
     try {
-      const result = await platformApiFetch<{
-        event: PlatformEvent;
-        adminUser?: PlatformCreatedEventUser;
-        loginPath?: string;
-      }>("/api/fg-admin/events", {
+      const result = await platformApiFetch<{ event: PlatformEvent }>("/api/fg-admin/events", {
         method: "POST",
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || undefined,
           date: new Date(date).toISOString(),
-          adminEmail: adminEmail.trim().toLowerCase(),
-          adminUsername: adminUsername.trim().toLowerCase(),
-          adminFirstName: adminFirstName.trim(),
-          adminLastName: adminLastName.trim(),
         }),
       });
 
-      const fileToUpload = coverFile;
-      if (result.adminUser && result.loginPath) {
-        onCreated?.(
-          {
-            event: result.event,
-            credentials: result.adminUser,
-            loginPath: result.loginPath,
-          },
-          fileToUpload ?? undefined,
-        );
-      }
-
+      await applyCover(result.event);
+      onCreated?.(result.event);
       reset();
       onClose();
     } catch (err) {
@@ -111,12 +117,11 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
       open={open}
       onClose={handleClose}
       title="Create event"
-      description="Sets up the event, default teams, and the first event admin account."
+      description="Sets up the event and default teams. Add users from the event detail page when you're ready."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <fieldset className="space-y-4">
-          <legend className="text-sm font-medium text-foreground">Event details</legend>
+        <div className="space-y-4">
           <div>
             <Label htmlFor="event-title">Title</Label>
             <Input
@@ -149,76 +154,59 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
               placeholder="Optional"
             />
           </div>
-          <div>
-            <Label htmlFor="event-cover">Cover image</Label>
-            <Input
-              id="event-cover"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                setCoverFile(file);
-                setCoverPreview(file ? URL.createObjectURL(file) : null);
-              }}
+          <div className="space-y-3">
+            <Label>Cover image</Label>
+            <SegmentedControl
+              value={coverMode}
+              onChange={switchCoverMode}
+              options={[
+                { value: "upload", label: "Upload file" },
+                { value: "url", label: "Image URL" },
+              ]}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Optional. JPEG, PNG, or WebP up to 5MB.
-            </p>
+            {coverMode === "upload" ? (
+              <>
+                <Input
+                  id="event-cover"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setCoverFile(file);
+                    setCoverPreview(file ? URL.createObjectURL(file) : null);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. JPEG, PNG, or WebP up to 5MB.
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  id="event-cover-url"
+                  type="url"
+                  value={coverUrl}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCoverUrl(value);
+                    setCoverPreview(isValidImageUrl(value) ? value.trim() : null);
+                  }}
+                  placeholder="https://example.com/cover.jpg"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. Paste a direct link to a JPEG, PNG, or WebP image.
+                </p>
+              </>
+            )}
             {coverPreview && (
               <img
                 src={coverPreview}
                 alt="Cover preview"
-                className="mt-3 h-32 w-full rounded-lg object-cover"
+                className="h-32 w-full rounded-lg object-cover"
               />
             )}
           </div>
-        </fieldset>
-
-        <fieldset className="space-y-4">
-          <legend className="text-sm font-medium text-foreground">Event admin</legend>
-          <p className="text-xs text-muted-foreground">
-            This person runs the event app. They sign in with email and password.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Label htmlFor="admin-email">Email</Label>
-              <Input
-                id="admin-email"
-                type="email"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="admin-username">Username</Label>
-              <Input
-                id="admin-username"
-                value={adminUsername}
-                onChange={(e) => setAdminUsername(e.target.value.toLowerCase())}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="admin-first-name">First name</Label>
-              <Input
-                id="admin-first-name"
-                value={adminFirstName}
-                onChange={(e) => setAdminFirstName(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="admin-last-name">Last name</Label>
-              <Input
-                id="admin-last-name"
-                value={adminLastName}
-                onChange={(e) => setAdminLastName(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-        </fieldset>
+        </div>
 
         {error && <p className="text-sm text-danger">{error}</p>}
 

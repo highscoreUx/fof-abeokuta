@@ -9,36 +9,13 @@ import {
   buildPlatformEventsOrderBy,
   buildPlatformEventsWhere,
 } from "@/lib/platform-events-query";
-import { createEventAdminUser, serializePlatformCreatedUser } from "@/lib/users";
 
-const createEventSchema = z
-  .object({
-    title: z.string().min(1),
-    description: z.string().optional(),
-    date: z.string().min(1),
-    status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).optional(),
-    adminEmail: z.string().email().optional(),
-    adminUsername: z
-      .string()
-      .min(3)
-      .max(32)
-      .regex(/^[a-z0-9_]+$/)
-      .optional(),
-    adminFirstName: z.string().min(1).optional(),
-    adminLastName: z.string().min(1).optional(),
-  })
-  .refine(
-    (data) => {
-      const fields = [
-        data.adminEmail,
-        data.adminUsername,
-        data.adminFirstName,
-        data.adminLastName,
-      ];
-      return fields.every(Boolean) || fields.every((value) => !value);
-    },
-    { message: "All event admin fields are required together", path: ["adminEmail"] },
-  );
+const createEventSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  date: z.string().min(1),
+  status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).optional(),
+});
 
 export async function GET(request: NextRequest) {
   const authResult = requirePlatformAuth(request);
@@ -96,31 +73,6 @@ export async function POST(request: NextRequest) {
     status: parsed.data.status,
   });
 
-  let adminUser: ReturnType<typeof serializePlatformCreatedUser> | undefined;
-  if (
-    parsed.data.adminEmail &&
-    parsed.data.adminUsername &&
-    parsed.data.adminFirstName &&
-    parsed.data.adminLastName
-  ) {
-    try {
-      const { user, initialPassword, permissionProfile } = await createEventAdminUser(event.id, {
-        email: parsed.data.adminEmail,
-        username: parsed.data.adminUsername,
-        firstName: parsed.data.adminFirstName,
-        lastName: parsed.data.adminLastName,
-      });
-      adminUser = serializePlatformCreatedUser(user, initialPassword, permissionProfile);
-    } catch (error) {
-      await prisma.event.delete({ where: { id: event.id } }).catch(() => undefined);
-      return jsonError(
-        error instanceof Error ? error.message : "Failed to create event admin",
-        "CREATE_FAILED",
-        400,
-      );
-    }
-  }
-
   return NextResponse.json({
     event: {
       id: event.id,
@@ -131,7 +83,5 @@ export async function POST(request: NextRequest) {
       status: event.status,
       coverImageUrl: event.coverImageUrl,
     },
-    adminUser,
-    loginPath: adminUser ? "/login" : undefined,
   });
 }

@@ -10,7 +10,7 @@ const updateSchema = z.object({
   description: z.string().optional(),
   date: z.string().optional(),
   status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).optional(),
-  coverImageUrl: z.string().nullable().optional(),
+  coverImageUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
 });
 
 export async function PATCH(

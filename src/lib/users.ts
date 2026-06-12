@@ -241,6 +241,26 @@ export async function createEventAdminUser(
   });
 }
 
+export function serializePlatformEventUser(user: {
+  id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  pinDisplay: string | null;
+  createdAt: Date;
+  eventUserRole: { name: string };
+}) {
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    username: user.username,
+    password: user.pinDisplay ?? "",
+    eventUserRoleName: user.eventUserRole.name,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
+
 export function serializePlatformCreatedUser(user: {
   username: string;
   pinDisplay: string | null;

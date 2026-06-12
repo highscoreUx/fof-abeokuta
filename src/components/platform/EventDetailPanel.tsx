@@ -8,23 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { EventActivitiesPanel } from "@/components/platform/EventActivitiesPanel";
 import { EventAdminTab } from "@/components/platform/EventAdminTab";
 import { EventSettingsTab } from "@/components/platform/EventSettingsTab";
 import { getEventCoverUrl } from "@/lib/event-cover";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
-type EventConfigTab = "admin" | "activities" | "settings";
+type EventConfigTab = "admin" | "settings";
 
 const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
   { value: "admin", label: "Event admin" },
-  { value: "activities", label: "Activity config" },
   { value: "settings", label: "Event settings" },
 ];
 
 function parseTab(value: string | null): EventConfigTab {
-  if (value === "activities" || value === "settings") return value;
+  if (value === "settings" || value === "activities") return "settings";
   return "admin";
 }
 
@@ -135,9 +133,9 @@ export function EventDetailPanel({
           <SegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/${event.slug}/home`}>
+            <Link href={`/${event.slug}`}>
               <Button size="sm" variant="secondary">
-                Open event app
+                Visit event
               </Button>
             </Link>
             {event.status !== "LIVE" && (
@@ -160,9 +158,6 @@ export function EventDetailPanel({
 
         {tab === "admin" && (
           <EventAdminTab event={event} onUpdated={onUpdated} onCredentials={onCredentials} />
-        )}
-        {tab === "activities" && (
-          <EventActivitiesPanel eventId={event.id} embedded />
         )}
         {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
       </div>

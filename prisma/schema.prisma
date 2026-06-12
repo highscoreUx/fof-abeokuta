@@ -92,6 +92,8 @@ model Account {
   mustChangePassword Boolean  @default(true)
   permissions        Json     @default("[]")
   permissionsVersion Int      @default(1)
+  /** Created via fg-admin Members — global staff (non-participants) may access any event. */
+  globalMember       Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

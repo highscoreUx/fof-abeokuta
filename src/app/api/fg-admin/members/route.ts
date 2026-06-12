@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       password: parsed.data.password,
       permissions,
       mustChangePassword: true,
+      globalMember: true,
     });
 
     return NextResponse.json(

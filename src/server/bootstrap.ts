@@ -29,6 +29,7 @@ async function ensurePlatformAccount() {
     permissions: ["*"],
     password: platformPassword,
     mustChangePassword: process.env.NODE_ENV === "production",
+    globalMember: true,
   });
 
   console.log(`[bootstrap] Platform account created: ${platformEmail}`);

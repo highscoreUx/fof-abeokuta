@@ -34,6 +34,16 @@ export function isPlatformAdminPermissions(permissions: unknown): boolean {
   return hasWildcardAccess(normalized) || canAccessPlatform(normalized);
 }
 
+/** Platform admins and fg-admin global staff (non-participants) may access any event. */
+export function hasGlobalEventAccess(account: {
+  permissions: unknown;
+  globalMember: boolean;
+}): boolean {
+  if (isPlatformAdminPermissions(account.permissions)) return true;
+  if (!account.globalMember) return false;
+  return !isParticipantPermissions(account.permissions);
+}
+
 /** Platform admin and participant accounts cannot be deleted. */
 export function isLockedMemberAccount(permissions: unknown): boolean {
   return isPlatformAdminPermissions(permissions) || isParticipantPermissions(permissions);
@@ -41,6 +51,7 @@ export function isLockedMemberAccount(permissions: unknown): boolean {
 
 export function buildGlobalStaffAccountFilter() {
   return {
+    globalMember: true,
     NOT: {
       permissions: { equals: getProfilePermissions(PARTICIPANT_PROFILE_SLUG) },
     },

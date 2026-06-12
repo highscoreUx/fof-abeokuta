@@ -1,0 +1,1 @@
+ALTER TABLE "Account" ADD COLUMN "globalMember" BOOLEAN NOT NULL DEFAULT false;

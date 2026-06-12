@@ -1,6 +1,7 @@
 import { resolveAccountPermissionList } from "@/lib/account-permissions";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { getEventBySlug } from "@/lib/events";
+import { hasGlobalEventAccess } from "@/lib/member-access";
 import { prisma } from "@/lib/prisma";
 import {
   normalizeRolePermissions,
@@ -22,13 +23,21 @@ export async function resolveEventMembership(accountId: string, eventSlug: strin
     return { status: "EVENT_NOT_FOUND" as const };
   }
 
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { accountId_eventId: { accountId, eventId: event.id } },
     include: userWithAccountInclude,
   });
 
   if (!user) {
-    return { status: "NOT_REGISTERED" as const, event };
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account || !hasGlobalEventAccess(account)) {
+      return { status: "NOT_REGISTERED" as const, event };
+    }
+
+    user = await prisma.user.create({
+      data: { accountId, eventId: event.id },
+      include: userWithAccountInclude,
+    });
   }
 
   if (!canUserSignIn(user)) {

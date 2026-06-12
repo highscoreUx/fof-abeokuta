@@ -33,6 +33,7 @@ export async function createAccount(data: {
   password?: string;
   mustChangePassword?: boolean;
   permissions?: RolePermission[];
+  globalMember?: boolean;
 }) {
   const email = normalizeEmail(data.email);
   const username = normalizeUsername(data.username);
@@ -58,6 +59,7 @@ export async function createAccount(data: {
       middleName: data.middleName?.trim() || null,
       mustChangePassword: data.mustChangePassword ?? true,
       permissions: data.permissions ?? [],
+      globalMember: data.globalMember ?? false,
     },
   });
 

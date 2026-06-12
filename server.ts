@@ -3,6 +3,7 @@ import { parse } from "node:url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import "dotenv/config";
+import { ensurePlatformBootstrap } from "./src/server/bootstrap";
 import { setIO } from "./src/server/socket/io";
 import { registerSocketHandlers } from "./src/server/socket/handlers";
 
@@ -13,7 +14,14 @@ const port = parseInt(process.env.PORT ?? "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
+app.prepare().then(async () => {
+  try {
+    await ensurePlatformBootstrap();
+  } catch (error) {
+    console.error("[bootstrap] Failed to initialize platform data:", error);
+    process.exit(1);
+  }
+
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url ?? "", true);
     handle(req, res, parsedUrl);

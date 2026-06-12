@@ -1,6 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { ACTIVITY_CATALOG, type EnabledActivitySnapshot } from "@/lib/activities/catalog";
 
+function defaultEventActivityConfig(slug: string) {
+  if (slug === "kahoot") {
+    return { enabled: true, allowGeneral: true, allowGroup: false, allowStaff: false };
+  }
+  if (slug === "spinner" || slug === "tic_tac_toe") {
+    return { enabled: true, allowGeneral: false, allowGroup: true, allowStaff: false };
+  }
+  if (slug === "survey") {
+    return { enabled: true, allowGeneral: true, allowGroup: true, allowStaff: false };
+  }
+  return { enabled: true, allowGeneral: true, allowGroup: true, allowStaff: false };
+}
+
 export async function seedActivityTypes() {
   for (const entry of ACTIVITY_CATALOG) {
     await prisma.activityType.upsert({
@@ -24,16 +37,14 @@ export async function ensureEventActivityRows(eventId: string) {
   await seedActivityTypes();
   const types = await prisma.activityType.findMany({ orderBy: { sortOrder: "asc" } });
   for (const type of types) {
+    const defaults = defaultEventActivityConfig(type.slug);
     await prisma.eventActivity.upsert({
       where: { eventId_activityTypeId: { eventId, activityTypeId: type.id } },
       update: {},
       create: {
         eventId,
         activityTypeId: type.id,
-        enabled: false,
-        allowGeneral: false,
-        allowGroup: false,
-        allowStaff: false,
+        ...defaults,
       },
     });
   }

@@ -3,6 +3,7 @@
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { YouTubeEmbed } from "@/components/stage/YouTubeEmbed";
+import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventNav } from "@/hooks/useEventNav";
@@ -36,7 +37,8 @@ export function StageView() {
         showSponsors={user ? hasPermission(user.permissions, "participant.home") : false}
       >
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
+          <div className="space-y-6 lg:col-span-2">
+            <QuizStageDisplay variant="stage" />
             <YouTubeEmbed />
           </div>
           <Leaderboard />

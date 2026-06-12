@@ -284,7 +284,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
           return;
         }
 
-        await submitQuizAnswer(
+        const { result } = await submitQuizAnswer(
           io,
           data.sessionId,
           auth.userId,
@@ -292,6 +292,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
           data.questionId,
           data.answerIndex,
         );
+        socket.emit("quiz:answer:result", result);
       } catch (error) {
         socket.emit("sync:toast", {
           type: "error",

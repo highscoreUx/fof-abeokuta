@@ -54,27 +54,65 @@ export interface ApiError {
   code?: string;
 }
 
+export interface QuizLeaderboardEntry {
+  userId: string;
+  username: string;
+  teamLetter: string | null;
+  totalPoints: number;
+  rank: number;
+  streak: number;
+  questionsAnswered: number;
+  correctCount: number;
+  accuracy: number;
+}
+
+export interface QuizQuestionResults {
+  correctIndex: number;
+  optionCounts: number[];
+  topScorers: Array<{
+    userId: string;
+    username: string;
+    teamLetter: string | null;
+    points: number;
+    responseTimeMs: number;
+    isCorrect: boolean;
+  }>;
+}
+
 export interface QuizStateSnapshot {
   sessionId: string;
   quizId: string;
+  quizTitle?: string;
   state: "LOBBY" | "QUESTION" | "RESULTS" | "FINISHED";
   questionIndex: number;
+  totalQuestions: number;
   currentQuestion?: {
     id: string;
     text: string;
     options: string[];
     timeLimitSec: number;
   } | null;
+  correctIndex?: number | null;
+  questionResults?: QuizQuestionResults | null;
   questionStartedAt: number | null;
   resultsEndsAt: number | null;
   serverNow: number;
-  leaderboard: Array<{
-    userId: string;
-    username: string;
-    teamLetter: string | null;
-    totalPoints: number;
-    rank: number;
-  }>;
+  answeredCount?: number;
+  leaderboard: QuizLeaderboardEntry[];
+}
+
+export interface QuizAnswerResult {
+  sessionId: string;
+  questionId: string;
+  answerIndex: number;
+  isCorrect: boolean;
+  points: number;
+  speedPoints: number;
+  streakMultiplier: number;
+  streak: number;
+  responseTimeMs: number;
+  totalPoints: number;
+  accuracy: number;
 }
 
 export interface LeaderboardEntry {

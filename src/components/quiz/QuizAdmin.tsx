@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
 import { ACTIVITY_KAHOOT, formatInstanceScope } from "@/lib/activities/catalog";
 import type { QuizStateSnapshot } from "@/types";
+import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
 
 interface ActivityConfig {
   slug: string;
@@ -21,7 +22,7 @@ interface ActivityInstance {
   title: string;
   allowGeneralParticipants: boolean;
   allowGroupParticipants: boolean;
-  questions: Array<{ id: string; text: string }>;
+  questions: Array<{ id: string; text: string; options?: string[]; timeLimitSec?: number }>;
   sessions: Array<{ id: string; state: string }>;
 }
 
@@ -156,13 +157,13 @@ export function QuizAdmin() {
               <Button onClick={() => socket?.emit("quiz:admin:start", instance.id)}>
                 Start session
               </Button>
-              {activeSession?.sessionId && (
+              {activeSession?.sessionId && activeSession.quizId === instance.id && (
                 <>
                   <Button
                     variant="secondary"
                     onClick={() => socket?.emit("quiz:admin:next", activeSession.sessionId)}
                   >
-                    Next question
+                    {activeSession.state === "LOBBY" ? "Start question" : "Next question"}
                   </Button>
                   <Button
                     variant="danger"
@@ -174,8 +175,42 @@ export function QuizAdmin() {
               )}
             </div>
           </div>
+
+          {instance.questions.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="mb-2 text-sm font-semibold">Questions</p>
+              <ol className="space-y-2 text-sm">
+                {instance.questions.map((q, i) => (
+                  <li key={q.id} className="rounded-lg bg-foreground/5 px-3 py-2">
+                    <span className="font-medium">
+                      {i + 1}. {q.text}
+                    </span>
+                    {Array.isArray(q.options) && (
+                      <span className="ml-2 text-muted-foreground">
+                        ({q.options.length} options
+                        {q.timeLimitSec ? ` · ${q.timeLimitSec}s` : ""})
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </Card>
       ))}
+
+      {activeSession && (
+        <Card>
+          <CardTitle>Host view</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Share the main stage or this screen so everyone sees the question. Participants answer
+            on their own devices.
+          </p>
+          <div className="mt-4">
+            <QuizStageDisplay />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

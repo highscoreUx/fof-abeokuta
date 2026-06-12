@@ -33,7 +33,6 @@ export function useEventNav() {
         ? { href: `${prefix}/admin/activities`, label: "Activities" }
         : null,
       navIf("agenda.list", `${prefix}/admin/agenda`, "Agenda", permissions),
-      navIf("customize.branding", `${prefix}/admin/customize`, "Customize", permissions),
       hasPermission(permissions, "team.list") ||
       hasPermission(permissions, "vote.list") ||
       hasPermission(permissions, "settings.broadcasting") ||

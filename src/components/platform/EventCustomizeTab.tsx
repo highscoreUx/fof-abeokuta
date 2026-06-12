@@ -1,0 +1,120 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
+import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
+
+interface EventCustomizeTabProps {
+  eventSlug: string;
+}
+
+export function EventCustomizeTab({ eventSlug }: EventCustomizeTabProps) {
+  const [slides, setSlides] = useState<string[]>(resolveLoginSlides([...DEFAULT_LOGIN_SLIDE_PATHS]));
+  const [custom, setCustom] = useState(false);
+  const [uploading, setUploading] = useState<number | null>(null);
+  const [message, setMessage] = useState("");
+  const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  const slidesPath = `/api/events/${eventSlug}/settings/login-slides`;
+
+  useEffect(() => {
+    platformApiFetch<{ slides: string[]; custom: boolean }>(slidesPath)
+      .then((data) => {
+        setSlides(resolveLoginSlides(data.slides));
+        setCustom(data.custom);
+      })
+      .catch(() => {
+        setSlides(resolveLoginSlides([...DEFAULT_LOGIN_SLIDE_PATHS]));
+        setCustom(false);
+      });
+  }, [eventSlug]);
+
+  const upload = async (index: number, file: File) => {
+    setUploading(index);
+    setMessage("");
+    try {
+      const form = new FormData();
+      form.append("index", String(index));
+      form.append("file", file);
+      const data = await platformApiUpload<{ slides: string[] }>(slidesPath, form);
+      setSlides(resolveLoginSlides(data.slides));
+      setCustom(true);
+      setMessage("Login slides updated.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const reset = async () => {
+    setMessage("");
+    try {
+      const data = await platformApiFetch<{ slides: string[]; custom: boolean }>(slidesPath, {
+        method: "DELETE",
+      });
+      setSlides(resolveLoginSlides(data.slides));
+      setCustom(data.custom);
+      setMessage("Reset to default slides.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Reset failed");
+    }
+  };
+
+  return (
+    <Card className="p-0 shadow-none">
+      <CardHeader className="border-b border-border p-6">
+        <CardTitle>Customize</CardTitle>
+        <CardDescription>
+          Branding for this event — starting with the sign-in slideshow participants see at login.
+        </CardDescription>
+      </CardHeader>
+      <div className="p-6">
+        <h3 className="text-sm font-semibold">Login page slides</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Images on the left of the event sign-in page. Leave unset to use the default FOF photos.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {slides.map((src, index) => (
+            <div key={index} className="space-y-2">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt={`Login slide ${index + 1}`} className="h-full w-full object-cover" />
+              </div>
+              <input
+                ref={fileRefs[index]}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void upload(index, file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={uploading === index}
+                onClick={() => fileRefs[index].current?.click()}
+              >
+                {uploading === index ? "Uploading…" : `Replace slide ${index + 1}`}
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button type="button" variant="ghost" size="sm" onClick={() => void reset()} disabled={!custom}>
+            Reset to defaults
+          </Button>
+          {custom && <span className="text-xs text-muted-foreground">Using custom slides</span>}
+        </div>
+        {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+      </div>
+    </Card>
+  );
+}

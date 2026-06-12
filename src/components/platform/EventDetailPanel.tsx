@@ -9,21 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { CommunityStaffTab } from "@/components/platform/CommunityStaffTab";
+import { EventCustomizeTab } from "@/components/platform/EventCustomizeTab";
 import { EventSettingsTab } from "@/components/platform/EventSettingsTab";
 import { fgAdminEventPath } from "@/lib/fg-admin-routes";
 import { getEventCoverUrl } from "@/lib/event-cover";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
-type EventConfigTab = "settings" | "staff";
+type EventConfigTab = "settings" | "staff" | "customize";
 
 const TAB_OPTIONS: Array<{ value: EventConfigTab; label: string }> = [
   { value: "settings", label: "Settings" },
   { value: "staff", label: "Staff" },
+  { value: "customize", label: "Customize" },
 ];
 
 function parseTab(value: string | null): EventConfigTab {
   if (value === "staff" || value === "admin") return "staff";
+  if (value === "customize") return "customize";
   if (value === "settings" || value === "activities" || value === "members") return "settings";
   return "settings";
 }
@@ -58,7 +61,7 @@ export function EventDetailPanel({
     (next: EventConfigTab) => {
       const params = new URLSearchParams(searchParams.toString());
       if (next === "settings") params.delete("tab");
-      else params.set("tab", "staff");
+      else params.set("tab", next);
       const query = params.toString();
       router.replace(fgAdminEventPath(event.slug, query || undefined), { scroll: false });
     },
@@ -166,6 +169,7 @@ export function EventDetailPanel({
             onCredentials={onCredentials}
           />
         )}
+        {tab === "customize" && <EventCustomizeTab eventSlug={event.slug} />}
       </div>
     </Card>
   );

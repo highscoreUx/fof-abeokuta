@@ -47,17 +47,21 @@ export function PermissionGuard({
   useEffect(() => {
     if (!isHydrated) return;
 
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated) {
       const returnTo =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
           : "/home";
       router.replace(loginPath(returnTo));
     }
-  }, [isHydrated, isAuthenticated, user, router]);
+  }, [isHydrated, isAuthenticated, router]);
 
-  if (!isHydrated || !isAuthenticated || !user) {
+  if (!isHydrated || !isAuthenticated) {
     return <AuthLoadingPanel />;
+  }
+
+  if (!user) {
+    return <AuthLoadingPanel label="Loading your session…" />;
   }
 
   if (!allowed) {

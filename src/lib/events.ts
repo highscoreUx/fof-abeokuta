@@ -19,10 +19,27 @@ export function slugifyEventTitle(title: string): string {
   return slugify(title, { lower: true, strict: true });
 }
 
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+/** JSON cache stores dates as strings — restore Date objects after read. */
+function hydrateCachedEvent<
+  T extends { date: Date | string; createdAt: Date | string; updatedAt: Date | string },
+>(event: T): T {
+  return {
+    ...event,
+    date: toDate(event.date),
+    createdAt: toDate(event.createdAt),
+    updatedAt: toDate(event.updatedAt),
+  };
+}
+
 export async function getEventBySlug(slug: string) {
-  return cacheGetOrSet(`event:slug:${slug}`, CACHE_TTL.event, () =>
+  const event = await cacheGetOrSet(`event:slug:${slug}`, CACHE_TTL.event, () =>
     prisma.event.findUnique({ where: { slug } }),
   );
+  return event ? hydrateCachedEvent(event) : null;
 }
 
 export { invalidateEventBySlug };

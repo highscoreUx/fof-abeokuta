@@ -170,4 +170,13 @@ export interface PlatformEvent {
   description: string | null;
   date: string;
   status: "DRAFT" | "LIVE" | "ARCHIVED";
+  userCount?: number;
+}
+
+export interface PlatformCreatedEventUser {
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  eventUserRoleName: string;
 }

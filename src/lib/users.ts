@@ -230,6 +230,33 @@ export async function createUserFromRow(
   });
 }
 
+export async function createEventAdminUser(
+  eventId: string,
+  data: { firstName: string; lastName: string },
+) {
+  return createUserFromRow(eventId, {
+    firstName: data.firstName,
+    lastName: data.lastName,
+    role: "ADMIN",
+  });
+}
+
+export function serializePlatformCreatedUser(user: {
+  username: string;
+  pinDisplay: string | null;
+  firstName: string;
+  lastName: string;
+  eventUserRole: { name: string };
+}) {
+  return {
+    username: user.username,
+    password: user.pinDisplay ?? "",
+    firstName: user.firstName,
+    lastName: user.lastName,
+    eventUserRoleName: user.eventUserRole.name,
+  };
+}
+
 export function serializeUserRow(
   user: {
     id: string;

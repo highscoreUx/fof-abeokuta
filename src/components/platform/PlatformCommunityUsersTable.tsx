@@ -11,7 +11,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import type { CommunityAudience } from "@/lib/community-audience";
 import { COMMUNITY_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
 import { cn } from "@/lib/cn";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { PaginatedResponse } from "@/lib/pagination";
 import type { EventUserRow } from "@/types/users";
@@ -57,12 +57,13 @@ export function PlatformCommunityUsersTable({
 
   const debouncedSearch = useDebounce(search, 400);
 
+  const { roles } = usePlatformRoles(refreshKey);
   const profileOptions =
     audience === "staff"
-      ? PERMISSION_PROFILES.filter((profile) =>
+      ? roles.filter((profile) =>
           (COMMUNITY_STAFF_PROFILE_SLUGS as readonly string[]).includes(profile.slug),
         )
-      : PERMISSION_PROFILES;
+      : roles;
 
   const loadTeams = useCallback(async () => {
     try {

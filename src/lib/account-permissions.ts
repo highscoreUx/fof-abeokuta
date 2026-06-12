@@ -7,7 +7,7 @@ import {
   type Permission,
   type RolePermission,
 } from "@/lib/permissions/catalog";
-import { resolvePermissionsList } from "@/lib/permission-profiles";
+import { resolvePermissionsList } from "@/lib/permissions/catalog";
 
 export const PLATFORM_ADMIN_PERMISSION = "platform.admin" satisfies Permission;
 

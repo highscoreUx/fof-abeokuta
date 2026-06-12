@@ -1,6 +1,7 @@
 import { ACTIVITY_CATALOG } from "@/lib/activities/catalog";
 import { seedActivityTypes } from "@/lib/activities/event-activities";
 import { createAccount } from "@/lib/accounts";
+import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { prisma } from "@/lib/prisma";
 
 async function activityTypesReady(): Promise<boolean> {
@@ -14,6 +15,10 @@ async function activityTypesReady(): Promise<boolean> {
 async function platformAccountReady(): Promise<boolean> {
   const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@fofabeokuta.com";
   return Boolean(await prisma.account.findUnique({ where: { email: platformEmail } }));
+}
+
+async function platformRolesReady(): Promise<boolean> {
+  return (await prisma.platformRole.count()) > 0;
 }
 
 async function ensurePlatformAccount() {
@@ -39,18 +44,25 @@ async function ensurePlatformAccount() {
 }
 
 export async function ensurePlatformBootstrap(): Promise<{ skipped: boolean }> {
-  const [typesReady, accountReady] = await Promise.all([
+  const [typesReady, accountReady, rolesReady] = await Promise.all([
     activityTypesReady(),
     platformAccountReady(),
+    platformRolesReady(),
   ]);
 
-  if (typesReady && accountReady) {
+  if (typesReady && accountReady && rolesReady) {
+    await ensurePlatformRolesSeeded();
     return { skipped: true };
   }
 
   if (!typesReady) {
     await seedActivityTypes();
     console.log("[bootstrap] Activity types ensured.");
+  }
+
+  if (!rolesReady) {
+    await ensurePlatformRolesSeeded();
+    console.log("[bootstrap] Platform roles ensured.");
   }
 
   if (!accountReady) {

@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/cn";
 import type { GlobalMembersAudience } from "@/lib/member-access";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { PaginatedResponse } from "@/lib/pagination";
 import type { PlatformMemberRow } from "@/types/members";
@@ -43,10 +43,11 @@ export function PlatformMembersTable({
 
   const debouncedSearch = useDebounce(search, 400);
 
+  const { roles } = usePlatformRoles(refreshKey);
   const profileOptions =
     audience === "staff"
-      ? PERMISSION_PROFILES.filter((profile) => profile.slug !== "participant")
-      : PERMISSION_PROFILES;
+      ? roles.filter((profile) => profile.slug !== "participant")
+      : roles;
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { PLATFORM_ADMIN_PROFILE_SLUG } from "@/lib/member-access";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { PlatformMemberRow } from "@/types/members";
 
@@ -43,9 +43,10 @@ export function EditPlatformMemberModal({
     setError("");
   }, [member]);
 
+  const { roles } = usePlatformRoles();
   const profileOptions = member?.isPlatformAdmin
     ? [{ slug: PLATFORM_ADMIN_PROFILE_SLUG, name: "Platform admin" }]
-    : PERMISSION_PROFILES;
+    : roles;
 
   const handleClose = () => {
     if (loading || deleting) return;

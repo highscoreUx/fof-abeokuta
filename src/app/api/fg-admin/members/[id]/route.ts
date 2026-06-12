@@ -7,6 +7,7 @@ import {
   permissionsForMemberProfileSlug,
 } from "@/lib/member-access";
 import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
+import { getProfileBySlug } from "@/lib/platform-roles.server";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { prisma } from "@/lib/prisma";
 import { serializeMemberRow } from "@/lib/users";
@@ -40,6 +41,10 @@ export async function PATCH(
     parsed.data.permissionProfile !== "platform_admin"
   ) {
     return jsonError("Platform admin permission profile cannot be changed", "FORBIDDEN", 403);
+  }
+
+  if (parsed.data.permissionProfile && !getProfileBySlug(parsed.data.permissionProfile)) {
+    return jsonError("Unknown role", "VALIDATION_ERROR", 400);
   }
 
   try {

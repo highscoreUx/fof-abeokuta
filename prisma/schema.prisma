@@ -81,6 +81,17 @@ enum SurveyQuestionType {
   NPS
 }
 
+model PlatformRole {
+  id                 String   @id @default(cuid())
+  slug               String   @unique
+  name               String
+  permissions        Json     @default("[]")
+  permissionsVersion Int      @default(0)
+  isSystem           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model Account {
   id                 String   @id @default(cuid())
   email              String   @unique

@@ -6,6 +6,7 @@ import {
   parseGlobalMembersAudience,
   permissionsForMemberProfileSlug,
 } from "@/lib/member-access";
+import { ensurePlatformRolesSeeded, getProfileBySlug } from "@/lib/platform-roles.server";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
@@ -16,6 +17,8 @@ import { createMemberSchema } from "@/lib/validators/members";
 export async function GET(request: NextRequest) {
   const authResult = requirePlatformAuth(request);
   if (authResult instanceof NextResponse) return authResult;
+
+  await ensurePlatformRolesSeeded();
 
   const { searchParams } = new URL(request.url);
   const query = parsePaginationParams(searchParams);
@@ -54,6 +57,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensurePlatformRolesSeeded();
+    if (!getProfileBySlug(parsed.data.permissionProfile)) {
+      return jsonError("Unknown role", "VALIDATION_ERROR", 400);
+    }
     const permissions = permissionsForMemberProfileSlug(parsed.data.permissionProfile);
     const { account, initialPassword } = await createAccount({
       email: parsed.data.email,

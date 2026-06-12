@@ -254,3 +254,8 @@ export function permissionsFingerprint(permissions: RolePermission[]): string {
   const normalized = [...permissions].sort();
   return JSON.stringify(normalized);
 }
+
+export function resolvePermissionsList(permissions: RolePermission[]): Permission[] {
+  if (permissions.includes("*")) return [...ALL_PERMISSIONS];
+  return permissions as Permission[];
+}

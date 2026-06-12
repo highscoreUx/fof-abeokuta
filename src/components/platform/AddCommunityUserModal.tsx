@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { COMMUNITY_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { SystemEventUserRoleSlug } from "@/lib/permissions/default-bundles";
 
@@ -35,12 +35,13 @@ export function AddCommunityUserModal({
   onClose,
   onCreated,
 }: AddCommunityUserModalProps) {
+  const { roles } = usePlatformRoles();
   const profileOptions =
     mode === "staff"
-      ? PERMISSION_PROFILES.filter((profile) =>
+      ? roles.filter((profile) =>
           (COMMUNITY_STAFF_PROFILE_SLUGS as readonly string[]).includes(profile.slug),
         )
-      : PERMISSION_PROFILES;
+      : roles;
 
   const defaultProfile: SystemEventUserRoleSlug =
     mode === "staff" ? "staff" : "participant";

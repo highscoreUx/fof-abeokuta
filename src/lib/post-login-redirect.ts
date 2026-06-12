@@ -1,5 +1,5 @@
 import { canAccessPlatform } from "@/lib/account-permissions";
-import { resolvePermissionsList } from "@/lib/permission-profiles";
+import { resolvePermissionsList } from "@/lib/permissions/catalog";
 import { resolveDefaultRoute } from "@/lib/permissions";
 import { normalizeRolePermissions, type RolePermission } from "@/lib/permissions/catalog";
 import {

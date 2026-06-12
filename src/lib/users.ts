@@ -15,7 +15,6 @@ import type { RolePermission } from "@/lib/permissions/catalog";
 import type { EnabledActivitySnapshot } from "@/lib/activities/catalog";
 import {
   getProfileLabelForPermissions,
-  getProfilePermissions,
   legacyRoleToProfileSlug,
 } from "@/lib/permission-profiles";
 import {
@@ -120,11 +119,17 @@ export async function createUserFromRow(
   const email = normalizeEmail(row.email);
   const username = normalizeUsername(row.username);
 
-  const permissions =
-    row.permissions ??
-    getProfilePermissions(
-      row.permissionProfile ?? (row.role ? legacyRoleToProfileSlug(row.role) : "participant"),
+  const profileSlug =
+    row.permissionProfile ?? (row.role ? legacyRoleToProfileSlug(row.role) : "participant");
+
+  let permissions = row.permissions;
+  if (!permissions) {
+    const { ensurePlatformRolesSeeded, getProfilePermissions } = await import(
+      "@/lib/platform-roles.server"
     );
+    await ensurePlatformRolesSeeded();
+    permissions = getProfilePermissions(profileSlug);
+  }
 
   const existingMembership = await prisma.user.findFirst({
     where: { eventId, account: { email } },

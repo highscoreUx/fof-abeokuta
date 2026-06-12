@@ -1,7 +1,7 @@
 import {
-  ALL_PERMISSIONS,
   normalizeRolePermissions,
   permissionsFingerprint,
+  resolvePermissionsList,
   type Permission,
   type RolePermission,
 } from "@/lib/permissions/catalog";
@@ -10,10 +10,28 @@ import {
   type SystemEventUserRoleSlug,
 } from "@/lib/permissions/default-bundles";
 
+export { resolvePermissionsList };
+
+/** @deprecated Prefer fetching roles from `/api/fg-admin/roles` on the client. */
 export const PERMISSION_PROFILES = DEFAULT_EVENT_USER_ROLE_BUNDLES;
 
+function defaultProfiles() {
+  return DEFAULT_EVENT_USER_ROLE_BUNDLES.map((bundle) => ({
+    id: bundle.slug,
+    slug: bundle.slug,
+    name: bundle.name,
+    permissions: bundle.permissions,
+    permissionsVersion: 0,
+    isSystem: bundle.isSystem,
+  }));
+}
+
+export function getPermissionProfiles() {
+  return defaultProfiles();
+}
+
 export function getProfileBySlug(slug: string) {
-  return PERMISSION_PROFILES.find((profile) => profile.slug === slug);
+  return DEFAULT_EVENT_USER_ROLE_BUNDLES.find((profile) => profile.slug === slug);
 }
 
 export function getProfilePermissions(slug: string): RolePermission[] {
@@ -22,15 +40,10 @@ export function getProfilePermissions(slug: string): RolePermission[] {
   return profile.permissions;
 }
 
-export function resolvePermissionsList(permissions: RolePermission[]): Permission[] {
-  if (permissions.includes("*")) return [...ALL_PERMISSIONS];
-  return permissions as Permission[];
-}
-
 export function getProfileLabelForPermissions(permissions: unknown): string {
   const normalized = normalizeRolePermissions(permissions);
   const fingerprint = permissionsFingerprint(normalized);
-  for (const profile of PERMISSION_PROFILES) {
+  for (const profile of DEFAULT_EVENT_USER_ROLE_BUNDLES) {
     if (permissionsFingerprint(profile.permissions) === fingerprint) {
       return profile.name;
     }

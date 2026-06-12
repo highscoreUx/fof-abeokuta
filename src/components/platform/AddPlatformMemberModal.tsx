@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import type { GlobalMembersAudience } from "@/lib/member-access";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { SystemEventUserRoleSlug } from "@/lib/permissions/default-bundles";
 
@@ -31,10 +31,11 @@ export function AddPlatformMemberModal({
   onClose,
   onCreated,
 }: AddPlatformMemberModalProps) {
+  const { roles } = usePlatformRoles();
   const profileOptions =
     audience === "staff"
-      ? PERMISSION_PROFILES.filter((profile) => profile.slug !== "participant")
-      : PERMISSION_PROFILES;
+      ? roles.filter((profile) => profile.slug !== "participant")
+      : roles;
 
   const defaultProfile: SystemEventUserRoleSlug =
     audience === "staff" ? "staff" : "participant";

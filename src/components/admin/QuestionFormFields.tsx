@@ -7,9 +7,14 @@ import type { QuestionDraft } from "@/lib/quiz-question-form";
 interface QuestionFormFieldsProps {
   draft: QuestionDraft;
   onChange: (draft: QuestionDraft) => void;
+  showTimeLimit?: boolean;
 }
 
-export function QuestionFormFields({ draft, onChange }: QuestionFormFieldsProps) {
+export function QuestionFormFields({
+  draft,
+  onChange,
+  showTimeLimit = true,
+}: QuestionFormFieldsProps) {
   return (
     <div className="space-y-3">
       <Input
@@ -31,21 +36,22 @@ export function QuestionFormFields({ draft, onChange }: QuestionFormFieldsProps)
           />
         ))}
       </div>
-      <div className="flex flex-wrap gap-4">
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Correct answer</label>
-          <Select
-            value={String(draft.correctIndex)}
-            onChange={(e) => onChange({ ...draft, correctIndex: Number(e.target.value) })}
-          >
-            {draft.options.map((opt, i) => (
-              <option key={i} value={i}>
-                Option {i + 1}
-                {opt.trim() ? `: ${opt.trim()}` : ""}
-              </option>
-            ))}
-          </Select>
-        </div>
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">Correct answer</label>
+        <Select
+          className="w-full"
+          value={String(draft.correctIndex)}
+          onChange={(e) => onChange({ ...draft, correctIndex: Number(e.target.value) })}
+        >
+          {draft.options.map((opt, i) => (
+            <option key={i} value={i}>
+              Option {i + 1}
+              {opt.trim() ? `: ${opt.trim()}` : ""}
+            </option>
+          ))}
+        </Select>
+      </div>
+      {showTimeLimit && (
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Time limit (sec)</label>
           <Input
@@ -57,7 +63,7 @@ export function QuestionFormFields({ draft, onChange }: QuestionFormFieldsProps)
             className="w-24"
           />
         </div>
-      </div>
+      )}
     </div>
   );
 }

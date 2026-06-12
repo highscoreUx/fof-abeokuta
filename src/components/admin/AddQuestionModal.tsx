@@ -149,16 +149,35 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
       className="max-w-xl"
     >
       <div className="space-y-3">
-        <Select
-          value={questionType}
-          onChange={(e) => setQuestionType(e.target.value as TriviaQuestionType)}
-        >
-          {Object.entries(TRIVIA_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
+        <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Question type</label>
+            <Select
+              className="w-full"
+              value={questionType}
+              onChange={(e) => setQuestionType(e.target.value as TriviaQuestionType)}
+            >
+              {Object.entries(TRIVIA_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Time limit (sec)</label>
+            <Input
+              type="number"
+              min={5}
+              max={120}
+              value={draft.timeLimitSec}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, timeLimitSec: Number(e.target.value) }))
+              }
+              className="w-24"
+            />
+          </div>
+        </div>
 
         {(questionType === "PIN_ANSWER" || questionType === "QUIZ_AUDIO") && (
           <label className="block">
@@ -205,6 +224,7 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
               : draft
           }
           onChange={setDraft}
+          showTimeLimit={false}
         />
 
         {error && <p className="text-sm text-danger">{error}</p>}

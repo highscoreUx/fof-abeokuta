@@ -63,6 +63,37 @@ export function TriviaAnswerInput({
     );
   }
 
+  if (type === "QUIZ_IMAGE") {
+    return (
+      <div className="space-y-4">
+        {mediaUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mediaUrl} alt="" className="max-h-48 w-full rounded-xl object-contain" />
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          {options.map((opt, index) => {
+            const style = KAHOOT_OPTIONS[index % KAHOOT_OPTIONS.length];
+            return (
+              <button
+                key={index}
+                type="button"
+                disabled={disabled || !opt}
+                onClick={() => onSubmit({ answerIndex: index })}
+                className={cn(
+                  "overflow-hidden rounded-xl border-4 border-transparent transition hover:brightness-110 disabled:opacity-50",
+                  style.bg.replace("bg-", "border-"),
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={opt} alt={`Answer ${index + 1}`} className="aspect-video w-full object-cover" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   if (type === "TYPE_ANSWER") {
     return (
       <div className="space-y-3">
@@ -101,14 +132,27 @@ export function TriviaAnswerInput({
     );
   }
 
-  if (type === "PUZZLE") {
+  if (type === "PUZZLE" || type === "PUZZLE_IMAGE") {
     const items = config.items ?? options;
     return (
       <div className="space-y-3">
+        {type === "PUZZLE_IMAGE" && mediaUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mediaUrl} alt="" className="max-h-48 w-full rounded-xl object-contain" />
+        )}
         {puzzleOrder.map((itemIndex, position) => (
           <div key={position} className="flex items-center gap-2 rounded-xl border border-border p-3">
             <span className="w-6 text-muted-foreground">{position + 1}.</span>
-            <span className="flex-1 font-medium">{items[itemIndex]}</span>
+            {type === "PUZZLE_IMAGE" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={items[itemIndex]}
+                alt=""
+                className="h-16 w-16 flex-1 rounded-lg object-cover"
+              />
+            ) : (
+              <span className="flex-1 font-medium">{items[itemIndex]}</span>
+            )}
             <div className="flex gap-1">
               <Button
                 size="sm"

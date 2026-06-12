@@ -2,9 +2,11 @@ import { z } from "zod";
 
 export const triviaQuestionTypeSchema = z.enum([
   "QUIZ",
+  "QUIZ_IMAGE",
   "TRUE_FALSE",
   "TYPE_ANSWER",
   "PUZZLE",
+  "PUZZLE_IMAGE",
   "SLIDER",
   "PIN_ANSWER",
   "QUIZ_AUDIO",

@@ -55,7 +55,7 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
     resetForType(type);
   };
 
-  const uploadMedia = async (file: File) => {
+  const uploadFile = async (file: File): Promise<string> => {
     setUploading(true);
     setError(null);
     try {
@@ -69,10 +69,11 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-      setMediaUrl(res.data.asset.url);
-      setConfig((c) => ({ ...c, mediaKey: res.data.asset.key }));
+      return res.data.asset.url as string;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      const message = e instanceof Error ? e.message : "Upload failed";
+      setError(message);
+      throw new Error(message);
     } finally {
       setUploading(false);
     }
@@ -101,9 +102,6 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
       setSaving(false);
     }
   };
-
-  const needsMediaUpload =
-    questionType === "PIN_ANSWER" || questionType === "QUIZ_AUDIO";
 
   return (
     <Modal
@@ -144,29 +142,6 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
           </div>
         </div>
 
-        {needsMediaUpload && (
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted-foreground">
-              {questionType === "QUIZ_AUDIO" ? "Audio file" : "Image"}
-            </span>
-            <input
-              type="file"
-              accept={questionType === "QUIZ_AUDIO" ? "audio/*" : "image/*"}
-              disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadMedia(file);
-              }}
-            />
-            {mediaUrl && questionType === "QUIZ_AUDIO" && (
-              <audio controls src={mediaUrl} className="mt-2 w-full" />
-            )}
-            {mediaUrl && questionType === "PIN_ANSWER" && (
-              <p className="mt-1 text-xs text-success">Image uploaded — set pin below</p>
-            )}
-          </label>
-        )}
-
         <TriviaQuestionFormFields
           questionType={questionType}
           draft={draft}
@@ -174,6 +149,9 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
           mediaUrl={mediaUrl}
           onDraftChange={setDraft}
           onConfigChange={setConfig}
+          onMediaUrlChange={setMediaUrl}
+          onUploadFile={uploadFile}
+          uploading={uploading}
         />
 
         {error && <p className="text-sm text-danger">{error}</p>}

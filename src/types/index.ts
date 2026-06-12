@@ -68,9 +68,11 @@ export interface QuizLeaderboardEntry {
 
 export type TriviaQuestionType =
   | "QUIZ"
+  | "QUIZ_IMAGE"
   | "TRUE_FALSE"
   | "TYPE_ANSWER"
   | "PUZZLE"
+  | "PUZZLE_IMAGE"
   | "SLIDER"
   | "PIN_ANSWER"
   | "QUIZ_AUDIO";

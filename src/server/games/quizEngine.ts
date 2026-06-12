@@ -108,11 +108,17 @@ async function buildQuestionResults(
   const config = record.config;
   return {
     correctIndex:
-      record.type === "QUIZ" || record.type === "TRUE_FALSE" || record.type === "QUIZ_AUDIO"
+      record.type === "QUIZ" ||
+      record.type === "QUIZ_IMAGE" ||
+      record.type === "TRUE_FALSE" ||
+      record.type === "QUIZ_AUDIO"
         ? question.correctIndex
         : null,
     correctValue: record.type === "SLIDER" ? (config.correct ?? question.correctIndex) : null,
-    correctOrder: record.type === "PUZZLE" ? (config.correctOrder ?? null) : null,
+    correctOrder:
+      record.type === "PUZZLE" || record.type === "PUZZLE_IMAGE"
+        ? (config.correctOrder ?? null)
+        : null,
     optionCounts,
     topScorers: answers.slice(0, 5).map((a) => ({
       userId: a.userId,

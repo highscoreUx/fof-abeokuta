@@ -14,6 +14,8 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { formatInstanceScope } from "@/lib/activities/catalog";
 import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
+import { TRIVIA_TYPE_LABELS } from "@/lib/trivia/types";
+import { isMediaUrl } from "@/lib/trivia/media";
 import { SurveyConfigurePanel } from "@/components/admin/SurveyConfigurePanel";
 import type { ActivityConfigureKind, KahootActivityDetail, SpinActivityDetail } from "@/types/activities";
 
@@ -146,42 +148,71 @@ export function ActivityConfigureView() {
                 </p>
               ) : (
                 <ol className="mt-6 space-y-3">
-                  {kahoot.questions.map((q, i) => (
-                    <li key={q.id} className="rounded-xl border border-border p-4">
-                      <p className="font-medium">
-                        {i + 1}. {q.text}
-                        {q.timeLimitSec ? (
+                  {kahoot.questions.map((q, i) => {
+                    const qType = q.type ?? "QUIZ";
+                    const isImageMcq = qType === "QUIZ_IMAGE";
+                    const isImagePuzzle = qType === "PUZZLE_IMAGE";
+                    return (
+                      <li key={q.id} className="rounded-xl border border-border p-4">
+                        <p className="font-medium">
+                          {i + 1}. {q.text}
                           <span className="ml-2 text-sm font-normal text-muted-foreground">
-                            · {q.timeLimitSec}s
+                            · {TRIVIA_TYPE_LABELS[qType]}
+                            {q.timeLimitSec ? ` · ${q.timeLimitSec}s` : ""}
                           </span>
-                        ) : null}
-                      </p>
-                      {Array.isArray(q.options) && q.options.length > 0 && (
-                        <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                          {q.options.map((opt, optIndex) => {
-                            const style = KAHOOT_OPTIONS[optIndex % KAHOOT_OPTIONS.length];
-                            const isCorrect = q.correctIndex === optIndex;
-                            return (
-                              <li
-                                key={optIndex}
-                                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                                  isCorrect
-                                    ? "bg-success/10 font-semibold text-success"
-                                    : "bg-foreground/5"
-                                }`}
-                              >
-                                <span className={isCorrect ? "" : "text-muted-foreground"}>
-                                  {style.shape}
-                                </span>
-                                {opt}
-                                {isCorrect && <span className="ml-auto text-xs">Correct</span>}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
+                        </p>
+                        {q.mediaUrl && isMediaUrl(q.mediaUrl) && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={q.mediaUrl}
+                            alt=""
+                            className="mt-3 max-h-24 rounded-lg border border-border object-contain"
+                          />
+                        )}
+                        {Array.isArray(q.options) && q.options.length > 0 && (
+                          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            {q.options.map((opt, optIndex) => {
+                              const style = KAHOOT_OPTIONS[optIndex % KAHOOT_OPTIONS.length];
+                              const isCorrect = q.correctIndex === optIndex;
+                              return (
+                                <li
+                                  key={optIndex}
+                                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                                    isCorrect
+                                      ? "bg-success/10 font-semibold text-success"
+                                      : "bg-foreground/5"
+                                  }`}
+                                >
+                                  {isImageMcq || isImagePuzzle ? (
+                                    isMediaUrl(opt) ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={opt}
+                                        alt=""
+                                        className="h-12 w-12 rounded object-cover"
+                                      />
+                                    ) : (
+                                      <span className="text-muted-foreground">No image</span>
+                                    )
+                                  ) : (
+                                    <>
+                                      <span className={isCorrect ? "" : "text-muted-foreground"}>
+                                        {style.shape}
+                                      </span>
+                                      {opt}
+                                    </>
+                                  )}
+                                  {isCorrect && !isImagePuzzle && (
+                                    <span className="ml-auto text-xs">Correct</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ol>
               )}
             </Card>

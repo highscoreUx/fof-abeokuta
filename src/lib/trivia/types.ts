@@ -1,8 +1,10 @@
 export type TriviaQuestionType =
   | "QUIZ"
+  | "QUIZ_IMAGE"
   | "TRUE_FALSE"
   | "TYPE_ANSWER"
   | "PUZZLE"
+  | "PUZZLE_IMAGE"
   | "SLIDER"
   | "PIN_ANSWER"
   | "QUIZ_AUDIO";
@@ -42,9 +44,11 @@ export interface TriviaQuestionRecord {
 
 export const TRIVIA_TYPE_LABELS: Record<TriviaQuestionType, string> = {
   QUIZ: "Multiple choice",
+  QUIZ_IMAGE: "Multiple choice image",
   TRUE_FALSE: "True or false",
   TYPE_ANSWER: "Type answer",
-  PUZZLE: "Puzzle (order)",
+  PUZZLE: "Puzzle",
+  PUZZLE_IMAGE: "Puzzle image",
   SLIDER: "Slider",
   PIN_ANSWER: "Pin on image",
   QUIZ_AUDIO: "Audio quiz",

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { MediaUrlInput } from "@/components/admin/MediaUrlInput";
 import type { TriviaQuestionType } from "@/lib/trivia/types";
 import type { QuestionDraft } from "@/lib/quiz-question-form";
 
@@ -13,6 +14,9 @@ interface TriviaQuestionFormFieldsProps {
   mediaUrl?: string | null;
   onDraftChange: (draft: QuestionDraft) => void;
   onConfigChange: (config: Record<string, unknown>) => void;
+  onMediaUrlChange?: (url: string | null) => void;
+  onUploadFile?: (file: File) => Promise<string>;
+  uploading?: boolean;
   onMediaPin?: (pin: { x: number; y: number }) => void;
 }
 
@@ -23,8 +27,13 @@ export function TriviaQuestionFormFields({
   mediaUrl,
   onDraftChange,
   onConfigChange,
+  onMediaUrlChange,
+  onUploadFile,
+  uploading = false,
   onMediaPin,
 }: TriviaQuestionFormFieldsProps) {
+  const upload = onUploadFile ?? (async () => "");
+
   const updateOption = (index: number, value: string) => {
     const next = [...draft.options];
     next[index] = value;
@@ -52,6 +61,38 @@ export function TriviaQuestionFormFields({
         onChange={(e) => onDraftChange({ ...draft, text: e.target.value })}
         placeholder="Question text"
       />
+
+      {questionType === "QUIZ_AUDIO" && onMediaUrlChange && (
+        <MediaUrlInput
+          label="Audio (URL or upload)"
+          value={mediaUrl ?? ""}
+          onChange={(url) => onMediaUrlChange(url || null)}
+          onUpload={upload}
+          accept="audio/*"
+          uploading={uploading}
+          previewType="audio"
+        />
+      )}
+
+      {(questionType === "QUIZ_IMAGE" || questionType === "PUZZLE_IMAGE") && onMediaUrlChange && (
+        <MediaUrlInput
+          label="Question image (optional)"
+          value={mediaUrl ?? ""}
+          onChange={(url) => onMediaUrlChange(url || null)}
+          onUpload={upload}
+          uploading={uploading}
+        />
+      )}
+
+      {questionType === "PIN_ANSWER" && onMediaUrlChange && (
+        <MediaUrlInput
+          label="Image to pin on (URL or upload)"
+          value={mediaUrl ?? ""}
+          onChange={(url) => onMediaUrlChange(url || null)}
+          onUpload={upload}
+          uploading={uploading}
+        />
+      )}
 
       {(questionType === "QUIZ" || questionType === "QUIZ_AUDIO") && (
         <>
@@ -95,6 +136,61 @@ export function TriviaQuestionFormFields({
                 <option key={i} value={i}>
                   Option {i + 1}
                   {opt.trim() ? `: ${opt.trim()}` : ""}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </>
+      )}
+
+      {questionType === "QUIZ_IMAGE" && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Add image answers — paste a URL or upload each image.
+          </p>
+          <div className="space-y-4">
+            {draft.options.map((opt, i) => (
+              <div key={i} className="rounded-xl border border-border p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">Answer {i + 1}</span>
+                  {draft.options.length > 2 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => removeOption(i, 2)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <MediaUrlInput
+                  label=""
+                  value={opt}
+                  onChange={(url) => updateOption(i, url)}
+                  onUpload={upload}
+                  uploading={uploading}
+                />
+              </div>
+            ))}
+          </div>
+          {draft.options.length < 6 && (
+            <Button type="button" variant="secondary" size="sm" onClick={addOption}>
+              Add image answer
+            </Button>
+          )}
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Correct answer</label>
+            <Select
+              className="w-full"
+              value={String(draft.correctIndex)}
+              onChange={(e) =>
+                onDraftChange({ ...draft, correctIndex: Number(e.target.value) })
+              }
+            >
+              {draft.options.map((_, i) => (
+                <option key={i} value={i}>
+                  Image {i + 1}
                 </option>
               ))}
             </Select>
@@ -183,6 +279,43 @@ export function TriviaQuestionFormFields({
         </>
       )}
 
+      {questionType === "PUZZLE_IMAGE" && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Add images in the correct order. Players will rearrange them during the game.
+          </p>
+          <div className="space-y-4">
+            {draft.options.map((opt, i) => (
+              <div key={i} className="rounded-xl border border-border p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">Item {i + 1}</span>
+                  {draft.options.length > 2 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => removeOption(i, 2)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <MediaUrlInput
+                  label=""
+                  value={opt}
+                  onChange={(url) => updateOption(i, url)}
+                  onUpload={upload}
+                  uploading={uploading}
+                />
+              </div>
+            ))}
+          </div>
+          <Button type="button" variant="secondary" size="sm" onClick={addOption}>
+            Add image
+          </Button>
+        </>
+      )}
+
       {questionType === "SLIDER" && (
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -222,7 +355,9 @@ export function TriviaQuestionFormFields({
       )}
 
       {questionType === "PIN_ANSWER" && !mediaUrl && (
-        <p className="text-sm text-muted-foreground">Upload an image above to set the correct pin.</p>
+        <p className="text-sm text-muted-foreground">
+          Add an image URL or upload above, then set the correct pin below.
+        </p>
       )}
 
       {questionType === "PIN_ANSWER" && mediaUrl && (

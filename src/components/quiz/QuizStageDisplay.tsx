@@ -111,6 +111,8 @@ export function QuizStageDisplay({ variant = "default" }: QuizStageDisplayProps)
   if (state.state === "RESULTS" && state.currentQuestion && state.questionResults) {
     const { correctIndex, optionCounts, topScorers } = state.questionResults;
     const maxCount = Math.max(...optionCounts, 1);
+    const qType = state.currentQuestion.type;
+    const isImageMcq = qType === "QUIZ_IMAGE";
 
     return (
       <div className="space-y-6">
@@ -119,6 +121,14 @@ export function QuizStageDisplay({ variant = "default" }: QuizStageDisplayProps)
           <h2 className={cn("mt-2 font-black", isStage ? "text-4xl" : "text-2xl")}>
             {state.currentQuestion.text}
           </h2>
+          {state.currentQuestion.mediaUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={state.currentQuestion.mediaUrl}
+              alt=""
+              className="mx-auto mt-4 max-h-40 rounded-xl object-contain"
+            />
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -131,21 +141,33 @@ export function QuizStageDisplay({ variant = "default" }: QuizStageDisplayProps)
                 key={index}
                 className={cn(
                   "overflow-hidden rounded-xl text-white",
-                  style.bg,
+                  !isImageMcq && style.bg,
                   isCorrect && "ring-4 ring-white",
                 )}
               >
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <span className="text-xl font-black">{style.shape}</span>
-                  <span className="flex-1 font-semibold">{option}</span>
-                  <span className="font-bold">{count}</span>
-                </div>
-                <div className="h-2 bg-black/20">
-                  <div
-                    className="h-full bg-white/50 transition-all"
-                    style={{ width: `${(count / maxCount) * 100}%` }}
-                  />
-                </div>
+                {isImageMcq ? (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={option} alt="" className="aspect-video w-full object-cover" />
+                    <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-sm font-bold">
+                      {count}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <span className="text-xl font-black">{style.shape}</span>
+                      <span className="flex-1 font-semibold">{option}</span>
+                      <span className="font-bold">{count}</span>
+                    </div>
+                    <div className="h-2 bg-black/20">
+                      <div
+                        className="h-full bg-white/50 transition-all"
+                        style={{ width: `${(count / maxCount) * 100}%` }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -194,6 +216,12 @@ export function QuizStageDisplay({ variant = "default" }: QuizStageDisplayProps)
   const question = state.currentQuestion;
   if (!question) return null;
 
+  const showOptionGrid =
+    question.type === "QUIZ" ||
+    question.type === "QUIZ_IMAGE" ||
+    question.type === "TRUE_FALSE" ||
+    question.type === "QUIZ_AUDIO";
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -215,26 +243,71 @@ export function QuizStageDisplay({ variant = "default" }: QuizStageDisplayProps)
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {question.options.map((option, index) => {
-          const style = KAHOOT_OPTIONS[index % KAHOOT_OPTIONS.length];
-          return (
+      {question.type === "QUIZ_AUDIO" && question.mediaUrl && (
+        <audio controls src={question.mediaUrl} className="w-full max-w-xl" />
+      )}
+
+      {question.mediaUrl &&
+        (question.type === "QUIZ_IMAGE" ||
+          question.type === "PUZZLE_IMAGE" ||
+          question.type === "PIN_ANSWER") && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={question.mediaUrl}
+            alt=""
+            className="max-h-48 w-full rounded-xl object-contain"
+          />
+        )}
+
+      {showOptionGrid && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {question.options.map((option, index) => {
+            const style = KAHOOT_OPTIONS[index % KAHOOT_OPTIONS.length];
+            if (question.type === "QUIZ_IMAGE") {
+              return (
+                <div key={index} className="overflow-hidden rounded-xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={option} alt="" className="aspect-video w-full object-cover" />
+                </div>
+              );
+            }
+            return (
+              <div
+                key={index}
+                className={cn(
+                  "flex items-center gap-4 rounded-xl px-5 py-5 text-white",
+                  style.bg,
+                  isStage && "py-8",
+                )}
+              >
+                <span className={cn("font-black", isStage ? "text-4xl" : "text-2xl")}>
+                  {style.shape}
+                </span>
+                <span className={cn("font-semibold", isStage && "text-2xl")}>{option}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {(question.type === "PUZZLE" || question.type === "PUZZLE_IMAGE") && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(question.config.items ?? question.options).map((item, index) => (
             <div
               key={index}
-              className={cn(
-                "flex items-center gap-4 rounded-xl px-5 py-5 text-white",
-                style.bg,
-                isStage && "py-8",
-              )}
+              className="flex items-center gap-3 rounded-xl border border-border px-4 py-3"
             >
-              <span className={cn("font-black", isStage ? "text-4xl" : "text-2xl")}>
-                {style.shape}
-              </span>
-              <span className={cn("font-semibold", isStage && "text-2xl")}>{option}</span>
+              <span className="text-muted-foreground">{index + 1}.</span>
+              {question.type === "PUZZLE_IMAGE" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item} alt="" className="h-20 w-full rounded-lg object-cover" />
+              ) : (
+                <span className="font-medium">{item}</span>
+              )}
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {state.answeredCount !== undefined && (
         <p className="text-center text-sm text-muted-foreground">

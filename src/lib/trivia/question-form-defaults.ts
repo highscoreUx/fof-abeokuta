@@ -1,6 +1,7 @@
 import type { TriviaQuestionType } from "@/lib/trivia/types";
 import type { QuestionDraft } from "@/lib/quiz-question-form";
 import { emptyQuestionDraft } from "@/lib/quiz-question-form";
+import { filterValidMediaUrls, isMediaUrl } from "@/lib/trivia/media";
 
 export interface TriviaQuestionFormState {
   draft: QuestionDraft;
@@ -22,8 +23,14 @@ export function defaultFormStateForType(type: TriviaQuestionType): TriviaQuestio
         config: { caseSensitive: false },
       };
     case "PUZZLE":
+    case "PUZZLE_IMAGE":
       return {
         draft: { ...base, options: ["", "", ""], correctIndex: 0 },
+        config: {},
+      };
+    case "QUIZ_IMAGE":
+      return {
+        draft: { ...base, options: ["", "", "", ""] },
         config: {},
       };
     case "SLIDER":
@@ -62,7 +69,17 @@ export function validateTriviaQuestionForm(
       if (draft.correctIndex >= options.length) {
         return "Correct answer must match one of the options.";
       }
-      if (type === "QUIZ_AUDIO" && !mediaUrl) return "Upload an audio file for this question.";
+      if (type === "QUIZ_AUDIO" && !mediaUrl) {
+        return "Provide an audio URL or upload a file for this question.";
+      }
+      return null;
+    }
+    case "QUIZ_IMAGE": {
+      const options = filterValidMediaUrls(draft.options);
+      if (options.length < 2) return "Add at least two image answers (URL or upload).";
+      if (draft.correctIndex >= options.length) {
+        return "Select the correct image answer.";
+      }
       return null;
     }
     case "TRUE_FALSE":
@@ -80,6 +97,11 @@ export function validateTriviaQuestionForm(
       if (items.length < 2) return "Add at least two items to order.";
       return null;
     }
+    case "PUZZLE_IMAGE": {
+      const items = filterValidMediaUrls(draft.options);
+      if (items.length < 2) return "Add at least two images to order (URL or upload).";
+      return null;
+    }
     case "SLIDER": {
       const min = Number(config.min ?? 0);
       const max = Number(config.max ?? 100);
@@ -90,7 +112,9 @@ export function validateTriviaQuestionForm(
       return null;
     }
     case "PIN_ANSWER":
-      if (!mediaUrl) return "Upload an image for players to pin.";
+      if (!mediaUrl || !isMediaUrl(mediaUrl)) {
+        return "Provide an image URL or upload a file for players to pin.";
+      }
       if (!Array.isArray(config.pins) || !(config.pins as unknown[]).length) {
         return "Set the correct pin location on the image.";
       }
@@ -118,9 +142,21 @@ export function buildTriviaQuestionPayload(
         options: draft.options.map((o) => o.trim()).filter(Boolean),
         correctIndex: draft.correctIndex,
         config: {},
-        mediaUrl: type === "QUIZ_AUDIO" ? mediaUrl : null,
+        mediaUrl: type === "QUIZ_AUDIO" ? mediaUrl?.trim() || null : null,
         timeLimitSec,
       };
+    case "QUIZ_IMAGE": {
+      const options = filterValidMediaUrls(draft.options);
+      return {
+        type,
+        text,
+        options,
+        correctIndex: draft.correctIndex,
+        config: {},
+        mediaUrl: mediaUrl?.trim() || null,
+        timeLimitSec,
+      };
+    }
     case "TRUE_FALSE":
       return {
         type,
@@ -155,6 +191,18 @@ export function buildTriviaQuestionPayload(
         timeLimitSec,
       };
     }
+    case "PUZZLE_IMAGE": {
+      const items = filterValidMediaUrls(draft.options);
+      return {
+        type,
+        text,
+        options: items,
+        correctIndex: 0,
+        config: { items, correctOrder: items.map((_, i) => i) },
+        mediaUrl: mediaUrl?.trim() || null,
+        timeLimitSec,
+      };
+    }
     case "SLIDER":
       return {
         type,
@@ -180,7 +228,7 @@ export function buildTriviaQuestionPayload(
           pins: config.pins,
           pinTolerance: Number(config.pinTolerance ?? 0.08),
         },
-        mediaUrl,
+        mediaUrl: mediaUrl?.trim() || null,
         timeLimitSec,
       };
     default:

@@ -13,6 +13,7 @@ export function scoreTriviaAnswer(
 
   switch (question.type) {
     case "QUIZ":
+    case "QUIZ_IMAGE":
     case "TRUE_FALSE":
     case "QUIZ_AUDIO":
       return payload.answerIndex === question.correctIndex;
@@ -29,7 +30,8 @@ export function scoreTriviaAnswer(
       );
     }
 
-    case "PUZZLE": {
+    case "PUZZLE":
+    case "PUZZLE_IMAGE": {
       const order = payload.order;
       const correct = config.correctOrder ?? [];
       if (!order || order.length !== correct.length) return false;

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AccessDeniedPanel } from "@/components/auth/AccessDeniedPanel";
+import { AuthLoadingPanel } from "@/components/auth/AuthLoadingPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventPathPrefix } from "@/hooks/useEventSlug";
 import { loginPath } from "@/lib/routes";
@@ -18,11 +20,15 @@ export function PermissionGuard({
   permission,
   anyOf,
   allowAdminShell = false,
+  title,
+  description,
 }: {
   children: React.ReactNode;
   permission?: Permission;
   anyOf?: Permission[];
   allowAdminShell?: boolean;
+  title?: string;
+  description?: string;
 }) {
   const pathPrefix = useEventPathPrefix();
   const { user, isAuthenticated, isHydrated } = useAuth();
@@ -47,21 +53,22 @@ export function PermissionGuard({
           ? `${window.location.pathname}${window.location.search}`
           : "/home";
       router.replace(loginPath(returnTo));
-      return;
     }
-    if (!allowed) {
-      router.replace(resolveDefaultRoute(user.permissions, pathPrefix));
-    }
-  }, [isHydrated, isAuthenticated, user, allowed, router, pathPrefix]);
+  }, [isHydrated, isAuthenticated, user, router]);
 
-  if (!isHydrated || !user || !allowed) {
+  if (!isHydrated || !isAuthenticated || !user) {
+    return <AuthLoadingPanel />;
+  }
+
+  if (!allowed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        </div>
-      </div>
+      <AccessDeniedPanel
+        context="event"
+        title={title}
+        description={description}
+        homeHref={resolveDefaultRoute(user.permissions, pathPrefix)}
+        homeLabel="Go to your home"
+      />
     );
   }
 

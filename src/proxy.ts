@@ -5,7 +5,6 @@ import { sanitizeNextParam } from "@/lib/post-login-redirect";
 import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
 
 const PLATFORM_PUBLIC = [
-  "/fg-admin/access-denied",
   "/change-password",
   "/api/auth/login",
   "/api/auth/refresh",

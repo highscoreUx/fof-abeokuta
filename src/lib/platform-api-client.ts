@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiForbiddenError } from "@/lib/api-errors";
 import { refreshSessionFromServer } from "@/lib/auth/refresh-client";
 import { getLoginRedirectFromPathname } from "@/lib/routes";
 import { useAuthStore } from "@/stores/authStore";
@@ -19,9 +20,10 @@ export async function platformApiFetch<T>(path: string, options: RequestInit & {
   });
 
   if (response.status === 403 && !skipAuth) {
-    useAuthStore.getState().clearAuth();
-    if (typeof window !== "undefined") window.location.href = "/fg-admin/access-denied";
-    throw new Error("Forbidden");
+    const data = await response.json().catch(() => ({}));
+    throw new ApiForbiddenError(
+      typeof data.error === "string" ? data.error : "You do not have permission for this action.",
+    );
   }
 
   if (response.status === 401 && !skipAuth) {
@@ -54,6 +56,13 @@ export async function platformApiUpload<T>(path: string, formData: FormData): Pr
     body: formData,
     credentials: "include",
   });
+
+  if (response.status === 403) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiForbiddenError(
+      typeof data.error === "string" ? data.error : "You do not have permission for this action.",
+    );
+  }
 
   if (response.status === 401) {
     const refreshed = await refreshPlatformAccessToken();

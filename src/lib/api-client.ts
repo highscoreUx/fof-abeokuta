@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiForbiddenError } from "@/lib/api-errors";
 import type { AxiosRequestConfig } from "axios";
 import { axiosRequest, refreshAccessToken } from "@/lib/axios";
 import { getLoginRedirectFromPathname } from "@/lib/routes";
@@ -33,7 +34,15 @@ export async function apiFetch<T>(
   try {
     return await axiosRequest<T>(config, { skipAuth });
   } catch (error) {
-    const status = (error as { response?: { status?: number } }).response?.status;
+    const status = (error as { response?: { status?: number; data?: { error?: string } } }).response
+      ?.status;
+    const responseError = (error as { response?: { data?: { error?: string } } }).response?.data
+      ?.error;
+
+    if (status === 403 && !skipAuth) {
+      throw new ApiForbiddenError(responseError ?? "You do not have permission for this action.");
+    }
+
     if (status === 401 && !skipAuth) {
       useAuthStore.getState().clearAuth();
       if (typeof window !== "undefined") {

@@ -1,11 +1,19 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { usePlatformAuthGuard } from "@/hooks/usePlatformAuthGuard";
+import { AccessDeniedPanel } from "@/components/auth/AccessDeniedPanel";
+import { AuthLoadingPanel } from "@/components/auth/AuthLoadingPanel";
+import { usePlatformAuthState } from "@/hooks/usePlatformAuthState";
 
 export default function FgAdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isPublic = pathname === "/fg-admin/access-denied";
-  usePlatformAuthGuard(!isPublic);
+  const status = usePlatformAuthState();
+
+  if (status === "loading" || status === "login_required") {
+    return <AuthLoadingPanel />;
+  }
+
+  if (status === "access_denied") {
+    return <AccessDeniedPanel context="platform" />;
+  }
+
   return children;
 }

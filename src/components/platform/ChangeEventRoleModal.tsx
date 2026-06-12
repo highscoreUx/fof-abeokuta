@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { apiFetch } from "@/lib/api-client";
 import type { EventUserRow } from "@/types/users";
 
 interface RoleOption {
@@ -17,7 +18,10 @@ interface ChangeEventRoleModalProps {
   open: boolean;
   onClose: () => void;
   user: EventUserRow | null;
-  eventId: string;
+  /** Platform admin event id */
+  eventId?: string;
+  /** Event-scoped admin slug */
+  eventSlug?: string;
   roleOptions: RoleOption[];
   onUpdated: () => void;
 }
@@ -27,6 +31,7 @@ export function ChangeEventRoleModal({
   onClose,
   user,
   eventId,
+  eventSlug,
   roleOptions,
   onUpdated,
 }: ChangeEventRoleModalProps) {
@@ -56,13 +61,23 @@ export function ChangeEventRoleModal({
     setBusy(true);
     setError("");
     try {
-      await platformApiFetch(`/api/fg-admin/events/${eventId}/users/${user.id}/access`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          permissionProfile,
-          ...(needsEmail ? { email: email.trim() } : {}),
-        }),
-      });
+      const body = {
+        permissionProfile,
+        ...(needsEmail ? { email: email.trim() } : {}),
+      };
+      if (eventSlug) {
+        await apiFetch(eventSlug, `/users/${user.id}/access`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
+      } else if (eventId) {
+        await platformApiFetch(`/api/fg-admin/events/${eventId}/users/${user.id}/access`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
+      } else {
+        throw new Error("Missing event context");
+      }
       onUpdated();
       onClose();
     } catch (err) {

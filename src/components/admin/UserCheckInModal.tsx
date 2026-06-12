@@ -20,6 +20,8 @@ interface UserCheckInModalProps {
   /** When set, uses platform admin APIs instead of event-scoped hooks. */
   platformEventId?: string;
   onUpdated?: () => void;
+  /** When false, hides check-in / undo actions (details remain viewable). */
+  canManageCheckIn?: boolean;
 }
 
 function displayEmail(user: EventUserRow): string {
@@ -37,6 +39,7 @@ function UserCheckInModalContent({
   onEmailChange,
   onCheckIn,
   onUncheck,
+  canManageCheckIn = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -48,6 +51,7 @@ function UserCheckInModalContent({
   onEmailChange: (value: string) => void;
   onCheckIn: () => Promise<void>;
   onUncheck: () => Promise<void>;
+  canManageCheckIn?: boolean;
 }) {
   const fullName = `${details.firstName} ${details.lastName}`.trim();
   const needsEmail = details.needsEmail ?? !details.email;
@@ -129,21 +133,22 @@ function UserCheckInModalContent({
           <Button type="button" variant="outline" onClick={onClose}>
             Close
           </Button>
-          {isCheckedIn ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="text-danger"
-              onClick={() => void onUncheck()}
-              disabled={busy}
-            >
-              {busy ? "Undoing…" : "Undo check-in"}
-            </Button>
-          ) : (
-            <Button type="button" onClick={() => void onCheckIn()} disabled={busy}>
-              {busy ? "Checking in…" : "Check in"}
-            </Button>
-          )}
+          {canManageCheckIn &&
+            (isCheckedIn ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="text-danger"
+                onClick={() => void onUncheck()}
+                disabled={busy}
+              >
+                {busy ? "Undoing…" : "Undo check-in"}
+              </Button>
+            ) : (
+              <Button type="button" onClick={() => void onCheckIn()} disabled={busy}>
+                {busy ? "Checking in…" : "Check in"}
+              </Button>
+            ))}
         </div>
       </div>
     </Modal>
@@ -154,7 +159,8 @@ function EventUserCheckInModal({
   open,
   onClose,
   user,
-}: Pick<UserCheckInModalProps, "open" | "onClose" | "user">) {
+  canManageCheckIn = true,
+}: Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "canManageCheckIn">) {
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
   const [details, setDetails] = useState<EventUserRow | null>(null);
@@ -216,6 +222,7 @@ function EventUserCheckInModal({
           setError(err instanceof Error ? err.message : "Failed to undo check-in");
         }
       }}
+      canManageCheckIn={canManageCheckIn}
     />
   );
 }
@@ -226,8 +233,9 @@ function PlatformUserCheckInModal({
   user,
   platformEventId,
   onUpdated,
+  canManageCheckIn = true,
 }: Required<Pick<UserCheckInModalProps, "platformEventId">> &
-  Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated">) {
+  Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated" | "canManageCheckIn">) {
   const [details, setDetails] = useState<EventUserRow | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState("");
@@ -304,6 +312,7 @@ function PlatformUserCheckInModal({
           setBusy(false);
         }
       }}
+      canManageCheckIn={canManageCheckIn}
     />
   );
 }
@@ -314,6 +323,7 @@ export function UserCheckInModal({
   user,
   platformEventId,
   onUpdated,
+  canManageCheckIn = true,
 }: UserCheckInModalProps) {
   if (platformEventId) {
     return (
@@ -323,9 +333,17 @@ export function UserCheckInModal({
         user={user}
         platformEventId={platformEventId}
         onUpdated={onUpdated}
+        canManageCheckIn={canManageCheckIn}
       />
     );
   }
 
-  return <EventUserCheckInModal open={open} onClose={onClose} user={user} />;
+  return (
+    <EventUserCheckInModal
+      open={open}
+      onClose={onClose}
+      user={user}
+      canManageCheckIn={canManageCheckIn}
+    />
+  );
 }

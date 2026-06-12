@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { UserCheckInModal } from "@/components/admin/UserCheckInModal";
+import { UserRowActionsMenu } from "@/components/admin/UserRowActionsMenu";
 import { ChangeEventRoleModal } from "@/components/platform/ChangeEventRoleModal";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -36,56 +35,6 @@ interface PlatformCommunityUsersTableProps {
   refreshKey?: number;
   emptyLabel: string;
   countLabel: string;
-}
-
-function RowActionsMenu({
-  user,
-  busy,
-  canChangeRole,
-  onCheckIn,
-  onDetails,
-  onChangeRole,
-}: {
-  user: EventUserRow;
-  busy: boolean;
-  canChangeRole: boolean;
-  onCheckIn: () => void;
-  onDetails: () => void;
-  onChangeRole: () => void;
-}) {
-  return (
-    <DropdownMenu
-      align="end"
-      trigger={
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 w-8 px-0"
-          disabled={busy}
-          aria-label={`Actions for ${user.firstName} ${user.lastName}`}
-        >
-          <svg
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="h-4 w-4"
-            aria-hidden
-          >
-            <circle cx="4" cy="10" r="1.5" />
-            <circle cx="10" cy="10" r="1.5" />
-            <circle cx="16" cy="10" r="1.5" />
-          </svg>
-        </Button>
-      }
-    >
-      <DropdownMenuItem onClick={onCheckIn}>
-        {user.checkedInAt ? "Undo check-in" : "Check in"}
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onDetails}>Details</DropdownMenuItem>
-      {canChangeRole && (
-        <DropdownMenuItem onClick={onChangeRole}>Change role</DropdownMenuItem>
-      )}
-    </DropdownMenu>
-  );
 }
 
 export function PlatformCommunityUsersTable({
@@ -388,9 +337,11 @@ export function PlatformCommunityUsersTable({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <RowActionsMenu
+                      <UserRowActionsMenu
                         user={user}
                         busy={togglingId === user.id}
+                        canCheckIn
+                        canViewDetails
                         canChangeRole={canChangeEventRole(user)}
                         onCheckIn={() => void toggleCheckIn(user)}
                         onDetails={() => setDetailsUser(user)}

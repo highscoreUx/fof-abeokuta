@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
-import {
-  EVENT_SCOPED_STAFF_PROFILE_SLUGS,
-} from "@/lib/community-audience";
+import { EVENT_SCOPED_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
 import { EventUserAccessError, updateEventUserAccess } from "@/lib/event-user-access";
-import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 
 const assignableSlugs = [...EVENT_SCOPED_STAFF_PROFILE_SLUGS, "participant"] as const;
 
@@ -16,12 +14,12 @@ const updateAccessSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; userId: string }> },
+  { params }: { params: Promise<{ slug: string; id: string }> },
 ) {
-  const authResult = requirePlatformAuth(request);
-  if (authResult instanceof NextResponse) return authResult;
+  const { slug, id: userId } = await params;
+  const ctx = await requireEventPermission(request, slug, "user.update");
+  if (ctx instanceof NextResponse) return ctx;
 
-  const { id: eventId, userId } = await params;
   const body = await request.json();
   const parsed = updateAccessSchema.safeParse(body);
   if (!parsed.success) {
@@ -30,7 +28,7 @@ export async function PATCH(
 
   try {
     const result = await updateEventUserAccess({
-      eventId,
+      eventId: ctx.event.id,
       userId,
       permissionProfile: parsed.data.permissionProfile,
       email: parsed.data.email,

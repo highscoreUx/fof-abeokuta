@@ -1,18 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { UserCheckInModal } from "@/components/admin/UserCheckInModal";
+import { UserRowActionsMenu } from "@/components/admin/UserRowActionsMenu";
+import { ChangeEventRoleModal } from "@/components/platform/ChangeEventRoleModal";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import {
   useCheckInUserMutation,
+  useInvalidateUsers,
   useTeamsQuery,
   useUncheckInUserMutation,
   useUsersQuery,
 } from "@/hooks/useUsersQuery";
+import { useEventSlug } from "@/hooks/useEventSlug";
+import { useHasPermission } from "@/hooks/useHasPermission";
+import { EVENT_SCOPED_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
 import { cn } from "@/lib/cn";
 import {
   useUsersTableStore,
@@ -53,12 +58,19 @@ function SortableHeader({
 }
 
 export function UsersTable() {
+  const eventSlug = useEventSlug();
   const { data, isLoading, isFetching, error } = useUsersQuery();
   const { data: teamsData } = useTeamsQuery();
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
+  const invalidateUsers = useInvalidateUsers();
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
+  const [roleChangeUser, setRoleChangeUser] = useState<EventUserRow | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const canCheckIn = useHasPermission("user.check_in");
+  const canViewDetails = useHasPermission("user.list");
+  const canChangeRole = useHasPermission("user.update");
 
   const search = useUsersTableStore((s) => s.search);
   const role = useUsersTableStore((s) => s.role);
@@ -77,7 +89,24 @@ export function UsersTable() {
   const teams = teamsData?.teams ?? [];
   const accessProfiles = PERMISSION_PROFILES;
 
+  const roleOptions = useMemo(
+    () =>
+      PERMISSION_PROFILES.filter((profile) =>
+        (["participant", ...EVENT_SCOPED_STAFF_PROFILE_SLUGS] as readonly string[]).includes(
+          profile.slug,
+        ),
+      ).map((profile) => ({ slug: profile.slug, name: profile.name })),
+    [],
+  );
+
+  const showActionsColumn = canCheckIn || canViewDetails || canChangeRole;
+
+  const canChangeUserRole = (user: EventUserRow) =>
+    canChangeRole &&
+    (user.isParticipantAccount !== false || Boolean(user.isEventScopedAccess));
+
   const toggleCheckIn = async (user: EventUserRow) => {
+    if (!canCheckIn) return;
     if (!user.checkedInAt && (user.needsEmail || !user.email)) {
       setDetailsUser(user);
       return;
@@ -174,30 +203,32 @@ export function UsersTable() {
                   Team
                 </th>
                 <SortableHeader field="checkedInAt" label="Checked in" />
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Actions
-                </th>
+                {showActionsColumn && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading &&
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="border-b border-border/60">
-                    <td colSpan={6} className="px-4 py-4">
+                    <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-4">
                       <div className="h-4 animate-pulse rounded bg-muted" />
                     </td>
                   </tr>
                 ))}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-danger">
+                  <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-8 text-center text-danger">
                     Failed to load users
                   </td>
                 </tr>
               )}
               {!isLoading && !error && users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-10 text-center text-muted-foreground">
                     No users match your filters
                   </td>
                 </tr>
@@ -231,26 +262,20 @@ export function UsersTable() {
                         <Badge variant="muted">No</Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant={user.checkedInAt ? "outline" : "primary"}
-                          className={user.checkedInAt ? "text-danger" : undefined}
-                          onClick={() => void toggleCheckIn(user)}
-                          disabled={togglingId === user.id}
-                        >
-                          {togglingId === user.id
-                            ? "…"
-                            : user.checkedInAt
-                              ? "Undo"
-                              : "Check in"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setDetailsUser(user)}>
-                          Details
-                        </Button>
-                      </div>
-                    </td>
+                    {showActionsColumn && (
+                      <td className="px-4 py-3 text-right">
+                        <UserRowActionsMenu
+                          user={user}
+                          busy={togglingId === user.id}
+                          canCheckIn={canCheckIn}
+                          canViewDetails={canViewDetails}
+                          canChangeRole={canChangeUserRole(user)}
+                          onCheckIn={() => void toggleCheckIn(user)}
+                          onDetails={() => setDetailsUser(user)}
+                          onChangeRole={() => setRoleChangeUser(user)}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -272,6 +297,16 @@ export function UsersTable() {
         open={detailsUser !== null}
         onClose={() => setDetailsUser(null)}
         user={detailsUser}
+        canManageCheckIn={canCheckIn}
+      />
+
+      <ChangeEventRoleModal
+        open={roleChangeUser !== null}
+        onClose={() => setRoleChangeUser(null)}
+        user={roleChangeUser}
+        eventSlug={eventSlug}
+        roleOptions={roleOptions}
+        onUpdated={() => void invalidateUsers()}
       />
     </div>
   );

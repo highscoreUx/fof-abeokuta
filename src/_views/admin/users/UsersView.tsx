@@ -9,9 +9,12 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEventNav } from "@/hooks/useEventNav";
+import { useHasPermission } from "@/hooks/useHasPermission";
 
 export function UsersView() {
   const { nav } = useEventNav();
+  const canImportUsers = useHasPermission("user.import");
+  const canCreateUsers = useHasPermission("user.create");
   const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -40,12 +43,18 @@ export function UsersView() {
                   when creating accounts.
                 </CardDescription>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Button variant="outline" onClick={() => setBulkOpen(true)}>
-                  Bulk add
-                </Button>
-                <Button onClick={() => setAddOpen(true)}>Add user</Button>
-              </div>
+              {(canImportUsers || canCreateUsers) && (
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {canImportUsers && (
+                    <Button variant="outline" onClick={() => setBulkOpen(true)}>
+                      Bulk add
+                    </Button>
+                  )}
+                  {canCreateUsers && (
+                    <Button onClick={() => setAddOpen(true)}>Add user</Button>
+                  )}
+                </div>
+              )}
             </CardHeader>
 
             <UsersTable />
@@ -61,7 +70,9 @@ export function UsersView() {
             )
           }
         />
-        <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
+        {canImportUsers && (
+          <BulkImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
+        )}
       </AppShell>
     </PermissionGuard>
   );

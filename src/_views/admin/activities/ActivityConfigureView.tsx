@@ -5,35 +5,22 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { AddQuestionModal } from "@/components/admin/AddQuestionModal";
+import { BulkAddQuestionsModal } from "@/components/admin/BulkAddQuestionsModal";
+import { QuestionActionsBar } from "@/components/admin/QuestionActionsBar";
+import { SpreadsheetImportModal } from "@/components/admin/SpreadsheetImportModal";
 import { Card } from "@/components/ui/card";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
-import { useAuthStore } from "@/stores/authStore";
-import { privateApi } from "@/lib/axios";
-import { downloadQuizCsvTemplate } from "@/lib/quiz-csv-template";
 import { formatInstanceScope } from "@/lib/activities/catalog";
 import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
 import type { ActivityConfigureKind, KahootActivityDetail, SpinActivityDetail } from "@/types/activities";
-
-function ProgressBar({ value }: { value: number }) {
-  return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-foreground/10">
-      <div
-        className="h-full rounded-full bg-primary transition-all duration-200"
-        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-      />
-    </div>
-  );
-}
 
 export function ActivityConfigureView() {
   const params = useParams<{ kind: string; id: string }>();
   const kind = params.kind as ActivityConfigureKind;
   const id = params.id;
-  const { path, api } = useEventApi();
+  const { api } = useEventApi();
   const { nav, activities } = useEventNav();
 
   const [kahoot, setKahoot] = useState<KahootActivityDetail | null>(null);
@@ -41,14 +28,9 @@ export function ActivityConfigureView() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [savingQuestion, setSavingQuestion] = useState(false);
-  const [questionError, setQuestionError] = useState<string | null>(null);
-  const [questionText, setQuestionText] = useState("");
-  const [options, setOptions] = useState(["", "", "", ""]);
-  const [correctIndex, setCorrectIndex] = useState(0);
-  const [timeLimitSec, setTimeLimitSec] = useState(20);
+  const [singleOpen, setSingleOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,87 +99,9 @@ export function ActivityConfigureView() {
   const typeLabel = kind === "kahoot" ? "Live Trivia" : "Spin to Build";
   const permission = kind === "kahoot" ? "quiz.manage" : "spin.manage";
 
-  const resetQuestionForm = () => {
-    setQuestionText("");
-    setOptions(["", "", "", ""]);
-    setCorrectIndex(0);
-    setTimeLimitSec(20);
-    setQuestionError(null);
-  };
-
-  const handleAddQuestion = async () => {
-    if (!kahoot) return;
-    const trimmedOptions = options.map((o) => o.trim()).filter(Boolean);
-    if (!questionText.trim()) {
-      setQuestionError("Question text is required.");
-      return;
-    }
-    if (trimmedOptions.length < 2) {
-      setQuestionError("Add at least two answer options.");
-      return;
-    }
-    if (correctIndex >= trimmedOptions.length) {
-      setQuestionError("Correct answer must match one of the options.");
-      return;
-    }
-
-    setSavingQuestion(true);
-    setQuestionError(null);
-    try {
-      await api(`/quizzes/${kahoot.id}/questions`, {
-        method: "POST",
-        body: JSON.stringify({
-          text: questionText.trim(),
-          options: trimmedOptions,
-          correctIndex,
-          timeLimitSec,
-        }),
-      });
-      resetQuestionForm();
-      await load();
-    } catch (e) {
-      setQuestionError(e instanceof Error ? e.message : "Failed to add question");
-    } finally {
-      setSavingQuestion(false);
-    }
-  };
-
-  const handleUploadCsv = async (file: File) => {
-    if (!kahoot) return;
-    setUploadError(null);
-    setUploadProgress(0);
-
-    const formData = new FormData();
-    formData.append("file", file);
-    const token = useAuthStore.getState().accessToken;
-
-    try {
-      await privateApi.post(path(`/quizzes/${kahoot.id}/questions`), formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        onUploadProgress: (event) => {
-          if (event.total) {
-            setUploadProgress(Math.round((event.loaded / event.total) * 100));
-          }
-        },
-      });
-      setUploadProgress(100);
-      await load();
-      setTimeout(() => setUploadProgress(null), 800);
-    } catch (e) {
-      setUploadError(e instanceof Error ? e.message : "Upload failed");
-      setUploadProgress(null);
-    }
-  };
-
   return (
     <PermissionGuard permission={permission}>
-      <AppShell
-        title={activity?.title ?? "Configure activity"}
-        nav={nav}
-      >
+      <AppShell title={activity?.title ?? "Configure activity"} nav={nav}>
         <div className="mb-6">
           <Link
             href={activities}
@@ -216,18 +120,29 @@ export function ActivityConfigureView() {
         {loadError && <p className="text-danger">{loadError}</p>}
 
         {!loading && !loadError && kahoot && kind === "kahoot" && (
-          <div className="mx-auto max-w-3xl space-y-6">
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold">Questions ({kahoot.questions.length})</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Review and manage the question set for this activity.
-              </p>
+          <>
+            <Card className="w-full p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Questions ({kahoot.questions.length})</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Review and manage the question set for this activity.
+                  </p>
+                </div>
+                <QuestionActionsBar
+                  onAddSingle={() => setSingleOpen(true)}
+                  onAddBulk={() => setBulkOpen(true)}
+                  onAddSpreadsheet={() => setSpreadsheetOpen(true)}
+                />
+              </div>
+
               {kahoot.questions.length === 0 ? (
-                <p className="mt-4 rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                  No questions yet. Add one below or import from CSV.
+                <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
+                  No questions yet. Use Add question to create one, add several in bulk, or import
+                  from a spreadsheet.
                 </p>
               ) : (
-                <ol className="mt-4 space-y-3">
+                <ol className="mt-6 space-y-3">
                   {kahoot.questions.map((q, i) => (
                     <li key={q.id} className="rounded-xl border border-border p-4">
                       <p className="font-medium">
@@ -239,7 +154,7 @@ export function ActivityConfigureView() {
                         ) : null}
                       </p>
                       {Array.isArray(q.options) && q.options.length > 0 && (
-                        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                           {q.options.map((opt, optIndex) => {
                             const style = KAHOOT_OPTIONS[optIndex % KAHOOT_OPTIONS.length];
                             const isCorrect = q.correctIndex === optIndex;
@@ -268,106 +183,29 @@ export function ActivityConfigureView() {
               )}
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold">Add question</h2>
-              <div className="mt-4 space-y-3">
-                <Input
-                  value={questionText}
-                  onChange={(e) => setQuestionText(e.target.value)}
-                  placeholder="Question text"
-                />
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {options.map((opt, i) => (
-                    <Input
-                      key={i}
-                      value={opt}
-                      onChange={(e) => {
-                        const next = [...options];
-                        next[i] = e.target.value;
-                        setOptions(next);
-                      }}
-                      placeholder={`Option ${i + 1}`}
-                    />
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  <div>
-                    <label className="mb-1 block text-xs text-muted-foreground">
-                      Correct answer
-                    </label>
-                    <Select
-                      value={String(correctIndex)}
-                      onChange={(e) => setCorrectIndex(Number(e.target.value))}
-                    >
-                      {options.map((opt, i) => (
-                        <option key={i} value={i}>
-                          Option {i + 1}
-                          {opt.trim() ? `: ${opt.trim()}` : ""}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-muted-foreground">
-                      Time limit (sec)
-                    </label>
-                    <Input
-                      type="number"
-                      min={5}
-                      max={120}
-                      value={timeLimitSec}
-                      onChange={(e) => setTimeLimitSec(Number(e.target.value))}
-                      className="w-24"
-                    />
-                  </div>
-                </div>
-                {questionError && <p className="text-sm text-danger">{questionError}</p>}
-                <Button onClick={handleAddQuestion} disabled={savingQuestion}>
-                  {savingQuestion ? "Adding…" : "Add question"}
-                </Button>
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold">Import questions</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Download the template, fill in your questions, then upload the CSV.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => downloadQuizCsvTemplate()}>
-                  Download template
-                </Button>
-                <label className="cursor-pointer">
-                  <span className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">
-                    Upload CSV
-                  </span>
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handleUploadCsv(file);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
-              {uploadProgress !== null && (
-                <div className="mt-4 space-y-1">
-                  <ProgressBar value={uploadProgress} />
-                  <p className="text-xs text-muted-foreground">
-                    {uploadProgress < 100 ? `Uploading… ${uploadProgress}%` : "Processing…"}
-                  </p>
-                </div>
-              )}
-              {uploadError && <p className="mt-2 text-sm text-danger">{uploadError}</p>}
-            </Card>
-          </div>
+            <AddQuestionModal
+              open={singleOpen}
+              onClose={() => setSingleOpen(false)}
+              quizId={kahoot.id}
+              onAdded={load}
+            />
+            <BulkAddQuestionsModal
+              open={bulkOpen}
+              onClose={() => setBulkOpen(false)}
+              quizId={kahoot.id}
+              onAdded={load}
+            />
+            <SpreadsheetImportModal
+              open={spreadsheetOpen}
+              onClose={() => setSpreadsheetOpen(false)}
+              quizId={kahoot.id}
+              onImported={load}
+            />
+          </>
         )}
 
         {!loading && !loadError && spin && kind === "spin" && (
-          <Card className="mx-auto max-w-3xl p-6">
+          <Card className="w-full p-6">
             <p className="text-sm text-muted-foreground">
               Spin to Build sessions are started from the activities list. Scope: {scope}.
             </p>

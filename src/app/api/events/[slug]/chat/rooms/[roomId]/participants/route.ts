@@ -9,9 +9,11 @@ import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isUserOnline } from "@/server/presence";
+import { resolveUserPermissionList, resolveUserRolePermissions } from "@/lib/user-permissions";
 
 const participantSelect = {
   id: true,
+  permissions: true,
   account: { select: { firstName: true, lastName: true, permissions: true } },
   team: { select: { letter: true } },
 } as const;
@@ -23,15 +25,17 @@ const participantOrderBy = [
 
 function mapParticipant(user: {
   id: string;
+  permissions: unknown | null;
   account: { firstName: string; lastName: string; permissions: unknown };
   team: { letter: string } | null;
 }) {
+  const effectivePermissions = resolveUserPermissionList(user);
   return {
     id: user.id,
     firstName: user.account.firstName,
     lastName: user.account.lastName,
     teamLetter: user.team?.letter ?? null,
-    roleName: getProfileLabelForPermissions(user.account.permissions),
+    roleName: getProfileLabelForPermissions(effectivePermissions),
     online: isUserOnline(user.id),
   };
 }
@@ -73,7 +77,7 @@ export async function GET(
 
     return NextResponse.json({
       participants: allUsers
-        .filter((user) => canAccessStaffChat(user.account.permissions as never))
+        .filter((user) => canAccessStaffChat(resolveUserRolePermissions(user)))
         .map(mapParticipant),
     });
   }

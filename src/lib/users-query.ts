@@ -1,6 +1,6 @@
+import { Prisma } from "@/generated/prisma/client";
 import {
-  buildCommunityParticipantAccountFilter,
-  buildCommunityStaffAccountFilter,
+  COMMUNITY_STAFF_PROFILE_SLUGS,
   type CommunityAudience,
 } from "@/lib/community-audience";
 import { getProfilePermissions } from "@/lib/permission-profiles";
@@ -9,68 +9,99 @@ import { parsePaginationParams } from "@/lib/pagination";
 const USER_SORT_FIELDS = new Set(["createdAt", "checkedInAt"]);
 const ACCOUNT_SORT_FIELDS = new Set(["firstName", "lastName", "username", "email"]);
 
-function buildAccountFilter(params: ReturnType<typeof parsePaginationParams>) {
-  const parts: Record<string, unknown>[] = [];
+function buildCommunityStaffAccountFilter() {
+  return {
+    OR: COMMUNITY_STAFF_PROFILE_SLUGS.map((slug) => ({
+      permissions: { equals: getProfilePermissions(slug) },
+    })),
+  };
+}
 
-  if (params.q) {
-    parts.push({
+function buildCommunityParticipantAccountFilter() {
+  return {
+    permissions: { equals: getProfilePermissions("participant") },
+  };
+}
+
+function staffPermissionEqualsFilters() {
+  return COMMUNITY_STAFF_PROFILE_SLUGS.map((slug) => ({
+    permissions: { equals: getProfilePermissions(slug) },
+  }));
+}
+
+/** Event users who effectively have staff access (account role or event override). */
+function buildEventStaffUserFilter() {
+  return {
+    OR: [
+      { account: buildCommunityStaffAccountFilter() },
+      ...staffPermissionEqualsFilters(),
+    ],
+  };
+}
+
+/** Event users who effectively remain participants for this event. */
+function buildEventParticipantUserFilter() {
+  return {
+    AND: [
+      { account: buildCommunityParticipantAccountFilter() },
+      {
+        OR: [
+          { permissions: { equals: Prisma.DbNull } },
+          { permissions: { equals: getProfilePermissions("participant") } },
+        ],
+      },
+    ],
+  };
+}
+
+function buildAccountSearchFilter(params: ReturnType<typeof parsePaginationParams>) {
+  if (!params.q) return {};
+  return {
+    account: {
       OR: [
         { username: { contains: params.q, mode: "insensitive" as const } },
         { firstName: { contains: params.q, mode: "insensitive" as const } },
         { lastName: { contains: params.q, mode: "insensitive" as const } },
         { email: { contains: params.q, mode: "insensitive" as const } },
       ],
-    });
-  }
-
-  if (params.role) {
-    try {
-      parts.push({ permissions: { equals: getProfilePermissions(params.role) } });
-    } catch {
-      // Unknown profile slug — no matches.
-      parts.push({ id: "__none__" });
-    }
-  }
-
-  if (parts.length === 0) return {};
-  if (parts.length === 1) return { account: parts[0] };
-  return { account: { AND: parts } };
+    },
+  };
 }
 
-function mergeAccountFilters(
-  ...filters: Array<Record<string, unknown> | undefined>
-): Record<string, unknown> | undefined {
-  const parts = filters.filter((filter) => filter && Object.keys(filter).length > 0) as Record<
-    string,
-    unknown
-  >[];
-  if (parts.length === 0) return undefined;
-  if (parts.length === 1) return parts[0];
-  return { AND: parts };
+function buildUserRoleFilter(params: ReturnType<typeof parsePaginationParams>) {
+  if (!params.role) return {};
+  try {
+    const permissions = getProfilePermissions(params.role);
+    return {
+      OR: [
+        { permissions: { equals: permissions } },
+        { account: { permissions: { equals: permissions } } },
+      ],
+    };
+  } catch {
+    return { id: "__none__" };
+  }
 }
 
 export function buildUsersWhere(
   eventId: string,
   params: ReturnType<typeof parsePaginationParams> & { audience?: CommunityAudience },
 ) {
-  const accountFromSearch = buildAccountFilter(params);
   const audienceFilter =
     params.audience === "staff"
-      ? { account: buildCommunityStaffAccountFilter() }
+      ? buildEventStaffUserFilter()
       : params.audience === "participants"
-        ? { account: buildCommunityParticipantAccountFilter() }
-        : undefined;
-  const searchAccount = accountFromSearch.account as Record<string, unknown> | undefined;
-  const audienceAccount =
-    audienceFilter?.account as Record<string, unknown> | undefined;
-  const mergedAccount = mergeAccountFilters(searchAccount, audienceAccount);
+        ? buildEventParticipantUserFilter()
+        : {};
 
   return {
     eventId,
+    ...buildUserRoleFilter(params),
+    ...audienceFilter,
+    ...buildAccountSearchFilter(params),
     ...(params.teamId ? { teamId: params.teamId } : {}),
     ...(params.checkedIn === "yes" ? { checkedInAt: { not: null } } : {}),
     ...(params.checkedIn === "no" ? { checkedInAt: null } : {}),
-    ...(mergedAccount ? { account: mergedAccount } : {}),
   };
 }
 

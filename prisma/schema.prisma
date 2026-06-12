@@ -201,6 +201,8 @@ model User {
   eventId         String
   event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   authVersion     Int           @default(0)
+  /** When set, overrides account permissions for this event only. */
+  permissions     Json?
   teamId          String?
   team            Team?         @relation(fields: [teamId], references: [id])
   ticketNumber    String?

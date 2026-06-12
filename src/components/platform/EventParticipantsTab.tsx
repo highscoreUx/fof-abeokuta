@@ -35,7 +35,7 @@ export function EventParticipantsTab({
             <CardTitle>Participants</CardTitle>
             <CardDescription>
               People attending this event — check-in status, teams, and participant accounts.
-              Event staff are managed on the Staff tab.
+              Use the actions menu to promote someone to event staff for this event only.
             </CardDescription>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">

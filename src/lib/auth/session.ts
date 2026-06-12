@@ -1,12 +1,11 @@
 import { CACHE_TTL, cacheGetOrSet, cacheDelete } from "@/lib/cache/index";
 import { prisma } from "@/lib/prisma";
-import {
-  normalizeRolePermissions,
-  permissionsFingerprint,
-  type Permission,
-} from "@/lib/permissions/catalog";
+import { type Permission } from "@/lib/permissions/catalog";
 import { PERMISSIONS_CATALOG_REVISION } from "@/lib/permissions/catalog";
-import { resolveAccountPermissionList } from "@/lib/account-permissions";
+import {
+  resolveUserPermissionList,
+  resolveUserPermissionsFingerprint,
+} from "@/lib/user-permissions";
 
 export interface SessionAuthContext {
   userId: string;
@@ -27,7 +26,7 @@ async function loadSessionAuthContextFromDb(userId: string): Promise<SessionAuth
 
   if (!user?.account) return null;
 
-  const permissions = resolveAccountPermissionList(user.account);
+  const permissions = resolveUserPermissionList(user);
 
   return {
     userId: user.id,
@@ -35,9 +34,7 @@ async function loadSessionAuthContextFromDb(userId: string): Promise<SessionAuth
     permissions,
     authVersion: user.authVersion,
     accountPermissionsVersion: user.account.permissionsVersion,
-    permissionsFingerprint: permissionsFingerprint(
-      normalizeRolePermissions(user.account.permissions),
-    ),
+    permissionsFingerprint: resolveUserPermissionsFingerprint(user),
     teamId: user.teamId,
     eventId: user.eventId,
   };

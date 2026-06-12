@@ -1,11 +1,13 @@
 import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
-import { primarySocketRoleSlug, resolveAccountPermissions } from "@/lib/account-permissions";
+import { primarySocketRoleSlug } from "@/lib/account-permissions";
 import type { UserWithAccount } from "@/lib/user-display";
+import { resolveUserPermissionList, resolveUserRolePermissions } from "@/lib/user-permissions";
 
 export type CheckInUserPayload = ReturnType<typeof serializeCheckInUser>;
 
 export function serializeCheckInUser(user: UserWithAccount) {
-  const permissions = resolveAccountPermissions(user.account);
+  const permissions = resolveUserRolePermissions(user);
+  const effectivePermissions = resolveUserPermissionList(user);
   return {
     id: user.id,
     firstName: user.account.firstName,
@@ -17,7 +19,7 @@ export function serializeCheckInUser(user: UserWithAccount) {
     teamId: user.teamId,
     teamLetter: user.team?.letter ?? null,
     checkedInAt: user.checkedInAt?.toISOString() ?? null,
-    permissionProfile: getProfileLabelForPermissions(user.account.permissions),
+    permissionProfile: getProfileLabelForPermissions(effectivePermissions),
     primaryRoleSlug: primarySocketRoleSlug(permissions),
   };
 }

@@ -1,4 +1,5 @@
 import { isTeamAssignableMember } from "@/lib/account-permissions";
+import { resolveUserRolePermissions } from "@/lib/user-permissions";
 import { prisma } from "@/lib/prisma";
 
 export const TEAM_ASSIGN_ALGORITHMS = [
@@ -140,7 +141,7 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
   });
 
   const users = allCandidates.filter((user) =>
-    isTeamAssignableMember(user.account.permissions as never, includeStaff),
+    isTeamAssignableMember(resolveUserRolePermissions(user), includeStaff),
   );
 
   if (users.length === 0) {

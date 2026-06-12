@@ -7,6 +7,9 @@ export interface EventUserRow {
   lastName: string;
   username: string;
   permissionProfile: string;
+  permissionProfileSlug?: string;
+  isEventScopedAccess?: boolean;
+  isParticipantAccount?: boolean;
   teamLetter: string | null;
   teamId: string | null;
   checkedInAt: string | null;

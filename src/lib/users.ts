@@ -6,6 +6,11 @@ import {
   normalizeUsername,
 } from "@/lib/accounts";
 import { resolveAccountPermissionList, requiresEventCheckIn } from "@/lib/account-permissions";
+import {
+  resolveEffectiveProfileSlug,
+  resolveUserPermissionList,
+  resolveUserRolePermissions,
+} from "@/lib/user-permissions";
 import { loadSessionAuthContext } from "@/lib/auth/session";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { signAccessToken } from "@/lib/auth/jwt";
@@ -59,11 +64,12 @@ export function serializeUser(
   enabledActivities: EnabledActivitySnapshot[] = [],
 ): AuthUser {
   const profile = pickUserProfile(user);
+  const effectivePermissions = resolveUserPermissionList(user);
   return {
     id: user.id,
     accountId: user.accountId,
-    permissions,
-    permissionProfile: getProfileLabelForPermissions(user.account.permissions),
+    permissions: effectivePermissions,
+    permissionProfile: getProfileLabelForPermissions(effectivePermissions),
     username: profile.username,
     email: profile.email ?? "",
     firstName: profile.firstName,
@@ -98,7 +104,7 @@ export async function buildAccessTokenForUser(userId: string, eventSlug: string)
 }
 
 export function canUserSignIn(user: UserWithAccount): boolean {
-  if (!requiresEventCheckIn(user.account.permissions as RolePermission[])) return true;
+  if (!requiresEventCheckIn(resolveUserRolePermissions(user))) return true;
   return Boolean(user.checkedInAt);
 }
 
@@ -194,7 +200,7 @@ export function serializePlatformEventUser(user: UserWithAccount) {
     lastName: profile.lastName,
     username: profile.username,
     email: profile.email,
-    permissionProfile: getProfileLabelForPermissions(user.account.permissions),
+    permissionProfile: getProfileLabelForPermissions(resolveUserPermissionList(user)),
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -245,6 +251,7 @@ export function serializeMemberRow(
 
 export function serializeUserRow(user: UserWithAccount) {
   const profile = pickUserProfile(user);
+  const effectivePermissions = resolveUserPermissionList(user);
   return {
     id: user.id,
     firstName: profile.firstName,
@@ -253,7 +260,10 @@ export function serializeUserRow(user: UserWithAccount) {
     email: profile.email,
     maskedEmail: user.account.maskedEmail,
     needsEmail: !user.account.email,
-    permissionProfile: getProfileLabelForPermissions(user.account.permissions),
+    permissionProfile: getProfileLabelForPermissions(effectivePermissions),
+    permissionProfileSlug: resolveEffectiveProfileSlug(user),
+    isEventScopedAccess: user.permissions != null,
+    isParticipantAccount: isParticipantPermissions(user.account.permissions),
     teamId: user.teamId,
     teamLetter: user.team?.letter ?? null,
     checkedInAt: user.checkedInAt?.toISOString() ?? null,

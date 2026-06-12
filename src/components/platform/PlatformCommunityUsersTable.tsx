@@ -2,14 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { UserCheckInModal } from "@/components/admin/UserCheckInModal";
+import { ChangeEventRoleModal } from "@/components/platform/ChangeEventRoleModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { CommunityAudience } from "@/lib/community-audience";
-import { COMMUNITY_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
+import {
+  COMMUNITY_STAFF_PROFILE_SLUGS,
+  EVENT_SCOPED_STAFF_PROFILE_SLUGS,
+} from "@/lib/community-audience";
 import { cn } from "@/lib/cn";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
@@ -33,6 +38,56 @@ interface PlatformCommunityUsersTableProps {
   countLabel: string;
 }
 
+function RowActionsMenu({
+  user,
+  busy,
+  canChangeRole,
+  onCheckIn,
+  onDetails,
+  onChangeRole,
+}: {
+  user: EventUserRow;
+  busy: boolean;
+  canChangeRole: boolean;
+  onCheckIn: () => void;
+  onDetails: () => void;
+  onChangeRole: () => void;
+}) {
+  return (
+    <DropdownMenu
+      align="end"
+      trigger={
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 w-8 px-0"
+          disabled={busy}
+          aria-label={`Actions for ${user.firstName} ${user.lastName}`}
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-4 w-4"
+            aria-hidden
+          >
+            <circle cx="4" cy="10" r="1.5" />
+            <circle cx="10" cy="10" r="1.5" />
+            <circle cx="16" cy="10" r="1.5" />
+          </svg>
+        </Button>
+      }
+    >
+      <DropdownMenuItem onClick={onCheckIn}>
+        {user.checkedInAt ? "Undo check-in" : "Check in"}
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onDetails}>Details</DropdownMenuItem>
+      {canChangeRole && (
+        <DropdownMenuItem onClick={onChangeRole}>Change role</DropdownMenuItem>
+      )}
+    </DropdownMenu>
+  );
+}
+
 export function PlatformCommunityUsersTable({
   eventId,
   audience,
@@ -53,6 +108,7 @@ export function PlatformCommunityUsersTable({
   const [result, setResult] = useState<PaginatedResponse<EventUserRow> | null>(null);
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
+  const [roleChangeUser, setRoleChangeUser] = useState<EventUserRow | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
@@ -64,8 +120,16 @@ export function PlatformCommunityUsersTable({
           (COMMUNITY_STAFF_PROFILE_SLUGS as readonly string[]).includes(profile.slug),
         )
       : audience === "participants"
-        ? roles.filter((profile) => profile.slug === "participant")
+        ? roles.filter((profile) =>
+            (["participant", ...EVENT_SCOPED_STAFF_PROFILE_SLUGS] as readonly string[]).includes(
+              profile.slug,
+            ),
+          )
         : roles;
+
+  const eventAccessOptions = profileOptions
+    .filter((profile) => profile.slug !== "event_admin")
+    .map((profile) => ({ slug: profile.slug, name: profile.name }));
 
   const loadTeams = useCallback(async () => {
     try {
@@ -156,6 +220,11 @@ export function PlatformCommunityUsersTable({
       setTogglingId(null);
     }
   };
+
+  const canChangeEventRole = (user: EventUserRow) =>
+    audience === "participants"
+      ? user.isParticipantAccount !== false
+      : Boolean(user.isEventScopedAccess);
 
   const users = result?.data ?? [];
 
@@ -319,24 +388,14 @@ export function PlatformCommunityUsersTable({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant={user.checkedInAt ? "outline" : "primary"}
-                          className={user.checkedInAt ? "text-danger" : undefined}
-                          onClick={() => void toggleCheckIn(user)}
-                          disabled={togglingId === user.id}
-                        >
-                          {togglingId === user.id
-                            ? "…"
-                            : user.checkedInAt
-                              ? "Undo"
-                              : "Check in"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setDetailsUser(user)}>
-                          Details
-                        </Button>
-                      </div>
+                      <RowActionsMenu
+                        user={user}
+                        busy={togglingId === user.id}
+                        canChangeRole={canChangeEventRole(user)}
+                        onCheckIn={() => void toggleCheckIn(user)}
+                        onDetails={() => setDetailsUser(user)}
+                        onChangeRole={() => setRoleChangeUser(user)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -360,6 +419,15 @@ export function PlatformCommunityUsersTable({
         onClose={() => setDetailsUser(null)}
         user={detailsUser}
         platformEventId={eventId}
+        onUpdated={() => void load()}
+      />
+
+      <ChangeEventRoleModal
+        open={roleChangeUser !== null}
+        onClose={() => setRoleChangeUser(null)}
+        user={roleChangeUser}
+        eventId={eventId}
+        roleOptions={eventAccessOptions}
         onUpdated={() => void load()}
       />
     </div>

@@ -1,4 +1,3 @@
-import { getProfilePermissions } from "@/lib/permission-profiles";
 import type { SystemEventUserRoleSlug } from "@/lib/permissions/default-bundles";
 
 export const COMMUNITY_STAFF_PROFILE_SLUGS = [
@@ -8,18 +7,11 @@ export const COMMUNITY_STAFF_PROFILE_SLUGS = [
   "judge",
 ] as const satisfies readonly SystemEventUserRoleSlug[];
 
+/** Roles assignable to a participant for this event only (not global account role). */
+export const EVENT_SCOPED_STAFF_PROFILE_SLUGS = [
+  "coordinator",
+  "staff",
+  "judge",
+] as const satisfies readonly SystemEventUserRoleSlug[];
+
 export type CommunityAudience = "members" | "staff" | "participants";
-
-export function buildCommunityStaffAccountFilter() {
-  return {
-    OR: COMMUNITY_STAFF_PROFILE_SLUGS.map((slug) => ({
-      permissions: { equals: getProfilePermissions(slug) },
-    })),
-  };
-}
-
-export function buildCommunityParticipantAccountFilter() {
-  return {
-    permissions: { equals: getProfilePermissions("participant") },
-  };
-}

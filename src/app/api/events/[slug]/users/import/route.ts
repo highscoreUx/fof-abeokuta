@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { isTeamAssignableMember } from "@/lib/account-permissions";
+import { resolveUserRolePermissions } from "@/lib/user-permissions";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
 import { assignTeams, assignableTeamRoleSlugs, getTeamAssignSettings } from "@/lib/team-assign";
@@ -76,7 +77,7 @@ export async function POST(
         password: initialPassword ?? "(existing account — password unchanged)",
         permissionProfile,
       });
-      if (isTeamAssignableMember(user.account.permissions as never, false)) {
+      if (isTeamAssignableMember(resolveUserRolePermissions(user), false)) {
         createdAssigneeIds.push(user.id);
       }
     } catch (error) {

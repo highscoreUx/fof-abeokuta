@@ -1,14 +1,13 @@
-import { resolveAccountPermissionList } from "@/lib/account-permissions";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { getEventBySlug } from "@/lib/events";
 import { hasGlobalEventAccess } from "@/lib/member-access";
 import { prisma } from "@/lib/prisma";
-import {
-  normalizeRolePermissions,
-  permissionsFingerprint,
-} from "@/lib/permissions/catalog";
 import { canUserSignIn, serializeUser } from "@/lib/users";
 import { userWithAccountInclude } from "@/lib/user-display";
+import {
+  resolveUserPermissionList,
+  resolveUserPermissionsFingerprint,
+} from "@/lib/user-permissions";
 import type { AccessTokenPayload, AuthUser } from "@/types";
 
 export type EventMembershipStatus =
@@ -44,7 +43,7 @@ export async function resolveEventMembership(accountId: string, eventSlug: strin
     return { status: "CHECK_IN_REQUIRED" as const, event, user };
   }
 
-  const permissions = resolveAccountPermissionList(user.account);
+  const permissions = resolveUserPermissionList(user);
   const enabledActivities = await loadEnabledActivitiesSnapshot(event.id);
   const authUser = serializeUser(user, eventSlug, permissions, enabledActivities);
   const auth = buildEventAccessPayload(user, eventSlug, permissions, enabledActivities);
@@ -64,6 +63,7 @@ export function buildEventAccessPayload(
     authVersion: number;
     teamId: string | null;
     eventId: string;
+    permissions?: unknown | null;
     account: { permissions: unknown; permissionsVersion: number };
   },
   eventSlug: string,
@@ -76,9 +76,7 @@ export function buildEventAccessPayload(
     permissions,
     authVersion: user.authVersion,
     accountPermissionsVersion: user.account.permissionsVersion,
-    permissionsFingerprint: permissionsFingerprint(
-      normalizeRolePermissions(user.account.permissions),
-    ),
+    permissionsFingerprint: resolveUserPermissionsFingerprint(user),
     teamId: user.teamId,
     eventId: user.eventId,
     eventSlug,

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateAccountRequest } from "@/lib/auth/account-request";
 import { resolveEventMembership } from "@/lib/auth/event-access";
 import { jsonError } from "@/lib/auth/middleware";
-import { resolveAccountPermissionList } from "@/lib/account-permissions";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { serializeUser } from "@/lib/users";
 import { userWithAccountInclude } from "@/lib/user-display";
+import { resolveUserPermissionList } from "@/lib/user-permissions";
 import { prisma } from "@/lib/prisma";
 import { getEventBySlug } from "@/lib/events";
 
@@ -36,7 +36,7 @@ export async function GET(
       },
       include: userWithAccountInclude,
     });
-    const permissions = user ? resolveAccountPermissionList(user.account) : [];
+    const permissions = user ? resolveUserPermissionList(user) : [];
     const enabledActivities = event ? await loadEnabledActivitiesSnapshot(event.id) : [];
     return NextResponse.json({
       registered: true,

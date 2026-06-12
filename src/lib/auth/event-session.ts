@@ -1,11 +1,11 @@
 import { verifyRefreshToken } from "@/lib/auth/jwt";
-import { resolveAccountPermissionList } from "@/lib/account-permissions";
 import { isRefreshTokenValid, rotateRefreshToken } from "@/lib/auth/refresh";
 import { requireEventBySlug } from "@/lib/events";
 import { buildAccessTokenForUser, canUserSignIn, serializeUser } from "@/lib/users";
 import { loadEnabledActivitiesSnapshot } from "@/lib/activities/event-activities";
 import { prisma } from "@/lib/prisma";
 import { userWithAccountInclude } from "@/lib/user-display";
+import { resolveUserPermissionList } from "@/lib/user-permissions";
 
 export class EventSessionRefreshError extends Error {
   constructor(
@@ -71,7 +71,7 @@ export async function refreshEventSession(slug: string, refreshToken: string) {
     eventSlug: slug,
   });
   const accessToken = await buildAccessTokenForUser(user.id, slug);
-  const permissions = resolveAccountPermissionList(user.account);
+  const permissions = resolveUserPermissionList(user);
   const enabledActivities = await loadEnabledActivitiesSnapshot(event.id);
 
   return {

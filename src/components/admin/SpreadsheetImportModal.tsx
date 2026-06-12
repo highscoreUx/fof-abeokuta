@@ -81,17 +81,17 @@ export function SpreadsheetImportModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Add bulk questions from spreadsheet"
-      description="Upload a CSV or Excel file filled in from the bulk template."
+      title="Add from spreadsheet"
+      description="Upload a CSV or Excel file filled in from the template."
       className="max-w-lg"
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Use the bulk template to add many questions at once. Columns: question, option1–4,
+          Use the template to add many questions at once. Columns: question, option1–4,
           correctIndex, timeLimitSec.
         </p>
         <Button variant="secondary" onClick={() => downloadQuizCsvTemplate()}>
-          Download bulk template
+          Download template
         </Button>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-8 text-center transition hover:bg-muted/50">
           <span className="text-sm font-medium">

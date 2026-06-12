@@ -21,7 +21,7 @@ export function QuestionActionsBar({
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <Button variant="secondary" onClick={() => downloadQuizCsvTemplate()}>
-        Download bulk template
+        Download template
       </Button>
       <DropdownMenu
         align="end"
@@ -40,7 +40,7 @@ export function QuestionActionsBar({
         <DropdownMenuItem onClick={onAddSingle}>Add single question</DropdownMenuItem>
         <DropdownMenuItem onClick={onAddBulk}>Add bulk questions</DropdownMenuItem>
         <DropdownMenuItem onClick={onAddSpreadsheet}>
-          Add bulk questions from spreadsheet
+          Add from spreadsheet
         </DropdownMenuItem>
       </DropdownMenu>
     </div>

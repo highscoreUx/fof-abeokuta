@@ -15,11 +15,23 @@ import {
 } from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions/catalog";
 
+function ContentLoadingPanel({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center py-24">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
 export function PermissionGuard({
   children,
   permission,
   anyOf,
   allowAdminShell = false,
+  embedded = false,
   title,
   description,
 }: {
@@ -27,6 +39,8 @@ export function PermissionGuard({
   permission?: Permission;
   anyOf?: Permission[];
   allowAdminShell?: boolean;
+  /** When true, loading/denied states render inside the shell content area instead of full screen. */
+  embedded?: boolean;
   title?: string;
   description?: string;
 }) {
@@ -56,15 +70,28 @@ export function PermissionGuard({
     }
   }, [isHydrated, isAuthenticated, router]);
 
+  const LoadingPanel = embedded ? ContentLoadingPanel : AuthLoadingPanel;
+
   if (!isHydrated || !isAuthenticated) {
-    return <AuthLoadingPanel />;
+    return <LoadingPanel label="Loading…" />;
   }
 
   if (!user) {
-    return <AuthLoadingPanel label="Loading your session…" />;
+    return <LoadingPanel label="Loading your session…" />;
   }
 
   if (!allowed) {
+    if (embedded) {
+      return (
+        <div className="rounded-xl border border-border bg-card px-6 py-10 text-center">
+          <h2 className="text-lg font-semibold text-foreground">{title ?? "Access denied"}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {description ?? "You do not have permission to view this page."}
+          </p>
+        </div>
+      );
+    }
+
     return (
       <AccessDeniedPanel
         context="event"

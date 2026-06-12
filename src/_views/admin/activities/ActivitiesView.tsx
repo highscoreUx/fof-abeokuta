@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
-import { AppShell } from "@/components/layout/AppShell";
 import { ActivitiesAdmin } from "@/components/admin/ActivitiesAdmin";
 import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleton";
-import { useEventNav } from "@/hooks/useEventNav";
 import { useEventApi } from "@/hooks/useEventApi";
 import { selectUserPermissions, useAuthStore } from "@/stores/authStore";
 import {
@@ -17,7 +15,6 @@ import {
 import { Card, CardTitle } from "@/components/ui/card";
 
 export function ActivitiesView() {
-  const { nav } = useEventNav();
   const { api } = useEventApi();
   const permissions = useAuthStore(selectUserPermissions);
   const [anyEnabled, setAnyEnabled] = useState<boolean | null>(null);
@@ -51,22 +48,21 @@ export function ActivitiesView() {
         "tic_tac_toe.run",
         "survey.run",
       ]}
+      embedded
     >
-      <AppShell title="Activities" nav={nav}>
-        {anyEnabled === false ? (
-          <Card>
-            <CardTitle>No activities enabled</CardTitle>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Platform admin must enable activity types for this event before you can configure
-              them here.
-            </p>
-          </Card>
-        ) : anyEnabled === true ? (
-          <ActivitiesAdmin permissions={permissions} />
-        ) : (
-          <ActivitiesListSkeleton />
-        )}
-      </AppShell>
+      {anyEnabled === false ? (
+        <Card>
+          <CardTitle>No activities enabled</CardTitle>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Platform admin must enable activity types for this event before you can configure them
+            here.
+          </p>
+        </Card>
+      ) : anyEnabled === true ? (
+        <ActivitiesAdmin permissions={permissions} />
+      ) : (
+        <ActivitiesListSkeleton />
+      )}
     </PermissionGuard>
   );
 }

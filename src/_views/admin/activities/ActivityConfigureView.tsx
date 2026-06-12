@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
-import { AppShell } from "@/components/layout/AppShell";
 import { AddQuestionModal } from "@/components/admin/AddQuestionModal";
 import { BulkAddQuestionsModal } from "@/components/admin/BulkAddQuestionsModal";
 import { QuestionActionsBar } from "@/components/admin/QuestionActionsBar";
@@ -12,6 +11,7 @@ import { SpreadsheetImportModal } from "@/components/admin/SpreadsheetImportModa
 import { Card } from "@/components/ui/card";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
+import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
 import { formatInstanceScope } from "@/lib/activities/catalog";
 import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
 import { TRIVIA_TYPE_LABELS } from "@/lib/trivia/types";
@@ -27,7 +27,7 @@ export function ActivityConfigureView() {
   const configureKind = (rawKind === "spin" ? "spinner" : rawKind) as ActivityConfigureKind;
   const id = params.id;
   const { api } = useEventApi();
-  const { nav, activities } = useEventNav();
+  const { activities } = useEventNav();
 
   const [kahoot, setKahoot] = useState<KahootActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +81,7 @@ export function ActivityConfigureView() {
   }, [load]);
 
   const activity = configureKind === "kahoot" ? kahoot : null;
+  useAdminPageTitle(activity?.title ?? null);
   const scope = activity
     ? formatInstanceScope({
         allowGeneralParticipants: activity.allowGeneralParticipants,
@@ -105,9 +106,8 @@ export function ActivityConfigureView() {
           : "spin.manage";
 
   return (
-    <PermissionGuard permission={permission}>
-      <AppShell title={activity?.title ?? "Configure activity"} nav={nav}>
-        <div className="mb-6">
+    <PermissionGuard permission={permission} embedded>
+      <div className="mb-6">
           <Link
             href={activities}
             className="text-sm font-medium text-primary hover:underline"
@@ -249,7 +249,6 @@ export function ActivityConfigureView() {
         {!loading && !loadError && configureKind === "tic_tac_toe" && (
           <TicTacToeConfigurePanel challengeId={id} onReload={load} />
         )}
-      </AppShell>
     </PermissionGuard>
   );
 }

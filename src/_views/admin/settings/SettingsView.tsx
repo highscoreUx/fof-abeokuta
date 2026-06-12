@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
-import { AppShell } from "@/components/layout/AppShell";
 import { ChatSettings } from "@/components/admin/ChatSettings";
 import { StreamControls } from "@/components/admin/StreamControls";
 import { TeamSettings } from "@/components/admin/TeamSettings";
@@ -29,7 +28,7 @@ function parseTab(value: string | null): SettingsTab {
 export function SettingsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { nav, settings: settingsPath } = useEventNav();
+  const { settings: settingsPath } = useEventNav();
   const tab = parseTab(searchParams.get("tab"));
 
   const setTab = useCallback(
@@ -44,34 +43,30 @@ export function SettingsView() {
   );
 
   return (
-    <PermissionGuard
-      anyOf={["team.list", "team.manage", "settings.broadcasting"]}
-    >
-      <AppShell title="Event settings" nav={nav}>
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="space-y-4">
-              <div>
-                <CardTitle>Configure your event</CardTitle>
-                <CardDescription>
-                  Teams, chat, and broadcasting. Account permissions are managed when users are
-                  created.
-                </CardDescription>
-              </div>
-              <SegmentedControl
-                value={tab}
-                onChange={setTab}
-                options={TAB_OPTIONS}
-                className="w-full sm:max-w-3xl"
-              />
-            </CardHeader>
-          </Card>
+    <PermissionGuard anyOf={["team.list", "team.manage", "settings.broadcasting"]} embedded>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader className="space-y-4">
+            <div>
+              <CardTitle>Configure your event</CardTitle>
+              <CardDescription>
+                Teams, chat, and broadcasting. Account permissions are managed when users are
+                created.
+              </CardDescription>
+            </div>
+            <SegmentedControl
+              value={tab}
+              onChange={setTab}
+              options={TAB_OPTIONS}
+              className="w-full sm:max-w-3xl"
+            />
+          </CardHeader>
+        </Card>
 
-          {tab === "teams" && <TeamSettings />}
-          {tab === "chat" && <ChatSettings />}
-          {tab === "broadcasting" && <StreamControls />}
-        </div>
-      </AppShell>
+        {tab === "teams" && <TeamSettings />}
+        {tab === "chat" && <ChatSettings />}
+        {tab === "broadcasting" && <StreamControls />}
+      </div>
     </PermissionGuard>
   );
 }

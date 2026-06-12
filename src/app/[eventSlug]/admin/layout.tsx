@@ -1,5 +1,6 @@
 import { EventSessionGate } from "@/components/auth/EventSessionGate";
 import { EventScopeProvider } from "@/contexts/EventScopeContext";
+import { AdminShellLayout } from "@/components/layout/AdminShellLayout";
 
 export default async function EventAdminLayout({
   children,
@@ -12,7 +13,9 @@ export default async function EventAdminLayout({
 
   return (
     <EventScopeProvider eventSlug={eventSlug} pathPrefix={`/${eventSlug}`}>
-      <EventSessionGate>{children}</EventSessionGate>
+      <EventSessionGate>
+        <AdminShellLayout>{children}</AdminShellLayout>
+      </EventSessionGate>
     </EventScopeProvider>
   );
 }

@@ -183,8 +183,16 @@ export function PlatformDashboard() {
         />
         <StatCard label="Members" value={summary.globalStaff} hint={`${summary.totalAccounts} accounts`} />
         <StatCard label="Teams" value={summary.totalTeams.toLocaleString()} />
-        <StatCard label="Quizzes" value={summary.totalQuizzes.toLocaleString()} />
-        <StatCard label="Votes" value={summary.totalVotes.toLocaleString()} />
+        <StatCard
+          label="Activities"
+          value={summary.totalActivities.toLocaleString()}
+          hint="Total activities created across events"
+        />
+        <StatCard
+          label="Surveys"
+          value={summary.totalSurveys.toLocaleString()}
+          hint="Created across events"
+        />
         <StatCard label="Chat messages" value={summary.totalMessages.toLocaleString()} />
       </div>
 

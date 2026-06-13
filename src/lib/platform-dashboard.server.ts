@@ -57,7 +57,9 @@ export async function getPlatformDashboardStats(): Promise<PlatformDashboardStat
     platformRoles,
     totalTeams,
     totalQuizzes,
-    totalVotes,
+    totalSpinChallenges,
+    totalSurveys,
+    totalTttChallenges,
     totalMessages,
     recentEventsRaw,
     topEventsRaw,
@@ -77,7 +79,9 @@ export async function getPlatformDashboardStats(): Promise<PlatformDashboardStat
     prisma.platformRole.count(),
     prisma.team.count(),
     prisma.quiz.count(),
-    prisma.vote.count(),
+    prisma.spinChallenge.count(),
+    prisma.survey.count(),
+    prisma.ticTacToeChallenge.count(),
     prisma.message.count(),
     prisma.event.findMany({
       orderBy: { updatedAt: "desc" },
@@ -135,6 +139,9 @@ export async function getPlatformDashboardStats(): Promise<PlatformDashboardStat
   const checkInRate =
     totalParticipants > 0 ? Math.round((checkedInParticipants / totalParticipants) * 100) : 0;
 
+  const totalActivities =
+    totalQuizzes + totalSpinChallenges + totalSurveys + totalTttChallenges;
+
   return {
     summary: {
       totalEvents,
@@ -148,8 +155,8 @@ export async function getPlatformDashboardStats(): Promise<PlatformDashboardStat
       globalStaff,
       platformRoles,
       totalTeams,
-      totalQuizzes,
-      totalVotes,
+      totalActivities,
+      totalSurveys,
       totalMessages,
     },
     eventsByStatus: [

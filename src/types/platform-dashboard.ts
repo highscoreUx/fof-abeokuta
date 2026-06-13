@@ -11,8 +11,8 @@ export interface PlatformDashboardStats {
     globalStaff: number;
     platformRoles: number;
     totalTeams: number;
-    totalQuizzes: number;
-    totalVotes: number;
+    totalActivities: number;
+    totalSurveys: number;
     totalMessages: number;
   };
   eventsByStatus: Array<{ status: string; count: number }>;

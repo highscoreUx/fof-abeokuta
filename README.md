@@ -70,10 +70,27 @@ CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
 ```
 
+## Check-in emails (optional)
+
+When a participant is checked in, a branded welcome email with the day's agenda can be sent asynchronously via RabbitMQ + SMTP. Check-in stays fast — the API only enqueues a job; the custom server processes the queue in the background.
+
+```env
+CLOUDAMQP_URL=amqps://...          # CloudAMQP connection URL
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587                        # 465 with SMTP_SECURE=true
+SMTP_SECURE=false
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_FROM=noreply@example.com
+SMTP_FROM_NAME=Friends of Figma Abeokuta
+```
+
+If `CLOUDAMQP_URL` or SMTP settings are missing, check-in still works and emails are skipped.
+
 ## Deploy
 
 Build: `pnpm run build` (runs `prebuild`: `prisma generate` + `prisma migrate deploy`, then `next build`)
 
 Start: `pnpm start`
 
-Configure env vars on your host (Render, etc.): `DATABASE_URL`, JWT secrets, `NEXT_PUBLIC_APP_URL`, platform admin credentials, and optionally Upstash Redis.
+Configure env vars on your host (Render, etc.): `DATABASE_URL`, JWT secrets, `NEXT_PUBLIC_APP_URL`, platform admin credentials, and optionally Upstash Redis, CloudAMQP, and SMTP for check-in emails.

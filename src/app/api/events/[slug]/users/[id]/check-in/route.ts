@@ -6,6 +6,7 @@ import { serializeCheckInUser } from "@/lib/check-in";
 import { CheckInEmailError, resolveEmailForCheckIn } from "@/lib/check-in-email";
 import { pickUserProfile, userWithAccountInclude } from "@/lib/user-display";
 import { broadcastCheckInAnnouncement } from "@/lib/check-in-chat-broadcast";
+import { enqueueCheckInWelcomeEmail } from "@/server/queue/publish";
 import { prisma } from "@/lib/prisma";
 import { assignTeams } from "@/lib/team-assign";
 import { isTeamingEnabled } from "@/lib/team-settings";
@@ -80,6 +81,8 @@ export async function PATCH(
   } catch {
     // socket optional
   }
+
+  enqueueCheckInWelcomeEmail({ userId: updated.id, eventId: ctx.event.id });
 
   return NextResponse.json({
     user: serializeCheckInUser(updated),

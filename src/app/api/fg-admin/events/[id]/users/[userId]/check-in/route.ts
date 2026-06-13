@@ -12,6 +12,7 @@ import { isTeamingEnabled } from "@/lib/team-settings";
 import { getIO } from "@/server/socket/io";
 import { emitCheckInUpdate } from "@/server/socket/handlers";
 import { broadcastCheckInAnnouncement } from "@/lib/check-in-chat-broadcast";
+import { enqueueCheckInWelcomeEmail } from "@/server/queue/publish";
 
 const checkInBodySchema = z.object({
   email: z.string().email().optional(),
@@ -86,6 +87,8 @@ export async function PATCH(
   } catch {
     // socket optional
   }
+
+  enqueueCheckInWelcomeEmail({ userId: updated.id, eventId: event.id });
 
   return NextResponse.json({ user: serializeCheckInUser(updated) });
 }

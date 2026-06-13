@@ -5,6 +5,7 @@ import { Server as SocketIOServer } from "socket.io";
 import "dotenv/config";
 import { recoverQuizTimers } from "./src/server/games/quizEngine";
 import { ensurePlatformBootstrap } from "./src/server/bootstrap";
+import { startEmailQueueConsumer } from "./src/server/queue/consumer";
 import { setIO } from "./src/server/socket/io";
 import { registerSocketHandlers } from "./src/server/socket/handlers";
 
@@ -45,6 +46,12 @@ app.prepare().then(async () => {
     await recoverQuizTimers(io);
   } catch (error) {
     console.warn("[startup] Quiz timer recovery skipped:", error);
+  }
+
+  try {
+    await startEmailQueueConsumer();
+  } catch (error) {
+    console.warn("[startup] Email queue consumer skipped:", error);
   }
 
   httpServer.listen(port, bindHost, () => {

@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { TicTacToeBoard } from "@/components/tic-tac-toe/TicTacToeBoard";
+import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
+import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
 
 interface TicTacToeMatchLiveProps {
@@ -21,7 +24,34 @@ export function TicTacToeMatchLive({
 }: TicTacToeMatchLiveProps) {
   const socket = useSocket();
   const { user } = useAuth();
+  const { registerCompleted } = useParticipantActivitiesRegistry();
   const [state, setState] = useState<TicTacToeMatchSnapshot | null>(null);
+  const registeredMatchId = useRef<string | null>(null);
+
+  const isFinished = state?.state === "FINISHED";
+  const { graceExpired, graceRemainingMs, completedAt } = useActivityCompletionGrace(
+    Boolean(isFinished),
+  );
+
+  useEffect(() => {
+    if (!isFinished || !state || !completedAt) return;
+    if (registeredMatchId.current === state.matchId) return;
+
+    registeredMatchId.current = state.matchId;
+    registerCompleted({
+      key: `ttt:${state.matchId}`,
+      type: "ttt",
+      title: state.challengeTitle,
+      completedAt,
+      matchId: state.matchId,
+      snapshot: state,
+    });
+  }, [isFinished, state, completedAt, registerCompleted]);
+
+  useEffect(() => {
+    if (!state || state.state === "FINISHED") return;
+    registeredMatchId.current = null;
+  }, [state?.matchId, state?.state]);
 
   useEffect(() => {
     if (!socket) return;
@@ -87,21 +117,15 @@ export function TicTacToeMatchLive({
   };
 
   if (!state) {
-    return (
-      <Card className={compact ? "p-4" : "p-6"}>
-        <CardTitle>Team Tic-Tac-Toe</CardTitle>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {initialMatchId
-            ? "Connecting to match…"
-            : "Select a match to watch or play."}
-        </p>
-        {initialMatchId && (
-          <Button className="mt-4" onClick={startMatch}>
-            Start match
-          </Button>
-        )}
-      </Card>
-    );
+    return null;
+  }
+
+  if (isFinished) {
+    if (graceExpired) {
+      return null;
+    }
+
+    return <TttGraceResults snapshot={state} graceRemainingMs={graceRemainingMs} />;
   }
 
   const statusText = () => {

@@ -7,6 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventNav } from "@/hooks/useEventNav";
 import { userCanAccessActivityInstance } from "@/lib/activities/catalog";
 import { SpinnerWheel } from "@/components/spinner/SpinnerWheel";
+import { SpinnerGraceResults } from "@/components/spinner/SpinnerFinishedResults";
+import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import type { SpinnerStateSnapshot } from "@/lib/spinner/types";
@@ -20,10 +23,36 @@ interface SpinnerLiveProps {
 export function SpinnerLive({ challengeId, initialSessionId, compact = false }: SpinnerLiveProps) {
   const socket = useSocket();
   const { user } = useAuth();
+  const { registerCompleted } = useParticipantActivitiesRegistry();
   const { homeActivities } = useEventNav();
   const [state, setState] = useState<SpinnerStateSnapshot | null>(null);
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const lastSpinId = useRef<string | null>(null);
+  const registeredSessionId = useRef<string | null>(null);
+
+  const isCompleted = state?.state === "COMPLETED";
+  const { inGracePeriod, graceExpired, graceRemainingMs, completedAt } =
+    useActivityCompletionGrace(Boolean(isCompleted));
+
+  useEffect(() => {
+    if (!isCompleted || !state || !completedAt) return;
+    if (registeredSessionId.current === state.sessionId) return;
+
+    registeredSessionId.current = state.sessionId;
+    registerCompleted({
+      key: `spinner:${state.sessionId}`,
+      type: "spinner",
+      title: state.title,
+      completedAt,
+      sessionId: state.sessionId,
+      snapshot: state,
+    });
+  }, [isCompleted, state, completedAt, registerCompleted]);
+
+  useEffect(() => {
+    if (!state || state.state === "COMPLETED") return;
+    registeredSessionId.current = null;
+  }, [state?.sessionId, state?.state]);
 
   useEffect(() => {
     if (!socket) return;
@@ -81,6 +110,10 @@ export function SpinnerLive({ challengeId, initialSessionId, compact = false }: 
   };
 
   if (!state) {
+    if (initialSessionId) {
+      return null;
+    }
+
     return (
       <Card className={compact ? "p-4" : "p-6"}>
         <CardTitle>Spinner</CardTitle>
@@ -92,6 +125,14 @@ export function SpinnerLive({ challengeId, initialSessionId, compact = false }: 
         </Button>
       </Card>
     );
+  }
+
+  if (state.state === "COMPLETED") {
+    if (graceExpired) {
+      return null;
+    }
+
+    return <SpinnerGraceResults snapshot={state} graceRemainingMs={graceRemainingMs} />;
   }
 
   return (

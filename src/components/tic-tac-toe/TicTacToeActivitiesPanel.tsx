@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEventApi } from "@/hooks/useEventApi";
+import { useSocket } from "@/hooks/useSocket";
 import { TicTacToeMatchLive } from "@/components/tic-tac-toe/TicTacToeMatchLive";
-import { Card, CardTitle } from "@/components/ui/card";
+import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
+import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
 import { Button } from "@/components/ui/button";
 
 interface TttChallengeRow {
@@ -24,6 +27,8 @@ interface TttMatchRow {
 
 export function TicTacToeActivitiesPanel() {
   const { api } = useEventApi();
+  const socket = useSocket();
+  const { graceRecords } = useParticipantActivitiesRegistry();
   const searchParams = useSearchParams();
   const focusId = searchParams.get("ttt");
   const focusMatchId = searchParams.get("match");
@@ -64,64 +69,100 @@ export function TicTacToeActivitiesPanel() {
   }, [load]);
 
   useEffect(() => {
+    if (!socket) return;
+    const refresh = () => {
+      void load();
+    };
+    socket.on("ttt:state", refresh);
+    return () => {
+      socket.off("ttt:state", refresh);
+    };
+  }, [socket, load]);
+
+  useEffect(() => {
     if (selectedId) void loadMatches(selectedId);
   }, [selectedId, loadMatches]);
 
+  const liveChallenges = challenges.filter(
+    (challenge) =>
+      challenge.activeMatchId &&
+      (challenge.activeMatchState === "WAITING" || challenge.activeMatchState === "ACTIVE"),
+  );
+  const liveMatchIds = new Set(
+    liveChallenges.map((challenge) => challenge.activeMatchId).filter(Boolean) as string[],
+  );
+  const graceMatches = graceRecords.filter(
+    (record): record is Extract<typeof record, { type: "ttt" }> =>
+      record.type === "ttt" && !liveMatchIds.has(record.matchId),
+  );
+
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading tic-tac-toe…</p>;
+    return null;
   }
 
-  if (challenges.length === 0) {
-    return (
-      <Card className="p-6">
-        <CardTitle>Team Tic-Tac-Toe</CardTitle>
-        <p className="mt-2 text-sm text-muted-foreground">No tournaments available yet.</p>
-      </Card>
-    );
+  if (liveChallenges.length === 0 && graceMatches.length === 0) {
+    return null;
   }
 
-  const selected = challenges.find((c) => c.id === selectedId) ?? challenges[0];
+  const selected =
+    liveChallenges.find((c) => c.id === selectedId) ??
+    liveChallenges.find((c) => c.id === focusId) ??
+    liveChallenges[0];
+
+  const liveMatches = matches.filter((m) => m.state === "WAITING" || m.state === "ACTIVE");
 
   return (
     <div className="space-y-4">
-      {challenges.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {challenges.map((c) => (
-            <Button
-              key={c.id}
-              size="sm"
-              variant={c.id === selected.id ? "primary" : "secondary"}
-              onClick={() => {
-                setSelectedId(c.id);
-                setSelectedMatchId(null);
-              }}
-            >
-              {c.title}
-            </Button>
-          ))}
-        </div>
+      {liveChallenges.length > 0 && (
+        <>
+          {liveChallenges.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {liveChallenges.map((c) => (
+                <Button
+                  key={c.id}
+                  size="sm"
+                  variant={c.id === selected.id ? "primary" : "secondary"}
+                  onClick={() => {
+                    setSelectedId(c.id);
+                    setSelectedMatchId(null);
+                  }}
+                >
+                  {c.title}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {liveMatches.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {liveMatches.map((m) => (
+                <Button
+                  key={m.id}
+                  size="sm"
+                  variant={m.id === selectedMatchId ? "primary" : "secondary"}
+                  onClick={() => setSelectedMatchId(m.id)}
+                >
+                  {m.teamX.letter} vs {m.teamO.letter}
+                  {m.state === "ACTIVE" ? " · Live" : ""}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          <TicTacToeMatchLive
+            challengeId={selected.id}
+            initialMatchId={selectedMatchId ?? selected.activeMatchId}
+          />
+        </>
       )}
 
-      {matches.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {matches.map((m) => (
-            <Button
-              key={m.id}
-              size="sm"
-              variant={m.id === selectedMatchId ? "primary" : "secondary"}
-              onClick={() => setSelectedMatchId(m.id)}
-            >
-              {m.teamX.letter} vs {m.teamO.letter}
-              {m.state === "ACTIVE" ? " · Live" : ""}
-            </Button>
-          ))}
-        </div>
-      )}
-
-      <TicTacToeMatchLive
-        challengeId={selected.id}
-        initialMatchId={selectedMatchId ?? selected.activeMatchId}
-      />
+      {graceMatches.map((record) => (
+        <TttGraceResults
+          key={record.key}
+          snapshot={record.snapshot}
+          graceRemainingMs={completionGraceRemainingMs(record.completedAt)}
+        />
+      ))}
     </div>
   );
 }

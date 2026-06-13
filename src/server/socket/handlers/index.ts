@@ -1,5 +1,5 @@
 import type { Server as SocketIOServer, Socket } from "socket.io";
-import { verifyAccessToken } from "@/lib/auth/jwt";
+import { resolveSocketEventAuth, type SocketEventAuth } from "@/lib/auth/resolve-socket-event-auth";
 import { prisma } from "@/lib/prisma";
 import {
   eventRoom,
@@ -65,34 +65,17 @@ function socketCan(auth: AccessTokenPayload, permission: Permission): boolean {
 }
 
 interface AuthenticatedSocket extends Socket {
-  auth?: AccessTokenPayload & {
-    username?: string;
-    firstName?: string;
-    lastName?: string;
-    teamLetter?: string | null;
-  };
+  auth?: SocketEventAuth;
 }
 
 export function registerSocketHandlers(io: SocketIOServer) {
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const token = socket.handshake.auth?.token as string | undefined;
+      const eventSlug = socket.handshake.auth?.eventSlug as string | undefined;
       if (!token) return next(new Error("Unauthorized"));
 
-      const payload = verifyAccessToken(token);
-      const user = await prisma.user.findUnique({
-        where: { id: payload.userId },
-        include: { team: true, account: true },
-      });
-      if (!user || user.eventId !== payload.eventId) return next(new Error("User not found"));
-
-      socket.auth = {
-        ...payload,
-        username: user.account.username,
-        firstName: user.account.firstName,
-        lastName: user.account.lastName,
-        teamLetter: user.team?.letter ?? null,
-      };
+      socket.auth = await resolveSocketEventAuth(token, eventSlug ?? "");
       next();
     } catch {
       next(new Error("Unauthorized"));

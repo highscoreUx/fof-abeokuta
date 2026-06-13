@@ -5,6 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
+import { QuizFinishedResults, QuizLeaderboardList } from "@/components/quiz/QuizFinishedResults";
+import { CompletionGraceBanner } from "@/components/activities/CompletionGraceBanner";
+import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import { useAuth } from "@/hooks/useAuth";
 import { TriviaAnswerInput } from "@/components/trivia/TriviaAnswerInput";
 import {
@@ -12,8 +16,9 @@ import {
   formatResponseTime,
   getServerSyncedRemainingMs,
 } from "@/lib/kahoot-ui";
-import type { QuizAnswerResult, QuizStateSnapshot, TriviaAnswerPayload } from "@/types";
+import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
 import { cn } from "@/lib/utils";
+import type { QuizAnswerResult, QuizStateSnapshot, TriviaAnswerPayload } from "@/types";
 
 function KahootTimerBar({
   remainingMs,
@@ -37,48 +42,12 @@ function KahootTimerBar({
   );
 }
 
-function LeaderboardList({
-  entries,
-  highlightUserId,
-  compact = false,
-}: {
-  entries: QuizStateSnapshot["leaderboard"];
-  highlightUserId?: string;
-  compact?: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      {entries.slice(0, compact ? 5 : 10).map((entry) => (
-        <div
-          key={entry.userId}
-          className={cn(
-            "flex items-center justify-between rounded-xl px-4 py-3",
-            entry.userId === highlightUserId ? "bg-primary/15 ring-2 ring-primary" : "bg-foreground/5",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <span className="w-8 text-lg font-black text-muted-foreground">#{entry.rank}</span>
-            <div>
-              <p className="font-semibold">{entry.username}</p>
-              {!compact && (
-                <p className="text-xs text-muted-foreground">
-                  {entry.accuracy}% accuracy · streak {entry.streak}
-                </p>
-              )}
-            </div>
-          </div>
-          <span className="text-lg font-black">{formatPoints(entry.totalPoints)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 type PlayMode = "join" | "spectate" | null;
 
 export function QuizPlayer() {
   const socket = useSocket();
   const { user } = useAuth();
+  const { registerCompleted, graceRecords } = useParticipantActivitiesRegistry();
   const searchParams = useSearchParams();
   const [state, setState] = useState<QuizStateSnapshot | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
@@ -88,6 +57,31 @@ export function QuizPlayer() {
     searchParams.get("mode") === "spectate" ? "spectate" : null,
   );
   const activeQuestionId = useRef<string | null>(null);
+  const registeredSessionId = useRef<string | null>(null);
+
+  const isFinished = state?.state === "FINISHED";
+  const { inGracePeriod, graceExpired, graceRemainingMs, completedAt } =
+    useActivityCompletionGrace(Boolean(isFinished));
+
+  useEffect(() => {
+    if (!isFinished || !state || !completedAt) return;
+    if (registeredSessionId.current === state.sessionId) return;
+
+    registeredSessionId.current = state.sessionId;
+    registerCompleted({
+      key: `kahoot:${state.sessionId}`,
+      type: "kahoot",
+      title: state.quizTitle ?? "Live Trivia",
+      completedAt,
+      sessionId: state.sessionId,
+      snapshot: state,
+    });
+  }, [isFinished, state, completedAt, registerCompleted]);
+
+  useEffect(() => {
+    if (!state || state.state === "FINISHED") return;
+    registeredSessionId.current = null;
+  }, [state?.sessionId, state?.state]);
 
   useEffect(() => {
     if (!socket) return;
@@ -148,11 +142,26 @@ export function QuizPlayer() {
   };
 
   if (!state) {
-    return (
-      <div className="rounded-2xl bg-card p-8 text-center shadow-card">
-        <p className="text-muted-foreground">Waiting for the host to start Live Trivia…</p>
-      </div>
-    );
+    const cachedGraceKahoot = graceRecords.find((record) => record.type === "kahoot");
+    if (cachedGraceKahoot) {
+      return (
+        <QuizFinishedResults
+          state={cachedGraceKahoot.snapshot}
+          highlightUserId={user?.id}
+          banner={
+            <CompletionGraceBanner
+              remainingMs={completionGraceRemainingMs(cachedGraceKahoot.completedAt)}
+            />
+          }
+        />
+      );
+    }
+
+    return null;
+  }
+
+  if (isFinished && graceExpired) {
+    return null;
   }
 
   if (!playMode && state.state !== "FINISHED") {
@@ -197,20 +206,14 @@ export function QuizPlayer() {
   }
 
   if (state.state === "FINISHED") {
-    const myRank = state.leaderboard.find((e) => e.userId === user?.id);
     return (
-      <div className="space-y-4">
-        <div className="rounded-2xl bg-gradient-to-br from-[#46178f] to-[#26890c] p-8 text-center text-white">
-          <p className="text-sm uppercase tracking-widest opacity-80">Final standings</p>
-          <h2 className="mt-2 text-3xl font-black">Activity complete!</h2>
-          {myRank && (
-            <p className="mt-4 text-xl">
-              You placed <strong>#{myRank.rank}</strong> with {formatPoints(myRank.totalPoints)} pts
-            </p>
-          )}
-        </div>
-        <LeaderboardList entries={state.leaderboard} highlightUserId={user?.id} />
-      </div>
+      <QuizFinishedResults
+        state={state}
+        highlightUserId={user?.id}
+        banner={
+          inGracePeriod ? <CompletionGraceBanner remainingMs={graceRemainingMs} /> : undefined
+        }
+      />
     );
   }
 
@@ -238,7 +241,7 @@ export function QuizPlayer() {
         </div>
         <div>
           <h3 className="mb-3 text-lg font-bold">Leaderboard</h3>
-          <LeaderboardList entries={state.leaderboard} highlightUserId={user?.id} compact />
+          <QuizLeaderboardList entries={state.leaderboard} highlightUserId={user?.id} compact />
         </div>
       </div>
     );

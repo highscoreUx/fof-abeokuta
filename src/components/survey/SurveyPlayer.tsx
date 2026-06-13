@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
+import { CompletionGraceBanner } from "@/components/activities/CompletionGraceBanner";
+import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
 import { isSurveyOpen, parseSurveyConfig, SURVEY_TYPE_LABELS } from "@/lib/survey/types";
 import { toastError, toastSuccess } from "@/lib/toast";
 import type { SurveyAnswerValue, SurveyQuestionType } from "@/lib/survey/types";
@@ -28,12 +31,33 @@ interface SurveyListItem {
   }>;
 }
 
+function SurveyGraceCard({
+  title,
+  completedAt,
+}: {
+  title: string;
+  completedAt: number;
+}) {
+  return (
+    <Card>
+      <CompletionGraceBanner remainingMs={completionGraceRemainingMs(completedAt)} />
+      <CardTitle className="mt-4">{title}</CardTitle>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Your response was submitted. This survey is now closed.
+      </p>
+    </Card>
+  );
+}
+
 export function SurveyPlayer() {
   const { api } = useEventApi();
+  const { registerCompleted, graceRecords } = useParticipantActivitiesRegistry();
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, SurveyAnswerValue>>({});
   const [saving, setSaving] = useState(false);
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(() => new Set());
+  const registeredSurveyIds = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const data = await api<{ surveys: SurveyListItem[] }>("/surveys").catch(() => ({ surveys: [] }));
@@ -46,6 +70,32 @@ export function SurveyPlayer() {
 
   const active = surveys.find((s) => s.id === activeId);
   const openSurveys = surveys.filter((s) => isSurveyOpen(s));
+  const graceSurveys = graceRecords.filter((record) => record.type === "survey");
+
+  useEffect(() => {
+    for (const survey of surveys) {
+      if (
+        !isSurveyOpen(survey) &&
+        submittedIds.has(survey.id) &&
+        !registeredSurveyIds.current.has(survey.id)
+      ) {
+        registeredSurveyIds.current.add(survey.id);
+        registerCompleted({
+          key: `survey:${survey.id}`,
+          type: "survey",
+          title: survey.title,
+          completedAt: Date.now(),
+          surveyId: survey.id,
+        });
+      }
+    }
+  }, [surveys, submittedIds, registerCompleted]);
+
+  useEffect(() => {
+    if (active && !isSurveyOpen(active)) {
+      setActiveId(null);
+    }
+  }, [active]);
 
   const loadResponse = useCallback(
     async (surveyId: string) => {
@@ -56,6 +106,7 @@ export function SurveyPlayer() {
         const map: Record<string, SurveyAnswerValue> = {};
         for (const a of data.response.answers) map[a.questionId] = a.value as SurveyAnswerValue;
         setAnswers(map);
+        setSubmittedIds((prev) => new Set(prev).add(surveyId));
       } else {
         setAnswers({});
       }
@@ -84,6 +135,7 @@ export function SurveyPlayer() {
           })),
         }),
       });
+      setSubmittedIds((prev) => new Set(prev).add(active.id));
       toastSuccess("Response saved");
       await load();
     } catch (e) {
@@ -97,30 +149,37 @@ export function SurveyPlayer() {
   };
 
   if (!active) {
+    if (openSurveys.length === 0 && graceSurveys.length === 0) {
+      return null;
+    }
+
     return (
-      <Card>
-        <CardTitle>Surveys</CardTitle>
-        {openSurveys.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No open surveys right now.</p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {openSurveys.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className="w-full rounded-xl border border-border px-4 py-3 text-left transition hover:bg-muted"
-                  onClick={() => setActiveId(s.id)}
-                >
-                  <p className="font-semibold">{s.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {s.questions.length} question{s.questions.length === 1 ? "" : "s"}
-                  </p>
-                </button>
-              </li>
-            ))}
-          </ul>
+      <div className="space-y-4">
+        {graceSurveys.map((record) => (
+          <SurveyGraceCard key={record.key} title={record.title} completedAt={record.completedAt} />
+        ))}
+        {openSurveys.length > 0 && (
+          <Card>
+            <CardTitle>Surveys</CardTitle>
+            <ul className="mt-4 space-y-2">
+              {openSurveys.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className="w-full rounded-xl border border-border px-4 py-3 text-left transition hover:bg-muted"
+                    onClick={() => setActiveId(s.id)}
+                  >
+                    <p className="font-semibold">{s.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {s.questions.length} question{s.questions.length === 1 ? "" : "s"}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
-      </Card>
+      </div>
     );
   }
 

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SpinnerLive } from "@/components/spinner/SpinnerLive";
+import { SpinnerGraceResults } from "@/components/spinner/SpinnerFinishedResults";
+import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
 import { useEventApi } from "@/hooks/useEventApi";
-import { Card, CardTitle } from "@/components/ui/card";
+import { useSocket } from "@/hooks/useSocket";
 
 interface SpinnerInstance {
   id: string;
@@ -15,13 +18,15 @@ interface SpinnerInstance {
 
 export function SpinnerActivitiesPanel() {
   const { api } = useEventApi();
+  const socket = useSocket();
+  const { graceRecords } = useParticipantActivitiesRegistry();
   const searchParams = useSearchParams();
   const focusId = searchParams.get("spinner");
   const focusSession = searchParams.get("session");
   const [instances, setInstances] = useState<SpinnerInstance[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadInstances = useCallback(() => {
     setLoading(true);
     api<{ challenges: SpinnerInstance[] }>("/spin-challenges")
       .then((d) => setInstances(d.challenges))
@@ -29,22 +34,41 @@ export function SpinnerActivitiesPanel() {
       .finally(() => setLoading(false));
   }, [api]);
 
+  useEffect(() => {
+    loadInstances();
+  }, [loadInstances]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const refresh = () => {
+      loadInstances();
+    };
+    socket.on("spinner:state", refresh);
+    return () => {
+      socket.off("spinner:state", refresh);
+    };
+  }, [socket, loadInstances]);
+
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading spinners…</p>;
+    return null;
   }
 
-  if (instances.length === 0) {
-    return (
-      <Card className="p-6">
-        <CardTitle>Spinner</CardTitle>
-        <p className="mt-2 text-sm text-muted-foreground">No spinner activities available yet.</p>
-      </Card>
-    );
+  const liveInstances = instances.filter((instance) => instance.activeSessionId);
+  const liveSessionIds = new Set(
+    liveInstances.map((instance) => instance.activeSessionId).filter(Boolean) as string[],
+  );
+  const graceSpinners = graceRecords.filter(
+    (record): record is Extract<typeof record, { type: "spinner" }> =>
+      record.type === "spinner" && !liveSessionIds.has(record.sessionId),
+  );
+
+  if (liveInstances.length === 0 && graceSpinners.length === 0) {
+    return null;
   }
 
   const ordered = focusId
-    ? [...instances].sort((a, b) => (a.id === focusId ? -1 : b.id === focusId ? 1 : 0))
-    : instances;
+    ? [...liveInstances].sort((a, b) => (a.id === focusId ? -1 : b.id === focusId ? 1 : 0))
+    : liveInstances;
 
   return (
     <div className="space-y-6">
@@ -55,6 +79,13 @@ export function SpinnerActivitiesPanel() {
           initialSessionId={
             instance.id === focusId ? focusSession ?? instance.activeSessionId : instance.activeSessionId
           }
+        />
+      ))}
+      {graceSpinners.map((record) => (
+        <SpinnerGraceResults
+          key={record.key}
+          snapshot={record.snapshot}
+          graceRemainingMs={completionGraceRemainingMs(record.completedAt)}
         />
       ))}
     </div>

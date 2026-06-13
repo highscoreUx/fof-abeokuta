@@ -3,8 +3,8 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
-  --primary: #0052cc;
-  --primary-hover: #003d99;
+  --primary: #236DF6;
+  --primary-hover: #1a56db;
   --primary-foreground: #ffffff;
   --secondary: #ea580c;
   --secondary-hover: #c2410c;
@@ -13,11 +13,11 @@
   --muted-foreground: #64748b;
   --border: #e2e8f0;
   --card: #ffffff;
-  --surface: #eff6ff;
+  --surface: #eef4ff;
   --accent-light: #fff7ed;
   --chat-background: #f3ebe3;
   --sidebar: #ffffff;
-  --ring: #0052cc33;
+  --ring: #236DF633;
   --success: #059669;
   --danger: #dc2626;
 }

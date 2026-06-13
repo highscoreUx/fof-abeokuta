@@ -27,7 +27,7 @@ const CHART_COLORS = {
   live: "#059669",
   draft: "#64748b",
   archived: "#ea580c",
-  primary: "#0052cc",
+  primary: "#236DF6",
   secondary: "#ea580c",
 };
 

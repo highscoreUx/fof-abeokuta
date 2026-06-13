@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { BRAND_PRIMARY } from "@/lib/brand";
 import { FIGMA_TEAMS } from "@/lib/figma-teams";
 import { normalizeTeamCode, validateTeamCode } from "@/lib/team-codes";
 
@@ -42,7 +43,7 @@ export async function deleteTeam(eventId: string, teamId: string) {
 export function parseTeamInput(body: { letter?: string; name?: string; color?: string }) {
   const letter = normalizeTeamCode(body.letter ?? "");
   const name = body.name?.trim() ?? "";
-  const color = body.color?.trim() || "#0052cc";
+  const color = body.color?.trim() || BRAND_PRIMARY;
 
   const letterError = validateTeamCode(letter);
   if (letterError) throw new Error(letterError);

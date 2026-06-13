@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateTeamMutation, useUpdateTeamMutation } from "@/hooks/useTeamsTableQuery";
+import { BRAND_PRIMARY } from "@/lib/brand";
 
 interface TeamModalProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface TeamModalProps {
   onSaved?: () => void;
 }
 
-const defaultForm = { letter: "", name: "", color: "#0052cc" };
+const defaultForm = { letter: "", name: "", color: BRAND_PRIMARY };
 
 export function TeamModal({ open, onClose, team, onSaved }: TeamModalProps) {
   const isEdit = Boolean(team);
@@ -102,7 +103,7 @@ export function TeamModal({ open, onClose, team, onSaved }: TeamModalProps) {
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 className="font-mono"
-                placeholder="#0052cc"
+                placeholder={BRAND_PRIMARY}
               />
             </div>
           </div>

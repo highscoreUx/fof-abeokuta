@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { deleteTeam } from "@/lib/teams";
+import { BRAND_PRIMARY } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";
 import { normalizeTeamCode, validateTeamCode } from "@/lib/team-codes";
 
@@ -35,7 +36,7 @@ export async function PATCH(
     if (!name) return NextResponse.json({ error: "Team name is required" }, { status: 400 });
     data.name = name;
   }
-  if (body.color !== undefined) data.color = body.color.trim() || "#0052cc";
+  if (body.color !== undefined) data.color = body.color.trim() || BRAND_PRIMARY;
 
   if (body.letter !== undefined) {
     const letter = normalizeTeamCode(body.letter);

@@ -115,13 +115,13 @@ export function AddCommunityUserModal({
     mode === "staff"
       ? "Add community staff"
       : mode === "participants"
-        ? "Add participant"
+        ? "Add new participant"
         : "Add community member";
   const description =
     mode === "staff"
       ? `Registers staff for ${eventTitle}. Staff are also community members with elevated access.`
       : mode === "participants"
-        ? `Registers a participant for ${eventTitle}. Share email and temporary password after creating the account.`
+        ? `Creates a new participant account and registers them for ${eventTitle}. Share email and temporary password after creating the account.`
         : `Registers a community member for ${eventTitle}. Share email and temporary password after creating the account.`;
 
   return (

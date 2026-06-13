@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { AddCommunityUserModal } from "@/components/platform/AddCommunityUserModal";
+import { AddParticipantsFromCommunityModal } from "@/components/platform/AddParticipantsFromCommunityModal";
 import { PlatformCommunityUsersTable } from "@/components/platform/PlatformCommunityUsersTable";
 import { TicketImportModal } from "@/components/platform/TicketImportModal";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
@@ -24,6 +26,7 @@ export function EventParticipantsTab({
   onCredentials,
 }: EventParticipantsTabProps) {
   const [addOpen, setAddOpen] = useState(false);
+  const [addFromCommunityOpen, setAddFromCommunityOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -42,7 +45,27 @@ export function EventParticipantsTab({
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               Import tickets
             </Button>
-            <Button onClick={() => setAddOpen(true)}>Add participant</Button>
+            <DropdownMenu
+              align="end"
+              trigger={
+                <button
+                  type="button"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary-hover"
+                >
+                  Add participant
+                  <span aria-hidden className="text-xs opacity-80">
+                    ▾
+                  </span>
+                </button>
+              }
+            >
+              <DropdownMenuItem onClick={() => setAddOpen(true)}>
+                Add new participant…
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setAddFromCommunityOpen(true)}>
+                Add participant from community…
+              </DropdownMenuItem>
+            </DropdownMenu>
           </div>
         </CardHeader>
 
@@ -76,6 +99,17 @@ export function EventParticipantsTab({
               permissionProfile: credentials.permissionProfile,
             },
           });
+          setRefreshKey((key) => key + 1);
+          onUpdated();
+        }}
+      />
+
+      <AddParticipantsFromCommunityModal
+        open={addFromCommunityOpen}
+        eventId={event.id}
+        eventTitle={event.title}
+        onClose={() => setAddFromCommunityOpen(false)}
+        onAdded={() => {
           setRefreshKey((key) => key + 1);
           onUpdated();
         }}

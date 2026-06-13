@@ -1,7 +1,7 @@
 import { BRAND_PRIMARY } from "@/lib/brand";
 import { emailLogoHtml } from "@/lib/email/fof-logo-mark";
 
-/** Compact branded header block for HTML emails (table-safe, no external assets). */
+/** Compact branded header block for HTML emails (table-safe layout). */
 export function emailBrandHeaderHtml(title: string, subtitle?: string): string {
   const subtitleBlock = subtitle
     ? `<p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:rgba(255,255,255,0.92);">${subtitle}</p>`
@@ -14,7 +14,7 @@ export function emailBrandHeaderHtml(title: string, subtitle?: string): string {
           <table role="presentation" cellspacing="0" cellpadding="0">
             <tr>
               <td style="vertical-align:middle;padding-right:14px;">
-                ${emailLogoHtml(44)}
+                ${emailLogoHtml(56)}
               </td>
               <td style="vertical-align:middle;">
                 <p style="margin:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Friends of Figma Abeokuta</p>

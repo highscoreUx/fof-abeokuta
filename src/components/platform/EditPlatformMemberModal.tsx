@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { PLATFORM_ADMIN_PROFILE_SLUG } from "@/lib/member-access";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import type { PlatformMemberRow } from "@/types/members";
 
 interface EditPlatformMemberModalProps {
@@ -31,7 +32,6 @@ export function EditPlatformMemberModal({
   const [permissionProfile, setPermissionProfile] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!member) return;
@@ -40,7 +40,6 @@ export function EditPlatformMemberModal({
     setFirstName(member.firstName);
     setLastName(member.lastName);
     setPermissionProfile(member.permissionProfileSlug);
-    setError("");
   }, [member]);
 
   const { roles } = usePlatformRoles();
@@ -57,7 +56,6 @@ export function EditPlatformMemberModal({
     event.preventDefault();
     if (!member) return;
     setLoading(true);
-    setError("");
     try {
       await platformApiFetch(`/api/fg-admin/members/${member.id}`, {
         method: "PATCH",
@@ -72,7 +70,10 @@ export function EditPlatformMemberModal({
       onUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update member");
+      toastError(
+        "Failed to update member",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -84,13 +85,15 @@ export function EditPlatformMemberModal({
       return;
     }
     setDeleting(true);
-    setError("");
     try {
       await platformApiFetch(`/api/fg-admin/members/${member.id}`, { method: "DELETE" });
       onUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete member");
+      toastError(
+        "Failed to delete member",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setDeleting(false);
     }
@@ -161,7 +164,6 @@ export function EditPlatformMemberModal({
             ))}
           </Select>
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex flex-wrap justify-between gap-2 pt-2">
           {member.isDeletable ? (
             <Button

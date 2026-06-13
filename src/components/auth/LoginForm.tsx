@@ -6,7 +6,9 @@ import { LoginCard } from "@/components/auth/LoginCard";
 import { LoginPageLayout } from "@/components/auth/LoginPageLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
+import { toastError } from "@/lib/toast";
 
 interface LoginFormProps {
   eventSlug?: string;
@@ -18,7 +20,6 @@ export function LoginForm({ eventSlug }: LoginFormProps) {
   const [slides, setSlides] = useState<string[]>([...DEFAULT_LOGIN_SLIDE_PATHS]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -37,12 +38,12 @@ export function LoginForm({ eventSlug }: LoginFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
     try {
       await login(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const description = err instanceof Error ? err.message : "Login failed";
+      toastError("Sign in failed", description);
     } finally {
       setLoading(false);
     }
@@ -72,16 +73,14 @@ export function LoginForm({ eventSlug }: LoginFormProps) {
             <label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
               Password
             </label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Your password"
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
           <Button type="submit" size="lg" className="w-full" disabled={!canSubmit || loading}>
             {loading ? "Signing in…" : "Continue"}
           </Button>

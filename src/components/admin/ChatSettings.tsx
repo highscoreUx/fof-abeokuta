@@ -5,13 +5,13 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 export function ChatSettings() {
   const { slug, api } = useEventApi();
   const [teamChatEnabled, setTeamChatEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -23,15 +23,17 @@ export function ChatSettings() {
 
   const save = async () => {
     setSaving(true);
-    setMessage("");
     try {
       await api("/settings", {
         method: "PATCH",
         body: JSON.stringify({ teamChatEnabled }),
       });
-      setMessage("Chat settings saved.");
+      toastSuccess("Chat settings saved");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to save chat settings");
+      toastError(
+        "Failed to save chat settings",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -77,7 +79,6 @@ export function ChatSettings() {
           <Button onClick={() => void save()} disabled={loading || saving}>
             {saving ? "Saving…" : "Save chat settings"}
           </Button>
-          {message && <p className="text-sm text-muted-foreground">{message}</p>}
         </div>
       </div>
     </Card>

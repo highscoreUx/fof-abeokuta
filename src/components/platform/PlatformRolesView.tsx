@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { EditPlatformRoleModal } from "@/components/platform/EditPlatformRoleModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { hasWildcardAccess } from "@/lib/permissions/catalog";
 import { roleIsDeletable, roleIsEditable } from "@/lib/platform-roles.shared";
 import type { PlatformRoleRow } from "@/lib/platform-roles.types";
+import { toastError } from "@/lib/toast";
 
 function permissionCount(role: PlatformRoleRow) {
   if (hasWildcardAccess(role.permissions)) return "Full access";
@@ -18,7 +19,7 @@ function permissionCount(role: PlatformRoleRow) {
 
 export function PlatformRolesView() {
   const [refreshKey, setRefreshKey] = useState(0);
-  const { roles, loading, error } = usePlatformRoles(refreshKey);
+  const { roles, loading, error, reload } = usePlatformRoles(refreshKey);
   const [search, setSearch] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -54,6 +55,12 @@ export function PlatformRolesView() {
 
   const bump = () => setRefreshKey((key) => key + 1);
 
+  useEffect(() => {
+    if (error) {
+      toastError("Failed to load roles");
+    }
+  }, [error]);
+
   return (
     <>
       <Card className="p-0 shadow-none">
@@ -80,7 +87,12 @@ export function PlatformRolesView() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading roles…</p>
           ) : error ? (
-            <p className="text-sm text-danger">Failed to load roles.</p>
+            <div className="space-y-3 text-center">
+              <p className="text-sm text-muted-foreground">Could not load roles.</p>
+              <Button variant="outline" size="sm" onClick={() => void reload()}>
+                Retry
+              </Button>
+            </div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">No roles found.</p>
           ) : (

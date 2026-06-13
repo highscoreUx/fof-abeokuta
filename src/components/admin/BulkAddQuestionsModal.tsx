@@ -12,6 +12,7 @@ import {
   validateQuestionDraft,
   type QuestionDraft,
 } from "@/lib/quiz-question-form";
+import { toastError } from "@/lib/toast";
 
 interface BulkAddQuestionsModalProps {
   open: boolean;
@@ -33,7 +34,6 @@ export function BulkAddQuestionsModal({
   const [count, setCount] = useState(3);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [drafts, setDrafts] = useState<QuestionDraft[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
@@ -41,7 +41,6 @@ export function BulkAddQuestionsModal({
     setCount(3);
     setCurrentIndex(0);
     setDrafts([]);
-    setError(null);
     setSaving(false);
   };
 
@@ -51,13 +50,12 @@ export function BulkAddQuestionsModal({
 
   const startQuestions = () => {
     if (count < 2 || count > 50) {
-      setError("Enter between 2 and 50 questions.");
+      toastError("Invalid count", "Enter between 2 and 50 questions.");
       return;
     }
     setDrafts(Array.from({ length: count }, () => emptyQuestionDraft()));
     setCurrentIndex(0);
     setStep("questions");
-    setError(null);
   };
 
   const updateDraft = (draft: QuestionDraft) => {
@@ -67,10 +65,9 @@ export function BulkAddQuestionsModal({
   const goNextQuestion = () => {
     const validation = validateQuestionDraft(drafts[currentIndex]);
     if (validation) {
-      setError(validation);
+      toastError("Invalid question", validation);
       return;
     }
-    setError(null);
     if (currentIndex < drafts.length - 1) {
       setCurrentIndex((i) => i + 1);
     } else {
@@ -80,12 +77,11 @@ export function BulkAddQuestionsModal({
 
   const handleSubmitAll = async () => {
     setSaving(true);
-    setError(null);
     try {
       for (const draft of drafts) {
         const validation = validateQuestionDraft(draft);
         if (validation) {
-          setError(validation);
+          toastError("Invalid question", validation);
           setSaving(false);
           return;
         }
@@ -97,7 +93,10 @@ export function BulkAddQuestionsModal({
       onClose();
       await onAdded();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add questions");
+      toastError(
+        "Failed to add questions",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -138,7 +137,6 @@ export function BulkAddQuestionsModal({
               className="w-32"
             />
           </div>
-          {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={onClose}>
               Cancel
@@ -161,17 +159,14 @@ export function BulkAddQuestionsModal({
             ))}
           </div>
           <QuestionFormFields draft={drafts[currentIndex]} onChange={updateDraft} />
-          {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex justify-between gap-2 pt-2">
             <Button
               variant="secondary"
               onClick={() => {
                 if (currentIndex === 0) {
                   setStep("count");
-                  setError(null);
                 } else {
                   setCurrentIndex((i) => i - 1);
-                  setError(null);
                 }
               }}
             >
@@ -204,14 +199,12 @@ export function BulkAddQuestionsModal({
               );
             })}
           </ol>
-          {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex justify-between gap-2 pt-2">
             <Button
               variant="secondary"
               onClick={() => {
                 setStep("questions");
                 setCurrentIndex(drafts.length - 1);
-                setError(null);
               }}
               disabled={saving}
             >

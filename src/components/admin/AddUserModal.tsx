@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateUserMutation } from "@/hooks/useUsersQuery";
+import { toastError } from "@/lib/toast";
 
 interface AddUserModalProps {
   open: boolean;
@@ -24,14 +25,12 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [error, setError] = useState("");
 
   const reset = () => {
     setEmail("");
     setUsername("");
     setFirstName("");
     setLastName("");
-    setError("");
   };
 
   const handleClose = () => {
@@ -41,7 +40,6 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError("");
     try {
       const result = await createUser.mutateAsync({
         email: email.trim().toLowerCase(),
@@ -58,7 +56,10 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create user");
+      toastError(
+        "Failed to create user",
+        err instanceof Error ? err.message : undefined,
+      );
     }
   };
 
@@ -110,7 +111,6 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
             required
           />
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel

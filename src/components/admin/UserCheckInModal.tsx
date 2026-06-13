@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useUsersQuery";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { CheckInUserPayload } from "@/lib/check-in";
+import { toastError } from "@/lib/toast";
 
 interface UserCheckInModalProps {
   open: boolean;
@@ -34,7 +35,6 @@ function UserCheckInModalContent({
   details,
   isCheckedIn,
   busy,
-  error,
   emailInput,
   onEmailChange,
   onCheckIn,
@@ -46,7 +46,6 @@ function UserCheckInModalContent({
   details: EventUserRow;
   isCheckedIn: boolean;
   busy: boolean;
-  error: string;
   emailInput: string;
   onEmailChange: (value: string) => void;
   onCheckIn: () => Promise<void>;
@@ -127,8 +126,6 @@ function UserCheckInModalContent({
               : "Confirm their email, then check them in when ready."}
         </p>
 
-        {error && <p className="text-sm text-danger">{error}</p>}
-
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
             Close
@@ -165,13 +162,11 @@ function EventUserCheckInModal({
   const uncheckInUser = useUncheckInUserMutation();
   const [details, setDetails] = useState<EventUserRow | null>(null);
   const [emailInput, setEmailInput] = useState("");
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open && user) {
       setDetails(user);
       setEmailInput("");
-      setError("");
     }
   }, [open, user]);
 
@@ -188,11 +183,9 @@ function EventUserCheckInModal({
       details={details}
       isCheckedIn={isCheckedIn}
       busy={busy}
-      error={error}
       emailInput={emailInput}
       onEmailChange={setEmailInput}
       onCheckIn={async () => {
-        setError("");
         try {
           const result = await checkInUser.mutateAsync({
             userId: details.id,
@@ -210,16 +203,21 @@ function EventUserCheckInModal({
               : prev,
           );
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to check in user");
+          toastError(
+            "Failed to check in user",
+            err instanceof Error ? err.message : undefined,
+          );
         }
       }}
       onUncheck={async () => {
-        setError("");
         try {
           const result = await uncheckInUser.mutateAsync(details.id);
           setDetails((prev) => (prev ? { ...prev, ...result.user } : prev));
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to undo check-in");
+          toastError(
+            "Failed to undo check-in",
+            err instanceof Error ? err.message : undefined,
+          );
         }
       }}
       canManageCheckIn={canManageCheckIn}
@@ -238,14 +236,12 @@ function PlatformUserCheckInModal({
   Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated" | "canManageCheckIn">) {
   const [details, setDetails] = useState<EventUserRow | null>(null);
   const [emailInput, setEmailInput] = useState("");
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open && user) {
       setDetails(user);
       setEmailInput("");
-      setError("");
     }
   }, [open, user]);
 
@@ -276,11 +272,9 @@ function PlatformUserCheckInModal({
       details={details}
       isCheckedIn={Boolean(details.checkedInAt)}
       busy={busy}
-      error={error}
       emailInput={emailInput}
       onEmailChange={setEmailInput}
       onCheckIn={async () => {
-        setError("");
         setBusy(true);
         try {
           const result = await platformApiFetch<{ user: CheckInUserPayload }>(
@@ -292,13 +286,15 @@ function PlatformUserCheckInModal({
           );
           applyCheckInResult(result.user);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to check in user");
+          toastError(
+            "Failed to check in user",
+            err instanceof Error ? err.message : undefined,
+          );
         } finally {
           setBusy(false);
         }
       }}
       onUncheck={async () => {
-        setError("");
         setBusy(true);
         try {
           const result = await platformApiFetch<{ user: CheckInUserPayload }>(
@@ -307,7 +303,10 @@ function PlatformUserCheckInModal({
           );
           applyCheckInResult(result.user);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Failed to undo check-in");
+          toastError(
+            "Failed to undo check-in",
+            err instanceof Error ? err.message : undefined,
+          );
         } finally {
           setBusy(false);
         }

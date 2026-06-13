@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { EventGridCard } from "@/components/platform/EventGridCard";
 import { EventGridSkeleton } from "@/components/platform/EventGridSkeleton";
 import { useDebounce } from "@/hooks/useDebounce";
+import { toastError } from "@/lib/toast";
 
 const SORT_OPTIONS = [
   { value: "date:desc", label: "Date (newest)" },
@@ -34,7 +35,7 @@ export function EventsPanel({ onCreateClick, refreshKey = 0 }: EventsPanelProps)
   const [page, setPage] = useState(1);
   const [limit] = useState(9);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [result, setResult] = useState<PaginatedResponse<PlatformEvent> | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
@@ -42,7 +43,7 @@ export function EventsPanel({ onCreateClick, refreshKey = 0 }: EventsPanelProps)
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadFailed(false);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -58,8 +59,12 @@ export function EventsPanel({ onCreateClick, refreshKey = 0 }: EventsPanelProps)
       );
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load events");
+      toastError(
+        "Failed to load events",
+        err instanceof Error ? err.message : undefined,
+      );
       setResult(null);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -115,9 +120,15 @@ export function EventsPanel({ onCreateClick, refreshKey = 0 }: EventsPanelProps)
           </Select>
         </div>
 
-        {error && <p className="text-sm text-danger">{error}</p>}
-
-        {loading ? (
+        {loadFailed && !loading ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 px-6 py-16 text-center">
+            <p className="font-medium text-foreground">Could not load events</p>
+            <p className="mt-1 text-sm text-muted-foreground">Try again in a moment.</p>
+            <Button className="mt-4" variant="outline" onClick={() => void load()}>
+              Retry
+            </Button>
+          </div>
+        ) : loading ? (
           <EventGridSkeleton count={limit} />
         ) : events.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/30 px-6 py-16 text-center">

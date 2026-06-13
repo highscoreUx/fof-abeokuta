@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import type { GlobalMembersAudience } from "@/lib/member-access";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import type { SystemEventUserRoleSlug } from "@/lib/permissions/default-bundles";
 
 interface AddPlatformMemberModalProps {
@@ -46,7 +47,6 @@ export function AddPlatformMemberModal({
   const [lastName, setLastName] = useState("");
   const [permissionProfile, setPermissionProfile] = useState<string>(defaultProfile);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) setPermissionProfile(defaultProfile);
@@ -58,7 +58,6 @@ export function AddPlatformMemberModal({
     setFirstName("");
     setLastName("");
     setPermissionProfile(defaultProfile);
-    setError("");
   };
 
   const handleClose = () => {
@@ -70,7 +69,6 @@ export function AddPlatformMemberModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setError("");
     try {
       const result = await platformApiFetch<{
         member: { email: string; username: string };
@@ -96,7 +94,10 @@ export function AddPlatformMemberModal({
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add member");
+      toastError(
+        "Failed to add member",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -165,7 +166,6 @@ export function AddPlatformMemberModal({
             ))}
           </Select>
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
             Cancel

@@ -17,6 +17,7 @@ import {
   validateTriviaQuestionForm,
 } from "@/lib/trivia/question-form-defaults";
 import type { QuestionDraft } from "@/lib/quiz-question-form";
+import { toastError } from "@/lib/toast";
 
 interface AddQuestionModalProps {
   open: boolean;
@@ -31,7 +32,6 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
   const [draft, setDraft] = useState<QuestionDraft>(defaultFormStateForType("QUIZ").draft);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -40,7 +40,6 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
     setDraft(defaults.draft);
     setConfig(defaults.config);
     setMediaUrl(null);
-    setError(null);
   };
 
   useEffect(() => {
@@ -57,7 +56,6 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
 
   const uploadFile = async (file: File): Promise<string> => {
     setUploading(true);
-    setError(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -72,7 +70,7 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
       return res.data.asset.url as string;
     } catch (e) {
       const message = e instanceof Error ? e.message : "Upload failed";
-      setError(message);
+      toastError("Upload failed", message);
       throw new Error(message);
     } finally {
       setUploading(false);
@@ -82,12 +80,11 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
   const handleSubmit = async () => {
     const validation = validateTriviaQuestionForm(questionType, draft, config, mediaUrl);
     if (validation) {
-      setError(validation);
+      toastError("Invalid question", validation);
       return;
     }
 
     setSaving(true);
-    setError(null);
     try {
       const payload = buildTriviaQuestionPayload(questionType, draft, config, mediaUrl);
       await api(`/quizzes/${quizId}/questions`, {
@@ -97,7 +94,10 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
       onClose();
       await onAdded();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add question");
+      toastError(
+        "Failed to add question",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -154,7 +154,6 @@ export function AddQuestionModal({ open, onClose, quizId, onAdded }: AddQuestion
           uploading={uploading}
         />
 
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel

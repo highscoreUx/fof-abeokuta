@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 export function StreamControls() {
   const { slug, api } = useEventApi();
@@ -14,7 +15,6 @@ export function StreamControls() {
   const [videoId, setVideoId] = useState("");
   const [live, setLive] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     api<{ youtubeVideoId: string; streamLive: boolean }>("/settings").then((d) => {
@@ -25,16 +25,18 @@ export function StreamControls() {
 
   const save = async () => {
     setSaving(true);
-    setMessage("");
     try {
       await api("/settings", {
         method: "PATCH",
         body: JSON.stringify({ youtubeVideoId: videoId, streamLive: live }),
       });
       socket?.emit("stream:admin:toggle", { live, videoId });
-      setMessage("Broadcast settings saved.");
+      toastSuccess("Broadcast settings saved");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to save broadcast settings");
+      toastError(
+        "Failed to save broadcast settings",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -73,7 +75,6 @@ export function StreamControls() {
           <Button onClick={save} disabled={saving}>
             {saving ? "Saving…" : "Save & broadcast"}
           </Button>
-          {message && <p className="text-sm text-muted-foreground">{message}</p>}
         </div>
       </div>
     </Card>

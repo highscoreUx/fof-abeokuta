@@ -9,6 +9,7 @@ import { BulkAddQuestionsModal } from "@/components/admin/BulkAddQuestionsModal"
 import { QuestionActionsBar } from "@/components/admin/QuestionActionsBar";
 import { SpreadsheetImportModal } from "@/components/admin/SpreadsheetImportModal";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useAdminPageTitle } from "@/contexts/AdminPageTitleContext";
@@ -16,6 +17,7 @@ import { formatInstanceScope } from "@/lib/activities/catalog";
 import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
 import { TRIVIA_TYPE_LABELS } from "@/lib/trivia/types";
 import { isMediaUrl } from "@/lib/trivia/media";
+import { toastError } from "@/lib/toast";
 import { SurveyConfigurePanel } from "@/components/admin/SurveyConfigurePanel";
 import { SpinnerConfigurePanel } from "@/components/admin/SpinnerConfigurePanel";
 import { TicTacToeConfigurePanel } from "@/components/admin/TicTacToeConfigurePanel";
@@ -31,7 +33,7 @@ export function ActivityConfigureView() {
 
   const [kahoot, setKahoot] = useState<KahootActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const [singleOpen, setSingleOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -39,7 +41,7 @@ export function ActivityConfigureView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLoadError(null);
+    setLoadFailed(false);
     try {
       if (configureKind === "kahoot") {
         const data = await api<{
@@ -67,10 +69,12 @@ export function ActivityConfigureView() {
       } else if (configureKind === "survey") {
         // Survey detail loaded by SurveyConfigurePanel
       } else {
-        setLoadError("Unknown activity type.");
+        toastError("Unknown activity type");
+        setLoadFailed(true);
       }
     } catch {
-      setLoadError("Activity not found.");
+      toastError("Failed to load activity", "Activity not found.");
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -122,9 +126,16 @@ export function ActivityConfigureView() {
         </div>
 
         {loading && <p className="text-muted-foreground">Loading…</p>}
-        {loadError && <p className="text-danger">{loadError}</p>}
+        {!loading && loadFailed && (
+          <div className="space-y-3 text-center">
+            <p className="text-muted-foreground">Could not load this activity.</p>
+            <Button variant="outline" onClick={() => void load()}>
+              Retry
+            </Button>
+          </div>
+        )}
 
-        {!loading && !loadError && kahoot && configureKind === "kahoot" && (
+        {!loading && !loadFailed && kahoot && configureKind === "kahoot" && (
           <>
             <Card className="w-full p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -238,15 +249,15 @@ export function ActivityConfigureView() {
           </>
         )}
 
-        {!loading && !loadError && configureKind === "survey" && (
+        {!loading && !loadFailed && configureKind === "survey" && (
           <SurveyConfigurePanel surveyId={id} onReload={load} />
         )}
 
-        {!loading && !loadError && configureKind === "spinner" && (
+        {!loading && !loadFailed && configureKind === "spinner" && (
           <SpinnerConfigurePanel spinnerId={id} onReload={load} />
         )}
 
-        {!loading && !loadError && configureKind === "tic_tac_toe" && (
+        {!loading && !loadFailed && configureKind === "tic_tac_toe" && (
           <TicTacToeConfigurePanel challengeId={id} onReload={load} />
         )}
     </PermissionGuard>

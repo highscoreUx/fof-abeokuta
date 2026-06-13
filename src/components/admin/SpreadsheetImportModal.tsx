@@ -7,6 +7,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useAuthStore } from "@/stores/authStore";
 import { privateApi } from "@/lib/axios";
 import { downloadQuizCsvTemplate } from "@/lib/quiz-csv-template";
+import { toastError } from "@/lib/toast";
 
 function ProgressBar({ value }: { value: number }) {
   return (
@@ -34,19 +35,16 @@ export function SpreadsheetImportModal({
 }: SpreadsheetImportModalProps) {
   const { path } = useEventApi();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setUploadProgress(null);
-      setError(null);
       setUploading(false);
     }
   }, [open]);
 
   const handleUpload = async (file: File) => {
-    setError(null);
     setUploadProgress(0);
     setUploading(true);
 
@@ -70,7 +68,10 @@ export function SpreadsheetImportModal({
       await onImported();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      toastError(
+        "Upload failed",
+        e instanceof Error ? e.message : undefined,
+      );
       setUploadProgress(null);
     } finally {
       setUploading(false);
@@ -118,7 +119,6 @@ export function SpreadsheetImportModal({
             </p>
           </div>
         )}
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end pt-2">
           <Button variant="secondary" onClick={onClose} disabled={uploading}>
             Close

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useEventApi } from "@/hooks/useEventApi";
 import { formatInstanceScope } from "@/lib/activities/catalog";
+import { toastError } from "@/lib/toast";
 import type { SpinnerParticipationMode } from "@/lib/spinner/types";
 
 interface SpinnerDetail {
@@ -31,11 +32,9 @@ export function SpinnerConfigurePanel({ spinnerId, onReload }: SpinnerConfigureP
   const [participationMode, setParticipationMode] = useState<SpinnerParticipationMode>("ONE_AT_A_TIME");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const data = await api<{ challenge: SpinnerDetail }>(`/spin-challenges/${spinnerId}`);
       setSpinner(data.challenge);
@@ -45,7 +44,7 @@ export function SpinnerConfigurePanel({ spinnerId, onReload }: SpinnerConfigureP
       setOptions(opts.length >= 2 ? opts : ["", ""]);
       setParticipationMode(data.challenge.participationMode ?? "ONE_AT_A_TIME");
     } catch {
-      setError("Spinner not found.");
+      toastError("Failed to load spinner", "Spinner not found.");
     } finally {
       setLoading(false);
     }
@@ -70,12 +69,11 @@ export function SpinnerConfigurePanel({ spinnerId, onReload }: SpinnerConfigureP
   const save = async () => {
     const cleaned = options.map((o) => o.trim()).filter(Boolean);
     if (cleaned.length < 2) {
-      setError("Add at least two wheel options.");
+      toastError("Invalid options", "Add at least two wheel options.");
       return;
     }
 
     setSaving(true);
-    setError(null);
     try {
       await api(`/spin-challenges/${spinnerId}`, {
         method: "PATCH",
@@ -84,14 +82,17 @@ export function SpinnerConfigurePanel({ spinnerId, onReload }: SpinnerConfigureP
       await load();
       await onReload?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      toastError(
+        "Failed to save",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) return <p className="text-muted-foreground">Loading…</p>;
-  if (!spinner) return <p className="text-danger">{error ?? "Not found"}</p>;
+  if (!spinner) return <p className="text-muted-foreground">Spinner not found.</p>;
 
   const scope = formatInstanceScope({
     allowGeneralParticipants: spinner.allowGeneralParticipants,
@@ -149,8 +150,6 @@ export function SpinnerConfigurePanel({ spinnerId, onReload }: SpinnerConfigureP
             </Button>
           )}
         </div>
-
-        {error && <p className="text-sm text-danger">{error}</p>}
 
         <Button onClick={save} disabled={saving}>
           {saving ? "Saving…" : "Save configuration"}

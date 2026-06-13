@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateTeamMutation, useUpdateTeamMutation } from "@/hooks/useTeamsTableQuery";
 import { BRAND_PRIMARY } from "@/lib/brand";
+import { toastError } from "@/lib/toast";
 
 interface TeamModalProps {
   open: boolean;
@@ -25,31 +26,25 @@ export function TeamModal({ open, onClose, team, onSaved }: TeamModalProps) {
   const [letter, setLetter] = useState("");
   const [name, setName] = useState("");
   const [color, setColor] = useState(defaultForm.color);
-  const [error, setError] = useState("");
-
   useEffect(() => {
     if (!open) return;
     if (team) {
       setLetter(team.letter);
       setName(team.name);
       setColor(team.color);
-      setError("");
       return;
     }
     setLetter("");
     setName("");
     setColor(defaultForm.color);
-    setError("");
   }, [open, team]);
 
   const handleClose = () => {
-    setError("");
     onClose();
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError("");
     try {
       if (isEdit && team) {
         await updateTeam.mutateAsync({ id: team.id, letter, name, color });
@@ -59,7 +54,10 @@ export function TeamModal({ open, onClose, team, onSaved }: TeamModalProps) {
       onSaved?.();
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save team");
+      toastError(
+        "Failed to save team",
+        err instanceof Error ? err.message : undefined,
+      );
     }
   };
 
@@ -118,7 +116,6 @@ export function TeamModal({ open, onClose, team, onSaved }: TeamModalProps) {
             required
           />
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel

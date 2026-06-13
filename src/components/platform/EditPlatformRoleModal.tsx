@@ -16,6 +16,7 @@ import {
 import { roleIsDeletable, roleIsEditable } from "@/lib/platform-roles.shared";
 import type { PlatformRoleRow } from "@/lib/platform-roles.types";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 
 const ASSIGNABLE_CATALOG = PERMISSION_CATALOG.filter((group) => group.id !== "platform");
 
@@ -46,7 +47,6 @@ export function EditPlatformRoleModal({
   const [search, setSearch] = useState("");
   const [groupId, setGroupId] = useState(ASSIGNABLE_CATALOG[0]?.id ?? "users");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -56,7 +56,6 @@ export function EditPlatformRoleModal({
       setUseWildcard(false);
       setSearch("");
       setGroupId(ASSIGNABLE_CATALOG[0]?.id ?? "users");
-      setError("");
       return;
     }
     if (!role) return;
@@ -72,7 +71,6 @@ export function EditPlatformRoleModal({
     );
     setSearch("");
     setGroupId(ASSIGNABLE_CATALOG[0]?.id ?? "users");
-    setError("");
   }, [open, create, role]);
 
   const visibleGroups = useMemo(() => {
@@ -102,7 +100,6 @@ export function EditPlatformRoleModal({
 
   const save = async () => {
     setLoading(true);
-    setError("");
     const permissions: RolePermission[] = useWildcard ? ["*"] : selected;
     try {
       if (create) {
@@ -119,7 +116,10 @@ export function EditPlatformRoleModal({
       onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save role");
+      toastError(
+        "Failed to save role",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -129,13 +129,15 @@ export function EditPlatformRoleModal({
     if (!role || !roleIsDeletable(role)) return;
     if (!window.confirm(`Delete role "${role.name}"?`)) return;
     setLoading(true);
-    setError("");
     try {
       await platformApiFetch(`/api/fg-admin/roles/${role.id}`, { method: "DELETE" });
       onDeleted?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete role");
+      toastError(
+        "Failed to delete role",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -235,8 +237,6 @@ export function EditPlatformRoleModal({
             This system role cannot be edited here.
           </p>
         )}
-
-        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex items-center justify-between gap-2 pt-2">
           <div>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { UserCheckInModal } from "@/components/admin/UserCheckInModal";
 import { UserRowActionsMenu } from "@/components/admin/UserRowActionsMenu";
 import { ChangeEventRoleModal } from "@/components/platform/ChangeEventRoleModal";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -24,6 +25,7 @@ import {
   type UsersSortField,
 } from "@/stores/usersTableStore";
 import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { toastError } from "@/lib/toast";
 import type { EventUserRow } from "@/types/users";
 
 function SortableHeader({
@@ -59,7 +61,7 @@ function SortableHeader({
 
 export function UsersTable() {
   const eventSlug = useEventSlug();
-  const { data, isLoading, isFetching, error } = useUsersQuery();
+  const { data, isLoading, isFetching, error, refetch } = useUsersQuery();
   const { data: teamsData } = useTeamsQuery();
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
@@ -101,6 +103,15 @@ export function UsersTable() {
 
   const showActionsColumn = canCheckIn || canViewDetails || canChangeRole;
 
+  useEffect(() => {
+    if (error) {
+      toastError(
+        "Failed to load users",
+        error instanceof Error ? error.message : undefined,
+      );
+    }
+  }, [error]);
+
   const canChangeUserRole = (user: EventUserRow) =>
     canChangeRole &&
     (user.isParticipantAccount !== false || Boolean(user.isEventScopedAccess));
@@ -119,7 +130,10 @@ export function UsersTable() {
         await checkInUser.mutateAsync({ userId: user.id });
       }
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Failed to update check-in");
+      toastError(
+        "Failed to update check-in",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setTogglingId(null);
     }
@@ -221,8 +235,11 @@ export function UsersTable() {
                 ))}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-8 text-center text-danger">
-                    Failed to load users
+                  <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-10 text-center text-muted-foreground">
+                    <p>Could not load users.</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => void refetch()}>
+                      Retry
+                    </Button>
                   </td>
                 </tr>
               )}

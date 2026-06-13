@@ -9,6 +9,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/toast";
 import type { GlobalMembersAudience } from "@/lib/member-access";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
@@ -37,7 +38,7 @@ export function PlatformMembersTable({
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [result, setResult] = useState<PaginatedResponse<PlatformMemberRow> | null>(null);
   const [editMember, setEditMember] = useState<PlatformMemberRow | null>(null);
 
@@ -51,7 +52,7 @@ export function PlatformMembersTable({
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(false);
+    setLoadFailed(false);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -69,7 +70,8 @@ export function PlatformMembersTable({
       setResult(data);
     } catch {
       setResult(null);
-      setError(true);
+      toastError("Failed to load members");
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -185,14 +187,17 @@ export function PlatformMembersTable({
                     </td>
                   </tr>
                 ))}
-              {!loading && error && (
+              {!loading && loadFailed && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-danger">
-                    Failed to load members
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    <p>Could not load members.</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>
+                      Retry
+                    </Button>
                   </td>
                 </tr>
               )}
-              {!loading && !error && members.length === 0 && (
+              {!loading && !loadFailed && members.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                     {emptyLabel}
@@ -200,7 +205,7 @@ export function PlatformMembersTable({
                 </tr>
               )}
               {!loading &&
-                !error &&
+                !loadFailed &&
                 members.map((member, index) => (
                   <tr
                     key={member.id}

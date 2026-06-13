@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import type { PlatformEvent } from "@/types";
 
 function toDatetimeLocalValue(iso: string) {
@@ -24,7 +25,6 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
   const [description, setDescription] = useState(event.description ?? "");
   const [date, setDate] = useState(toDatetimeLocalValue(event.date));
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -35,7 +35,6 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
 
   const save = async () => {
     setSaving(true);
-    setError("");
     setSaved(false);
     try {
       await platformApiFetch(`/api/fg-admin/events/${event.id}`, {
@@ -49,7 +48,10 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
       onUpdated();
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      toastError(
+        "Failed to save settings",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -94,7 +96,6 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
             />
           </div>
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
         {saved && <p className="text-sm text-emerald-600">Settings saved.</p>}
         <Button onClick={save} disabled={saving || !title.trim() || !date}>
           {saving ? "Saving…" : "Save settings"}

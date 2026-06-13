@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { platformApiUpload } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 
 interface TicketImportSummary {
   created: number;
@@ -69,13 +70,10 @@ export function TicketImportModal({ open, eventId, onClose, onImported }: Ticket
       setResult(data);
       onImported();
     } catch (err) {
-      setResult({
-        created: 0,
-        updated: 0,
-        skipped: 0,
-        errors: [{ row: 0, error: err instanceof Error ? err.message : "Import failed" }],
-        skippedRows: [],
-      });
+      toastError(
+        "Import failed",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
       armBackdropGuard();

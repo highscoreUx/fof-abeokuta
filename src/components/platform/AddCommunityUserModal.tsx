@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { COMMUNITY_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import type { SystemEventUserRoleSlug } from "@/lib/permissions/default-bundles";
 
 interface AddCommunityUserModalProps {
@@ -54,7 +55,6 @@ export function AddCommunityUserModal({
   const [lastName, setLastName] = useState("");
   const [permissionProfile, setPermissionProfile] = useState<string>(defaultProfile);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) setPermissionProfile(defaultProfile);
@@ -66,7 +66,6 @@ export function AddCommunityUserModal({
     setFirstName("");
     setLastName("");
     setPermissionProfile(defaultProfile);
-    setError("");
   };
 
   const handleClose = () => {
@@ -78,7 +77,6 @@ export function AddCommunityUserModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setError("");
     try {
       const result = await platformApiFetch<{
         user: { email: string; username: string; permissionProfile: string };
@@ -104,7 +102,10 @@ export function AddCommunityUserModal({
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add user");
+      toastError(
+        "Failed to add user",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -182,7 +183,6 @@ export function AddCommunityUserModal({
             </Select>
           </div>
         )}
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
             Cancel

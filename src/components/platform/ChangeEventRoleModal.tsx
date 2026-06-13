@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import { apiFetch } from "@/lib/api-client";
 import type { EventUserRow } from "@/types/users";
 
@@ -38,13 +39,11 @@ export function ChangeEventRoleModal({
   const [permissionProfile, setPermissionProfile] = useState("participant");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open || !user) return;
     setPermissionProfile(user.permissionProfileSlug ?? "participant");
     setEmail("");
-    setError("");
   }, [open, user]);
 
   if (!user) return null;
@@ -59,7 +58,6 @@ export function ChangeEventRoleModal({
     }
 
     setBusy(true);
-    setError("");
     try {
       const body = {
         permissionProfile,
@@ -81,7 +79,10 @@ export function ChangeEventRoleModal({
       onUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update role");
+      toastError(
+        "Failed to update role",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setBusy(false);
     }
@@ -128,8 +129,6 @@ export function ChangeEventRoleModal({
             />
           </div>
         )}
-
-        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={busy}>

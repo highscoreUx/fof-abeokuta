@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { useEventApi } from "@/hooks/useEventApi";
 import { formatInstanceScope } from "@/lib/activities/catalog";
+import { toastError } from "@/lib/toast";
 import type { TicTacToeMode } from "@/lib/tic-tac-toe/types";
 
 interface TeamOption {
@@ -45,11 +46,9 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const [detail, teamsRes] = await Promise.all([
         api<{ challenge: TttDetail }>(`/tic-tac-toe-challenges/${challengeId}`),
@@ -61,7 +60,7 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
       if (!teamXId && teamsRes.teams?.[0]) setTeamXId(teamsRes.teams[0].id);
       if (!teamOId && teamsRes.teams?.[1]) setTeamOId(teamsRes.teams[1].id);
     } catch {
-      setError("Tournament not found.");
+      toastError("Failed to load tournament", "Tournament not found.");
     } finally {
       setLoading(false);
     }
@@ -73,7 +72,6 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
 
   const save = async () => {
     setSaving(true);
-    setError(null);
     try {
       await api(`/tic-tac-toe-challenges/${challengeId}`, {
         method: "PATCH",
@@ -82,7 +80,10 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
       await load();
       await onReload?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      toastError(
+        "Failed to save",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -90,11 +91,10 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
 
   const createMatch = async () => {
     if (!teamXId || !teamOId) {
-      setError("Select both teams.");
+      toastError("Missing teams", "Select both teams.");
       return;
     }
     setCreating(true);
-    setError(null);
     try {
       await api(`/tic-tac-toe-challenges/${challengeId}/matches`, {
         method: "POST",
@@ -103,14 +103,17 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
       await load();
       await onReload?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create match");
+      toastError(
+        "Failed to create match",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setCreating(false);
     }
   };
 
   if (loading) return <p className="text-muted-foreground">Loading…</p>;
-  if (!challenge) return <p className="text-danger">{error ?? "Not found"}</p>;
+  if (!challenge) return <p className="text-muted-foreground">Tournament not found.</p>;
 
   const scope = formatInstanceScope({
     allowGeneralParticipants: challenge.allowGeneralParticipants,
@@ -183,7 +186,6 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
           </div>
         )}
 
-        {error && <p className="text-sm text-danger">{error}</p>}
       </div>
     </Card>
   );

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/toast";
 
 const ALGORITHM_OPTIONS: Array<{ value: TeamAssignAlgorithm; label: string; description: string }> =
   [
@@ -50,16 +51,20 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    setError("");
+    setLoadFailed(false);
     api<{ settings: TeamAssignSettings }>("/settings/teams")
       .then((d) => setSettings(d.settings))
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load settings");
+        toastError(
+          "Failed to load settings",
+          err instanceof Error ? err.message : undefined,
+        );
+        setLoadFailed(true);
       })
       .finally(() => setLoading(false));
   }, [open, slug]);
@@ -67,7 +72,6 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
   const saveSettings = async () => {
     if (!settings) return;
     setSaving(true);
-    setError("");
     try {
       const data = await api<{ settings: TeamAssignSettings }>("/settings/teams", {
         method: "PATCH",
@@ -77,7 +81,10 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
       onMessage?.("Auto-assign settings saved.");
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
+      toastError(
+        "Failed to save settings",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -86,7 +93,6 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
   const runNow = async () => {
     if (!settings) return;
     setRunning(true);
-    setError("");
     try {
       const result = await api<{ assigned: number }>("/users/assign-teams", {
         method: "POST",
@@ -99,7 +105,10 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
       onMessage?.(`Assigned ${result.assigned} user(s) to teams.`);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to run auto-assign");
+      toastError(
+        "Failed to run auto-assign",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setRunning(false);
     }
@@ -181,8 +190,6 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
             <span>Only assign users without a team (when running manually)</span>
           </label>
 
-          {error && <p className="text-sm text-danger">{error}</p>}
-
           <div className={cn("flex flex-wrap justify-end gap-2 pt-1")}>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
@@ -197,7 +204,31 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
         </div>
       )}
 
-      {!loading && !settings && error && <p className="text-sm text-danger">{error}</p>}
+      {!loading && !settings && loadFailed && (
+        <div className="space-y-3 text-center">
+          <p className="text-sm text-muted-foreground">Could not load settings.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setLoading(true);
+              setLoadFailed(false);
+              void api<{ settings: TeamAssignSettings }>("/settings/teams")
+                .then((d) => setSettings(d.settings))
+                .catch((err) => {
+                  toastError(
+                    "Failed to load settings",
+                    err instanceof Error ? err.message : undefined,
+                  );
+                  setLoadFailed(true);
+                })
+                .finally(() => setLoading(false));
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
 import { isSurveyOpen, parseSurveyConfig, SURVEY_TYPE_LABELS } from "@/lib/survey/types";
+import { toastError, toastSuccess } from "@/lib/toast";
 import type { SurveyAnswerValue, SurveyQuestionType } from "@/lib/survey/types";
 
 interface SurveyListItem {
@@ -33,7 +34,6 @@ export function SurveyPlayer() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, SurveyAnswerValue>>({});
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const data = await api<{ surveys: SurveyListItem[] }>("/surveys").catch(() => ({ surveys: [] }));
@@ -74,7 +74,6 @@ export function SurveyPlayer() {
   const submit = async () => {
     if (!active) return;
     setSaving(true);
-    setMessage(null);
     try {
       await api(`/surveys/${active.id}/submit`, {
         method: "POST",
@@ -85,10 +84,13 @@ export function SurveyPlayer() {
           })),
         }),
       });
-      setMessage("Response saved.");
+      toastSuccess("Response saved");
       await load();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Failed to submit");
+      toastError(
+        "Failed to submit survey",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -214,7 +216,6 @@ export function SurveyPlayer() {
           );
         })}
       </div>
-      {message && <p className="mt-4 text-sm text-muted-foreground">{message}</p>}
       <Button className="mt-4" onClick={submit} disabled={saving}>
         {saving ? "Saving…" : "Submit survey"}
       </Button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -8,6 +9,7 @@ import { useDeleteTeamMutation, useTeamsTableQuery } from "@/hooks/useTeamsTable
 import { cn } from "@/lib/cn";
 import { useTeamsTableStore, type TeamsSortField } from "@/stores/teamsTableStore";
 import type { TeamRow } from "@/types/teams";
+import { toastError } from "@/lib/toast";
 
 function SortableHeader({
   field,
@@ -45,7 +47,7 @@ interface TeamsTableProps {
 }
 
 export function TeamsTable({ onEdit }: TeamsTableProps) {
-  const { data, isLoading, isFetching, error } = useTeamsTableQuery();
+  const { data, isLoading, isFetching, error, refetch } = useTeamsTableQuery();
   const deleteTeam = useDeleteTeamMutation();
 
   const search = useTeamsTableStore((s) => s.search);
@@ -56,6 +58,15 @@ export function TeamsTable({ onEdit }: TeamsTableProps) {
   const setPage = useTeamsTableStore((s) => s.setPage);
 
   const teams = data?.data ?? [];
+
+  useEffect(() => {
+    if (error) {
+      toastError(
+        "Failed to load teams",
+        error instanceof Error ? error.message : undefined,
+      );
+    }
+  }, [error]);
 
   const handleDelete = async (team: TeamRow) => {
     const label = team.name || team.letter;
@@ -69,7 +80,10 @@ export function TeamsTable({ onEdit }: TeamsTableProps) {
     try {
       await deleteTeam.mutateAsync(team.id);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Failed to delete team");
+      toastError(
+        "Failed to delete team",
+        err instanceof Error ? err.message : undefined,
+      );
     }
   };
 
@@ -136,8 +150,11 @@ export function TeamsTable({ onEdit }: TeamsTableProps) {
                 ))}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-danger">
-                    Failed to load teams
+                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                    <p>Could not load teams.</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => void refetch()}>
+                      Retry
+                    </Button>
                   </td>
                 </tr>
               )}

@@ -16,6 +16,7 @@ import type { TicTacToeMode } from "@/lib/tic-tac-toe/types";
 import type { SpinnerParticipationMode } from "@/lib/spinner/types";
 import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
+import { toastError } from "@/lib/toast";
 
 interface EventActivityConfig {
   slug: ActivitySlug | string;
@@ -61,7 +62,6 @@ export function AddActivityModal({
     useState<SpinnerParticipationMode>("ONE_AT_A_TIME");
   const [ticTacToeMode, setTicTacToeMode] = useState<TicTacToeMode>("CHAMPION");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const selectedConfig = eventActivities.find((a) => a.slug === type);
   const selectedType = creatableTypes.find((entry) => entry.slug === type);
@@ -71,7 +71,6 @@ export function AddActivityModal({
     const first = creatableTypes[0]?.slug ?? ACTIVITY_KAHOOT;
     setType(first);
     setTitle("");
-    setError(null);
     const cfg = eventActivities.find((a) => a.slug === first);
     setAllowGeneral(cfg?.allowGeneral ?? true);
     setAllowGroup(Boolean(cfg?.allowGroup && !cfg?.allowGeneral));
@@ -92,16 +91,15 @@ export function AddActivityModal({
 
   const handleSubmit = async () => {
     if (!title.trim()) {
-      setError("Enter a title for this activity.");
+      toastError("Missing title", "Enter a title for this activity.");
       return;
     }
     if (!allowGeneral && !allowGroup) {
-      setError("Select at least one participant scope.");
+      toastError("Missing scope", "Select at least one participant scope.");
       return;
     }
 
     setSaving(true);
-    setError(null);
     try {
       await onCreate({
         type,
@@ -113,7 +111,10 @@ export function AddActivityModal({
       });
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create activity");
+      toastError(
+        "Failed to create activity",
+        e instanceof Error ? e.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -229,8 +230,6 @@ export function AddActivityModal({
             </select>
           </div>
         )}
-
-        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={onClose} disabled={saving}>

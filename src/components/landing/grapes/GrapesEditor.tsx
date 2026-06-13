@@ -9,6 +9,7 @@ import { buildDefaultLandingHtml, DEFAULT_LANDING_CSS } from "@/components/landi
 import { apiFetch } from "@/lib/api-client";
 import type { LandingPagePayload } from "@/lib/landing-page";
 import type { PlatformEvent } from "@/types";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 interface GrapesEditorProps {
   event: PlatformEvent;
@@ -20,7 +21,6 @@ export function GrapesEditor({ event, initialPage, onExit }: GrapesEditorProps) 
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -76,7 +76,6 @@ export function GrapesEditor({ event, initialPage, onExit }: GrapesEditorProps) 
     if (!editor || saving) return;
 
     setSaving(true);
-    setStatus(null);
     try {
       await apiFetch(event.slug, "/landing-page", {
         method: "PUT",
@@ -86,10 +85,9 @@ export function GrapesEditor({ event, initialPage, onExit }: GrapesEditorProps) 
           css: editor.getCss(),
         }),
       });
-      setStatus("Published");
-      setTimeout(() => setStatus(null), 2500);
+      toastSuccess("Published");
     } catch {
-      setStatus("Failed to publish");
+      toastError("Failed to publish");
     } finally {
       setSaving(false);
     }
@@ -103,11 +101,6 @@ export function GrapesEditor({ event, initialPage, onExit }: GrapesEditorProps) 
           <p className="truncate text-[13px] font-semibold text-[#eee]">{event.title}</p>
         </div>
         <div className="flex items-center gap-2">
-          {status && (
-            <span className="text-[11px] text-[#aaa]" aria-live="polite">
-              {status}
-            </span>
-          )}
           <button
             type="button"
             onClick={onExit}

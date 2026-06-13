@@ -12,6 +12,7 @@ import {
   type AgendaTemplateId,
 } from "@/lib/agenda-templates";
 import { useEventApi } from "@/hooks/useEventApi";
+import { toastError } from "@/lib/toast";
 
 const PREVIEW_ITEMS: AgendaListItem[] = [
   {
@@ -51,18 +52,15 @@ export function ChangeAgendaTemplateModal({
   const { api } = useEventApi();
   const [selected, setSelected] = useState<AgendaTemplateId>(currentTemplate);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
       setSelected(currentTemplate);
-      setError("");
     }
   }, [open, currentTemplate]);
 
   const handleSave = async () => {
     setSaving(true);
-    setError("");
     try {
       await api("/settings", {
         method: "PATCH",
@@ -71,7 +69,10 @@ export function ChangeAgendaTemplateModal({
       onSaved?.(selected);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save template");
+      toastError(
+        "Failed to save template",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setSaving(false);
     }
@@ -122,8 +123,6 @@ export function ChangeAgendaTemplateModal({
           );
         })}
       </div>
-
-      {error && <p className="mt-4 text-sm text-danger">{error}</p>}
 
       <div className="mt-6 flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>

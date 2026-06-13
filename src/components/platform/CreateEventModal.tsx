@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import type { PlatformEvent } from "@/types";
 
 type CoverMode = "upload" | "url";
@@ -35,7 +36,6 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
   const [coverUrl, setCoverUrl] = useState("");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const reset = () => {
     setTitle("");
@@ -45,7 +45,6 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     setCoverFile(null);
     setCoverUrl("");
     setCoverPreview(null);
-    setError("");
   };
 
   const handleClose = () => {
@@ -59,7 +58,6 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     setCoverFile(null);
     setCoverUrl("");
     setCoverPreview(null);
-    setError("");
   };
 
   const canSubmit = Boolean(title.trim()) && Boolean(date);
@@ -89,7 +87,6 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
     if (!canSubmit) return;
 
     setLoading(true);
-    setError("");
 
     try {
       const result = await platformApiFetch<{ event: PlatformEvent }>("/api/fg-admin/events", {
@@ -106,7 +103,10 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create event");
+      toastError(
+        "Failed to create event",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -207,8 +207,6 @@ export function CreateEventModal({ open, onClose, onCreated }: CreateEventModalP
             )}
           </div>
         </div>
-
-        {error && <p className="text-sm text-danger">{error}</p>}
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>

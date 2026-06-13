@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LoginCard } from "@/components/auth/LoginCard";
 import { LoginPageLayout } from "@/components/auth/LoginPageLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { DEFAULT_LOGIN_SLIDE_PATHS } from "@/lib/login-slides";
+import { toastError } from "@/lib/toast";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -14,19 +15,17 @@ export default function ChangePasswordPage() {
   const token = searchParams.get("token") ?? "";
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     if (!token) {
-      setError("Missing session. Sign in again.");
+      toastError("Missing session", "Sign in again.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match");
+      toastError("Passwords do not match");
       return;
     }
 
@@ -45,7 +44,10 @@ export default function ChangePasswordPage() {
       const next = searchParams.get("next");
       router.push(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change password");
+      toastError(
+        "Failed to change password",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setLoading(false);
     }
@@ -62,9 +64,8 @@ export default function ChangePasswordPage() {
             <label htmlFor="new-password" className="mb-2 block text-sm font-medium text-foreground">
               New password
             </label>
-            <Input
+            <PasswordInput
               id="new-password"
-              type="password"
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -75,16 +76,14 @@ export default function ChangePasswordPage() {
             <label htmlFor="confirm-password" className="mb-2 block text-sm font-medium text-foreground">
               Confirm password
             </label>
-            <Input
+            <PasswordInput
               id="confirm-password"
-              type="password"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
           <Button type="submit" size="lg" className="w-full" disabled={loading}>
             {loading ? "Saving…" : "Save password"}
           </Button>

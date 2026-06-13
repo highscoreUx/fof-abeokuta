@@ -18,9 +18,11 @@ import {
   YAxis,
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fgAdminEventPath } from "@/lib/fg-admin-routes";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { toastError } from "@/lib/toast";
 import type { PlatformDashboardStats } from "@/types/platform-dashboard";
 
 const CHART_COLORS = {
@@ -111,17 +113,21 @@ function ChartTooltip({
 export function PlatformDashboard() {
   const [data, setData] = useState<PlatformDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadFailed(false);
     try {
       const stats = await platformApiFetch<PlatformDashboardStats>("/api/fg-admin/dashboard");
       setData(stats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard");
+      toastError(
+        "Failed to load dashboard",
+        err instanceof Error ? err.message : undefined,
+      );
       setData(null);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -133,11 +139,14 @@ export function PlatformDashboard() {
 
   if (loading) return <DashboardSkeleton />;
 
-  if (error || !data) {
+  if (loadFailed || !data) {
     return (
       <Card className="py-12 text-center">
         <CardTitle>Could not load dashboard</CardTitle>
-        <CardDescription className="mt-2">{error || "Unknown error"}</CardDescription>
+        <CardDescription className="mt-2">Try again in a moment.</CardDescription>
+        <Button className="mt-4" onClick={() => void load()}>
+          Retry
+        </Button>
       </Card>
     );
   }

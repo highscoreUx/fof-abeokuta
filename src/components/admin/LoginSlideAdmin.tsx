@@ -5,13 +5,13 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 export function LoginSlideAdmin() {
   const { slug, api } = useEventApi();
   const [slides, setSlides] = useState<string[]>(resolveLoginSlides([...DEFAULT_LOGIN_SLIDE_PATHS]));
   const [custom, setCustom] = useState(false);
   const [uploading, setUploading] = useState<number | null>(null);
-  const [message, setMessage] = useState("");
   const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   useEffect(() => {
@@ -23,7 +23,6 @@ export function LoginSlideAdmin() {
 
   const upload = async (index: number, file: File) => {
     setUploading(index);
-    setMessage("");
     try {
       const form = new FormData();
       form.append("index", String(index));
@@ -39,25 +38,24 @@ export function LoginSlideAdmin() {
 
       setSlides(resolveLoginSlides(data.slides));
       setCustom(true);
-      setMessage("Login slides updated.");
+      toastSuccess("Login slides updated");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Upload failed");
+      toastError("Upload failed", err instanceof Error ? err.message : undefined);
     } finally {
       setUploading(null);
     }
   };
 
   const reset = async () => {
-    setMessage("");
     try {
       const data = await api<{ slides: string[]; custom: boolean }>("/settings/login-slides", {
         method: "DELETE",
       });
       setSlides(resolveLoginSlides(data.slides));
       setCustom(data.custom);
-      setMessage("Reset to default slides.");
+      toastSuccess("Reset to default slides");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Reset failed");
+      toastError("Reset failed", err instanceof Error ? err.message : undefined);
     }
   };
 
@@ -106,7 +104,6 @@ export function LoginSlideAdmin() {
         </Button>
         {custom && <span className="text-xs text-muted-foreground">Using custom slides</span>}
       </div>
-      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
     </Card>
   );
 }

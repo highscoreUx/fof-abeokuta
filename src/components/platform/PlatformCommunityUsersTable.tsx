@@ -5,6 +5,7 @@ import { UserCheckInModal } from "@/components/admin/UserCheckInModal";
 import { UserRowActionsMenu } from "@/components/admin/UserRowActionsMenu";
 import { ChangeEventRoleModal } from "@/components/platform/ChangeEventRoleModal";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import {
   EVENT_SCOPED_STAFF_PROFILE_SLUGS,
 } from "@/lib/community-audience";
 import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/toast";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { PaginatedResponse } from "@/lib/pagination";
@@ -53,7 +55,7 @@ export function PlatformCommunityUsersTable({
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [result, setResult] = useState<PaginatedResponse<EventUserRow> | null>(null);
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
@@ -93,7 +95,7 @@ export function PlatformCommunityUsersTable({
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(false);
+    setLoadFailed(false);
     try {
       const params = new URLSearchParams({
         audience,
@@ -113,7 +115,8 @@ export function PlatformCommunityUsersTable({
       setResult(data);
     } catch {
       setResult(null);
-      setError(true);
+      toastError("Failed to load users");
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -164,7 +167,10 @@ export function PlatformCommunityUsersTable({
       });
       await load();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Failed to update check-in");
+      toastError(
+        "Failed to update check-in",
+        err instanceof Error ? err.message : undefined,
+      );
     } finally {
       setTogglingId(null);
     }
@@ -293,14 +299,17 @@ export function PlatformCommunityUsersTable({
                     </td>
                   </tr>
                 ))}
-              {!loading && error && (
+              {!loading && loadFailed && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-danger">
-                    Failed to load users
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    <p>Could not load users.</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>
+                      Retry
+                    </Button>
                   </td>
                 </tr>
               )}
-              {!loading && !error && users.length === 0 && (
+              {!loading && !loadFailed && users.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                     {emptyLabel}
@@ -308,7 +317,7 @@ export function PlatformCommunityUsersTable({
                 </tr>
               )}
               {!loading &&
-                !error &&
+                !loadFailed &&
                 users.map((user, index) => (
                   <tr
                     key={user.id}

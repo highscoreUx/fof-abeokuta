@@ -6,6 +6,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
+import { toastError } from "@/lib/toast";
 
 interface UserRow {
   id: string;
@@ -31,7 +32,6 @@ export function CheckInPanel() {
   const [recent, setRecent] = useState<UserRow[]>([]);
   const [selected, setSelected] = useState<UserRow | null>(null);
   const [emailInput, setEmailInput] = useState("");
-  const [checkInError, setCheckInError] = useState("");
 
   const search = async () => {
     const data = await api<{ data: UserRow[] }>(
@@ -66,11 +66,9 @@ export function CheckInPanel() {
   const selectUser = (user: UserRow) => {
     setSelected(user);
     setEmailInput("");
-    setCheckInError("");
   };
 
   const checkIn = async (user: UserRow) => {
-    setCheckInError("");
     const needsEmail = user.needsEmail ?? !user.email;
     try {
       const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, {
@@ -80,7 +78,10 @@ export function CheckInPanel() {
       setSelected((prev) => ({ ...(prev?.id === user.id ? prev : user), ...result.user }));
       await search();
     } catch (err) {
-      setCheckInError(err instanceof Error ? err.message : "Failed to check in");
+      toastError(
+        "Failed to check in",
+        err instanceof Error ? err.message : undefined,
+      );
     }
   };
 
@@ -188,7 +189,6 @@ export function CheckInPanel() {
                   {selected.username}
                 </p>
               </div>
-              {checkInError && <p className="text-sm text-danger">{checkInError}</p>}
               {selected.checkedInAt ? (
                 <div className="space-y-2">
                   <p className="text-sm text-green-600">Checked in — they can sign in now.</p>

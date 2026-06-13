@@ -11,6 +11,7 @@ import {
   parsePollBody,
 } from "@/lib/chat-poll";
 import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/toast";
 import { EMPTY_CHAT_MESSAGES, useChatStore } from "@/stores/chatStore";
 import type { ChatMessage } from "@/types/chat";
 
@@ -34,7 +35,6 @@ export function ChatPollMessage({ messageId, body, roomId, className }: ChatPoll
       body,
   );
   const [voting, setVoting] = useState(false);
-  const [voteError, setVoteError] = useState<string | null>(null);
   const [optimisticVote, setOptimisticVote] = useState<number | null>(null);
   const votingRef = useRef(false);
 
@@ -64,7 +64,6 @@ export function ChatPollMessage({ messageId, body, roomId, className }: ChatPoll
 
     votingRef.current = true;
     setVoting(true);
-    setVoteError(null);
     setOptimisticVote(optionIndex);
 
     try {
@@ -94,7 +93,10 @@ export function ChatPollMessage({ messageId, body, roomId, className }: ChatPoll
       setOptimisticVote(null);
     } catch (error) {
       setOptimisticVote(null);
-      setVoteError(error instanceof Error ? error.message : "Could not record vote");
+      toastError(
+        "Failed to record vote",
+        error instanceof Error ? error.message : undefined,
+      );
     } finally {
       votingRef.current = false;
       setVoting(false);
@@ -186,9 +188,6 @@ export function ChatPollMessage({ messageId, body, roomId, className }: ChatPoll
         {voting && !stats.hasVoted && " · Recording vote…"}
         {isPending && " · Sending poll…"}
       </p>
-      {voteError && (
-        <p className="mt-1 text-[11px] text-danger">{voteError}</p>
-      )}
     </div>
   );
 }

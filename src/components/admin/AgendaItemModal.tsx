@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toDatetimeLocal } from "@/lib/agenda-format";
 import { useEventApi } from "@/hooks/useEventApi";
+import { toastError } from "@/lib/toast";
 
 interface AgendaItemModalProps {
   open: boolean;
@@ -24,14 +25,12 @@ export function AgendaItemModal({ open, onClose, onSaved, item }: AgendaItemModa
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
   const reset = () => {
     setTitle("");
     setDescription("");
     setStartTime("");
     setEndTime("");
-    setError("");
   };
 
   useEffect(() => {
@@ -41,7 +40,6 @@ export function AgendaItemModal({ open, onClose, onSaved, item }: AgendaItemModa
       setDescription(item.description ?? "");
       setStartTime(toDatetimeLocal(item.startTime));
       setEndTime(toDatetimeLocal(item.endTime));
-      setError("");
       return;
     }
     reset();
@@ -57,7 +55,6 @@ export function AgendaItemModal({ open, onClose, onSaved, item }: AgendaItemModa
     if (!title || !startTime || !endTime) return;
 
     setSaving(true);
-    setError("");
     try {
       const payload = { title, description, startTime, endTime };
       if (isEdit && item) {
@@ -74,12 +71,9 @@ export function AgendaItemModal({ open, onClose, onSaved, item }: AgendaItemModa
       onSaved?.();
       handleClose();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : isEdit
-            ? "Failed to update agenda item"
-            : "Failed to add agenda item",
+      toastError(
+        isEdit ? "Failed to update agenda item" : "Failed to add agenda item",
+        err instanceof Error ? err.message : undefined,
       );
     } finally {
       setSaving(false);
@@ -139,7 +133,6 @@ export function AgendaItemModal({ open, onClose, onSaved, item }: AgendaItemModa
             />
           </div>
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={handleClose}>
             Cancel

@@ -181,7 +181,7 @@ export function PlatformDashboard() {
           value={summary.checkedInParticipants.toLocaleString()}
           hint={`of ${summary.totalParticipants.toLocaleString()} registered`}
         />
-        <StatCard label="Global staff" value={summary.globalStaff} hint={`${summary.totalAccounts} accounts`} />
+        <StatCard label="Members" value={summary.globalStaff} hint={`${summary.totalAccounts} accounts`} />
         <StatCard label="Teams" value={summary.totalTeams.toLocaleString()} />
         <StatCard label="Quizzes" value={summary.totalQuizzes.toLocaleString()} />
         <StatCard label="Votes" value={summary.totalVotes.toLocaleString()} />

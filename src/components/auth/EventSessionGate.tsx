@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthLoadingPanel } from "@/components/auth/AuthLoadingPanel";
 import { Button } from "@/components/ui/button";
+import { PendingCheckInView } from "@/_views/pending-check-in/PendingCheckInView";
 import { useEventScope } from "@/contexts/EventScopeContext";
 import { loginPath } from "@/lib/routes";
 import { useAuthStore } from "@/stores/authStore";
 import type { AuthUser } from "@/types";
 
-type GateStatus = "loading" | "ready" | "error";
+type GateStatus = "loading" | "ready" | "error" | "pending_check_in";
 
 function currentReturnTo(fallback: string) {
   if (typeof window === "undefined") return fallback;
@@ -76,7 +77,7 @@ export function EventSessionGate({ children }: { children: React.ReactNode }) {
 
       if (data.checkInRequired || !data.user) {
         setEventUser(null);
-        router.replace(loginPath(currentReturnTo(fallbackPath)));
+        setStatus("pending_check_in");
         return;
       }
 
@@ -93,6 +94,17 @@ export function EventSessionGate({ children }: { children: React.ReactNode }) {
 
   if (!isHydrated || status === "loading") {
     return <AuthLoadingPanel label="Loading your session…" />;
+  }
+
+  if (status === "pending_check_in") {
+    return (
+      <PendingCheckInView
+        onReload={() => {
+          setStatus("loading");
+          setReloadKey((key) => key + 1);
+        }}
+      />
+    );
   }
 
   if (status === "error") {

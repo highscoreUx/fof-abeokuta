@@ -6,6 +6,7 @@ import { resolveUserRolePermissions } from "@/lib/user-permissions";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
 import { assignTeams, assignableTeamRoleSlugs, getTeamAssignSettings } from "@/lib/team-assign";
+import { isTeamingEnabled } from "@/lib/team-settings";
 import { createUserFromRow } from "@/lib/users";
 import { pickUserProfile } from "@/lib/user-display";
 import { jsonError } from "@/lib/auth/middleware";
@@ -90,14 +91,17 @@ export async function POST(
 
   const assignSettings = await getTeamAssignSettings(ctx.event.id);
   const assignableSlugs = assignableTeamRoleSlugs(assignSettings.includeStaff);
+  const teamingEnabled = await isTeamingEnabled(ctx.event.id);
 
-  if (autoAssignTeams) {
-    await assignTeams(ctx.event.id, { includeStaff: assignSettings.includeStaff });
-  } else if (assignSettings.autoAssignOnImport && createdAssigneeIds.length > 0) {
-    await assignTeams(ctx.event.id, {
-      userIds: createdAssigneeIds,
-      includeStaff: assignSettings.includeStaff,
-    });
+  if (teamingEnabled) {
+    if (autoAssignTeams) {
+      await assignTeams(ctx.event.id, { includeStaff: assignSettings.includeStaff });
+    } else if (assignSettings.autoAssignOnImport && createdAssigneeIds.length > 0) {
+      await assignTeams(ctx.event.id, {
+        userIds: createdAssigneeIds,
+        includeStaff: assignSettings.includeStaff,
+      });
+    }
   }
 
   void assignableSlugs;

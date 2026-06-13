@@ -13,6 +13,7 @@ import {
   isActivityEnabledForEvent,
   loadEventActivities,
 } from "@/lib/activities/event-activities";
+import { isTeamingEnabled } from "@/lib/team-settings";
 import { hasAnyPermission, hasPermission } from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions/catalog";
 import { prisma } from "@/lib/prisma";
@@ -45,13 +46,16 @@ export async function loadActivityInstancesForAdmin(
   eventId: string,
   auth: { permissions: Permission[]; teamId: string | null },
 ): Promise<ActivityInstancesPayload> {
-  const rows = await loadEventActivities(eventId);
+  const [rows, teamingEnabled] = await Promise.all([
+    loadEventActivities(eventId),
+    isTeamingEnabled(eventId),
+  ]);
   const activities: EventActivityConfigRow[] = rows.map((row) => ({
     slug: row.activityType.slug,
     name: row.activityType.name,
     enabled: row.enabled,
     allowGeneral: row.allowGeneral,
-    allowGroup: row.allowGroup,
+    allowGroup: teamingEnabled ? row.allowGroup : false,
   }));
 
   const { permissions, teamId } = auth;
@@ -134,6 +138,11 @@ export async function loadActivityInstancesForAdmin(
   const isSurveyManager =
     hasPermission(permissions, "survey.manage") || hasPermission(permissions, "survey.run");
 
+  const isTeamOnlyInstance = (scope: {
+    allowGeneralParticipants: boolean;
+    allowGroupParticipants: boolean;
+  }) => scope.allowGroupParticipants && !scope.allowGeneralParticipants;
+
   const instances: ActivityListItem[] = [];
 
   if (canKahoot && kahootEnabled) {
@@ -150,12 +159,13 @@ export async function loadActivityInstancesForAdmin(
         );
 
     for (const quiz of visible) {
+      if (!teamingEnabled && isTeamOnlyInstance(quiz)) continue;
       instances.push({
         kind: "kahoot",
         id: quiz.id,
         title: quiz.title,
         allowGeneralParticipants: quiz.allowGeneralParticipants,
-        allowGroupParticipants: quiz.allowGroupParticipants,
+        allowGroupParticipants: teamingEnabled ? quiz.allowGroupParticipants : false,
         questionCount: quiz._count.questions,
       });
     }
@@ -163,12 +173,13 @@ export async function loadActivityInstancesForAdmin(
 
   if (canSpin && spinEnabled) {
     for (const challenge of spinChallenges) {
+      if (!teamingEnabled && isTeamOnlyInstance(challenge)) continue;
       instances.push({
         kind: "spinner",
         id: challenge.id,
         title: challenge.title,
         allowGeneralParticipants: challenge.allowGeneralParticipants,
-        allowGroupParticipants: challenge.allowGroupParticipants,
+        allowGroupParticipants: teamingEnabled ? challenge.allowGroupParticipants : false,
         participationMode: challenge.participationMode,
         optionsCount: spinOptionsCount(challenge.config),
         activeSessionId: activeSpinSessions.get(challenge.id) ?? null,
@@ -178,13 +189,14 @@ export async function loadActivityInstancesForAdmin(
 
   if (canTtt && tttEnabled) {
     for (const challenge of tttChallenges) {
+      if (!teamingEnabled && isTeamOnlyInstance(challenge)) continue;
       instances.push({
         kind: "tic_tac_toe",
         id: challenge.id,
         title: challenge.title,
         mode: challenge.mode,
         allowGeneralParticipants: challenge.allowGeneralParticipants,
-        allowGroupParticipants: challenge.allowGroupParticipants,
+        allowGroupParticipants: teamingEnabled ? challenge.allowGroupParticipants : false,
         activeMatchId: challenge.matches[0]?.id ?? null,
         activeMatchState: challenge.matches[0]?.state ?? null,
       });
@@ -205,13 +217,14 @@ export async function loadActivityInstancesForAdmin(
         );
 
     for (const survey of visible) {
+      if (!teamingEnabled && isTeamOnlyInstance(survey)) continue;
       instances.push({
         kind: "survey",
         id: survey.id,
         title: survey.title,
         status: survey.status,
         allowGeneralParticipants: survey.allowGeneralParticipants,
-        allowGroupParticipants: survey.allowGroupParticipants,
+        allowGroupParticipants: teamingEnabled ? survey.allowGroupParticipants : false,
         opensAt: survey.opensAt?.toISOString() ?? null,
         closesAt: survey.closesAt?.toISOString() ?? null,
         allowEditsUntilClose: survey.allowEditsUntilClose,

@@ -7,7 +7,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { cn } from "@/lib/cn";
 import { toastError, toastSuccess } from "@/lib/toast";
 
-export function ChatSettings() {
+export function ChatSettings({ teamingEnabled = true }: { teamingEnabled?: boolean }) {
   const { slug, api } = useEventApi();
   const [teamChatEnabled, setTeamChatEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -50,36 +50,44 @@ export function ChatSettings() {
       </CardHeader>
 
       <div className="space-y-4">
-        <label
-          className={cn(
-            "flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 transition",
-            !loading && "hover:bg-muted/40",
-            loading && "opacity-60",
-          )}
-        >
-          <input
-            type="checkbox"
-            checked={teamChatEnabled}
-            disabled={loading || saving}
-            onChange={(e) => setTeamChatEnabled(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-border text-primary"
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium text-foreground">
-              Allow participants team chat
+        {teamingEnabled ? (
+          <label
+            className={cn(
+              "flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 transition",
+              !loading && "hover:bg-muted/40",
+              loading && "opacity-60",
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={teamChatEnabled}
+              disabled={loading || saving}
+              onChange={(e) => setTeamChatEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-border text-primary"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-foreground">
+                Allow participants team chat
+              </span>
+              <span className="mt-1 block text-sm text-muted-foreground">
+                When off, team channels are hidden from chat for everyone and team messages cannot be
+                sent.
+              </span>
             </span>
-            <span className="mt-1 block text-sm text-muted-foreground">
-              When off, team channels are hidden from chat for everyone and team messages cannot be
-              sent.
-            </span>
-          </span>
-        </label>
+          </label>
+        ) : (
+          <p className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            Team chat is unavailable because teaming is disabled for this event.
+          </p>
+        )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => void save()} disabled={loading || saving}>
-            {saving ? "Saving…" : "Save chat settings"}
-          </Button>
-        </div>
+        {teamingEnabled && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => void save()} disabled={loading || saving}>
+              {saving ? "Saving…" : "Save chat settings"}
+            </Button>
+          </div>
+        )}
       </div>
     </Card>
   );

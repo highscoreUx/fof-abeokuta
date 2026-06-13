@@ -91,9 +91,15 @@ export interface ActivityInstanceScope {
 export function validateInstanceScopeAgainstEvent(
   eventActivity: { allowGeneral: boolean; allowGroup: boolean },
   scope: ActivityInstanceScope,
+  options?: { teamingEnabled?: boolean },
 ): string | null {
+  const teamingEnabled = options?.teamingEnabled ?? true;
+
   if (!scope.allowGeneralParticipants && !scope.allowGroupParticipants) {
     return "Select at least one participant scope for this activity instance.";
+  }
+  if (!teamingEnabled && scope.allowGroupParticipants) {
+    return "Team scope is not available because teaming is disabled for this event.";
   }
   if (scope.allowGeneralParticipants && !eventActivity.allowGeneral) {
     return "Whole event scope is not allowed for this activity on this event.";

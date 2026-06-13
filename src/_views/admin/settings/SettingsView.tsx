@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { ChatSettings } from "@/components/admin/ChatSettings";
@@ -9,27 +9,39 @@ import { TeamSettings } from "@/components/admin/TeamSettings";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useEventNav } from "@/hooks/useEventNav";
+import { useEventSettings } from "@/hooks/useEventSettings";
 
 type SettingsTab = "teams" | "chat" | "broadcasting";
 
-const TAB_OPTIONS: Array<{ value: SettingsTab; label: string }> = [
-  { value: "teams", label: "Teams" },
-  { value: "chat", label: "Chat" },
-  { value: "broadcasting", label: "Broadcasting" },
-];
-
-function parseTab(value: string | null): SettingsTab {
-  if (value === "chat" || value === "broadcasting" || value === "teams") {
-    return value;
-  }
-  return "teams";
+function parseTab(value: string | null, teamingEnabled: boolean): SettingsTab {
+  if (value === "chat" || value === "broadcasting") return value;
+  if (value === "teams" && teamingEnabled) return "teams";
+  return teamingEnabled ? "teams" : "chat";
 }
 
 export function SettingsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { settings: settingsPath } = useEventNav();
-  const tab = parseTab(searchParams.get("tab"));
+  const { teamingEnabled, loading } = useEventSettings();
+  const tab = parseTab(searchParams.get("tab"), teamingEnabled);
+
+  const tabOptions = useMemo(() => {
+    const options: Array<{ value: SettingsTab; label: string }> = [];
+    if (teamingEnabled) options.push({ value: "teams", label: "Teams" });
+    options.push({ value: "chat", label: "Chat" });
+    options.push({ value: "broadcasting", label: "Broadcasting" });
+    return options;
+  }, [teamingEnabled]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!teamingEnabled && tab === "teams") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", "chat");
+      router.replace(`${settingsPath}?${params.toString()}`, { scroll: false });
+    }
+  }, [loading, teamingEnabled, tab, router, searchParams, settingsPath]);
 
   const setTab = useCallback(
     (next: SettingsTab) => {
@@ -50,21 +62,22 @@ export function SettingsView() {
             <div>
               <CardTitle>Configure your event</CardTitle>
               <CardDescription>
-                Teams, chat, and broadcasting. Account permissions are managed when users are
-                created.
+                {teamingEnabled
+                  ? "Teams, chat, and broadcasting. Account permissions are managed when users are created."
+                  : "Chat and broadcasting. Teaming is disabled for this event in platform settings."}
               </CardDescription>
             </div>
             <SegmentedControl
               value={tab}
               onChange={setTab}
-              options={TAB_OPTIONS}
+              options={tabOptions}
               className="w-full sm:max-w-3xl"
             />
           </CardHeader>
         </Card>
 
-        {tab === "teams" && <TeamSettings />}
-        {tab === "chat" && <ChatSettings />}
+        {tab === "teams" && teamingEnabled && <TeamSettings />}
+        {tab === "chat" && <ChatSettings teamingEnabled={teamingEnabled} />}
         {tab === "broadcasting" && <StreamControls />}
       </div>
     </PermissionGuard>

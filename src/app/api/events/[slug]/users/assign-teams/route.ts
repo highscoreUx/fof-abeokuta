@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { assignTeams, isTeamAssignAlgorithm } from "@/lib/team-assign";
+import { guardTeamingEnabled } from "@/lib/team-settings";
 
 export async function POST(
   request: NextRequest,
@@ -9,6 +10,9 @@ export async function POST(
   const { slug } = await params;
   const ctx = await requireEventPermission(request, slug, "user.assign_teams");
   if (ctx instanceof NextResponse) return ctx;
+
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
 
   const body = await request.json().catch(() => ({}));
   const userIds = Array.isArray(body.userIds) ? body.userIds : undefined;

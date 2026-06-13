@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
+import { guardTeamingEnabled } from "@/lib/team-settings";
 import { deleteTeam } from "@/lib/teams";
 import { BRAND_PRIMARY } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,9 @@ export async function PATCH(
   const { slug, id } = await params;
   const ctx = await requireEventPermission(request, slug, "team.manage");
   if (ctx instanceof NextResponse) return ctx;
+
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
 
   const body = (await request.json()) as {
     letter?: string;
@@ -80,6 +84,9 @@ export async function DELETE(
   const { slug, id } = await params;
   const ctx = await requireEventPermission(request, slug, "team.manage");
   if (ctx instanceof NextResponse) return ctx;
+
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
 
   try {
     await deleteTeam(ctx.event.id, id);

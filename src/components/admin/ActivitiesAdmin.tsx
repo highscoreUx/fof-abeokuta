@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
+import { useEventSettings } from "@/hooks/useEventSettings";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleton";
@@ -52,6 +53,7 @@ function activityQuestionCount(row: ActivityListItem): number {
 
 export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const { slug, api } = useEventApi();
+  const { teamingEnabled } = useEventSettings();
   const { activityConfigure } = useEventNav();
   const needsRealtime =
     hasPermission(permissions, "quiz.run") ||
@@ -371,6 +373,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
         permissions={permissions}
         eventActivities={eventActivities}
         onCreate={handleCreate}
+        teamingEnabled={teamingEnabled}
       />
     </div>
   );

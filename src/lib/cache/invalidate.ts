@@ -7,6 +7,7 @@ export async function invalidateEventBySlug(slug: string) {
 export async function invalidateEventCaches(eventId: string, slug?: string) {
   await cacheDelete(`event:id:${eventId}:activities`);
   await cacheDelete(`event:id:${eventId}:team-chat`);
+  await cacheDelete(`event:id:${eventId}:teaming`);
   await cacheDeletePattern(`leaderboard:${eventId}:`);
   if (slug) await invalidateEventBySlug(slug);
 }

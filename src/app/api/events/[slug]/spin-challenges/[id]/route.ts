@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
-import { ACTIVITY_SPINNER, validateInstanceScopeAgainstEvent } from "@/lib/activities/catalog";
+import { ACTIVITY_SPINNER } from "@/lib/activities/catalog";
 import {
   getEventActivityBySlug,
   isActivityEnabledForEvent,
+  validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { getActiveSpinnerSessionForChallenge } from "@/server/games/spinnerEngine";
 import { hasPermission } from "@/lib/permissions";
@@ -85,7 +86,7 @@ export async function PATCH(
         : challenge.allowGroupParticipants,
   };
 
-  const scopeError = validateInstanceScopeAgainstEvent(eventActivity, scope);
+  const scopeError = await validateActivityInstanceScope(ctx.event.id, eventActivity, scope);
   if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
 
   const participationMode =

@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
 import { invalidateEventCaches } from "@/lib/cache/invalidate";
-import { ACTIVITY_CATALOG, type EnabledActivitySnapshot } from "@/lib/activities/catalog";
+import { isTeamingEnabled } from "@/lib/team-settings";
+import {
+  ACTIVITY_CATALOG,
+  type ActivityInstanceScope,
+  type EnabledActivitySnapshot,
+  validateInstanceScopeAgainstEvent,
+} from "@/lib/activities/catalog";
 
 export interface CachedEventActivityRow {
   slug: string;
@@ -110,15 +116,35 @@ export async function loadEventActivities(eventId: string) {
 export async function loadEnabledActivitiesSnapshot(
   eventId: string,
 ): Promise<EnabledActivitySnapshot[]> {
-  const rows = await getCachedEventActivities(eventId);
+  const [rows, teamingEnabled] = await Promise.all([
+    getCachedEventActivities(eventId),
+    isTeamingEnabled(eventId),
+  ]);
+
   return rows
     .filter((row) => row.enabled)
-    .map((row) => ({
-      slug: row.slug as EnabledActivitySnapshot["slug"],
-      allowGeneral: row.allowGeneral,
-      allowGroup: row.allowGroup,
-      allowStaff: row.allowStaff,
-    }));
+    .flatMap((row) => {
+      if (!teamingEnabled) {
+        if (!row.allowGeneral) return [];
+        return [
+          {
+            slug: row.slug as EnabledActivitySnapshot["slug"],
+            allowGeneral: true,
+            allowGroup: false,
+            allowStaff: row.allowStaff,
+          },
+        ];
+      }
+
+      return [
+        {
+          slug: row.slug as EnabledActivitySnapshot["slug"],
+          allowGeneral: row.allowGeneral,
+          allowGroup: row.allowGroup,
+          allowStaff: row.allowStaff,
+        },
+      ];
+    });
 }
 
 const ACTIVITY_SLUG_ALIASES: Record<string, string[]> = {
@@ -147,6 +173,15 @@ export async function isActivityEnabledForEvent(eventId: string, activitySlug: s
   const candidates = slugCandidates(activitySlug);
   const row = rows.find((r) => candidates.includes(r.slug));
   return Boolean(row?.enabled);
+}
+
+export async function validateActivityInstanceScope(
+  eventId: string,
+  eventActivity: { allowGeneral: boolean; allowGroup: boolean },
+  scope: ActivityInstanceScope,
+): Promise<string | null> {
+  const teamingEnabled = await isTeamingEnabled(eventId);
+  return validateInstanceScopeAgainstEvent(eventActivity, scope, { teamingEnabled });
 }
 
 export { invalidateEventCaches };

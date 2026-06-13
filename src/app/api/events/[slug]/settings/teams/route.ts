@@ -5,6 +5,7 @@ import {
   isTeamAssignAlgorithm,
   saveTeamAssignSettings,
 } from "@/lib/team-assign";
+import { guardTeamingEnabled } from "@/lib/team-settings";
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,9 @@ export async function GET(
   const { slug } = await params;
   const ctx = await requireEventPermission(request, slug, "settings.auto_assign");
   if (ctx instanceof NextResponse) return ctx;
+
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
 
   const settings = await getTeamAssignSettings(ctx.event.id);
   return NextResponse.json({ settings });
@@ -25,6 +29,9 @@ export async function PATCH(
   const { slug } = await params;
   const ctx = await requireEventPermission(request, slug, "settings.auto_assign");
   if (ctx instanceof NextResponse) return ctx;
+
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
 
   const body = (await request.json()) as {
     algorithm?: string;

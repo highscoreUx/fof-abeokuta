@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/toast";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
+import { usePlatformEventSettings } from "@/hooks/usePlatformEventSettings";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import type { PaginatedResponse } from "@/lib/pagination";
 import type { EventUserRow } from "@/types/users";
@@ -64,6 +65,7 @@ export function PlatformCommunityUsersTable({
 
   const debouncedSearch = useDebounce(search, 400);
 
+  const { teamingEnabled } = usePlatformEventSettings(eventId, refreshKey);
   const { roles } = usePlatformRoles(refreshKey);
   const profileOptions =
     audience === "staff"
@@ -107,7 +109,7 @@ export function PlatformCommunityUsersTable({
       if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
       if (role !== "all") params.set("role", role);
       if (checkedIn !== "all") params.set("checkedIn", checkedIn);
-      if (teamId !== "all") params.set("teamId", teamId);
+      if (teamingEnabled && teamId !== "all") params.set("teamId", teamId);
 
       const data = await platformApiFetch<PaginatedResponse<EventUserRow>>(
         `/api/fg-admin/events/${eventId}/users?${params.toString()}`,
@@ -132,11 +134,19 @@ export function PlatformCommunityUsersTable({
     sortBy,
     sortOrder,
     refreshKey,
+    teamingEnabled,
   ]);
 
   useEffect(() => {
-    void loadTeams();
-  }, [loadTeams]);
+    if (!teamingEnabled && teamId !== "all") {
+      setTeamId("all");
+    }
+  }, [teamingEnabled, teamId]);
+
+  useEffect(() => {
+    if (teamingEnabled) void loadTeams();
+    else setTeams([]);
+  }, [loadTeams, teamingEnabled]);
 
   useEffect(() => {
     void load();
@@ -202,6 +212,8 @@ export function PlatformCommunityUsersTable({
     );
   };
 
+  const tableColSpan = teamingEnabled ? 6 : 5;
+
   return (
     <div className="space-y-4">
       <div
@@ -235,14 +247,16 @@ export function PlatformCommunityUsersTable({
           <option value="yes">Checked in</option>
           <option value="no">Not checked in</option>
         </Select>
-        <Select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-          <option value="all">All teams</option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.letter} — {team.name}
-            </option>
-          ))}
-        </Select>
+        {teamingEnabled && (
+          <Select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+            <option value="all">All teams</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.letter} — {team.name}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
@@ -281,9 +295,11 @@ export function PlatformCommunityUsersTable({
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Access
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Team
-                </th>
+                {teamingEnabled && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Team
+                  </th>
+                )}
                 <SortableHeader field="checkedInAt" label="Checked in" />
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Actions
@@ -294,14 +310,14 @@ export function PlatformCommunityUsersTable({
               {loading &&
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="border-b border-border/60">
-                    <td colSpan={6} className="px-4 py-4">
+                    <td colSpan={tableColSpan} className="px-4 py-4">
                       <div className="h-4 animate-pulse rounded bg-muted" />
                     </td>
                   </tr>
                 ))}
               {!loading && loadFailed && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-muted-foreground">
                     <p>Could not load users.</p>
                     <Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>
                       Retry
@@ -311,7 +327,7 @@ export function PlatformCommunityUsersTable({
               )}
               {!loading && !loadFailed && users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-muted-foreground">
                     {emptyLabel}
                   </td>
                 </tr>
@@ -337,7 +353,9 @@ export function PlatformCommunityUsersTable({
                         {user.permissionProfile}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>
+                    {teamingEnabled && (
+                      <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>
+                    )}
                     <td className="px-4 py-3">
                       {user.checkedInAt ? (
                         <Badge variant="success">Yes</Badge>

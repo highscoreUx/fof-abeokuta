@@ -4,6 +4,7 @@ import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
 import { ensureEventActivityRows, invalidateEventCaches } from "@/lib/activities/event-activities";
+import { isTeamingEnabled } from "@/lib/team-settings";
 
 export async function GET(
   _request: NextRequest,
@@ -67,14 +68,26 @@ export async function PATCH(
   }
 
   await ensureEventActivityRows(event.id);
+  const teamingEnabled = await isTeamingEnabled(event.id);
 
   for (const item of parsed.data.activities) {
     const activityType = await prisma.activityType.findUnique({ where: { slug: item.slug } });
     if (!activityType) continue;
 
-    if (item.enabled && !item.allowGeneral && !item.allowGroup && !item.allowStaff) {
+    const allowGroup = teamingEnabled ? item.allowGroup : false;
+    const allowGeneral = item.allowGeneral;
+
+    if (item.enabled && !allowGeneral && !allowGroup && !item.allowStaff) {
       return jsonError(
         "Enabled activities must allow at least one scope mode.",
+        "VALIDATION_ERROR",
+        400,
+      );
+    }
+
+    if (!teamingEnabled && item.allowGroup) {
+      return jsonError(
+        "Team scope is not available because teaming is disabled for this event.",
         "VALIDATION_ERROR",
         400,
       );
@@ -84,8 +97,8 @@ export async function PATCH(
       where: { eventId_activityTypeId: { eventId: event.id, activityTypeId: activityType.id } },
       data: {
         enabled: item.enabled,
-        allowGeneral: item.allowGeneral,
-        allowGroup: item.allowGroup,
+        allowGeneral,
+        allowGroup,
         allowStaff: item.allowStaff ?? false,
       },
     });

@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
-import {
-  ACTIVITY_TIC_TAC_TOE,
-  validateInstanceScopeAgainstEvent,
-} from "@/lib/activities/catalog";
+import { ACTIVITY_TIC_TAC_TOE } from "@/lib/activities/catalog";
 import {
   getEventActivityBySlug,
   isActivityEnabledForEvent,
+  validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
 
@@ -74,7 +72,7 @@ export async function POST(
     allowGroupParticipants: Boolean(body.allowGroupParticipants),
   };
 
-  const scopeError = validateInstanceScopeAgainstEvent(eventActivity, scope);
+  const scopeError = await validateActivityInstanceScope(ctx.event.id, eventActivity, scope);
   if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
 
   const mode = body.mode === "COUNCIL" ? "COUNCIL" : "CHAMPION";

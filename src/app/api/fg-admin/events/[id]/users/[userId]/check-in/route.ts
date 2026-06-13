@@ -8,6 +8,7 @@ import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { pickUserProfile, userWithAccountInclude } from "@/lib/user-display";
 import { prisma } from "@/lib/prisma";
 import { assignTeams } from "@/lib/team-assign";
+import { isTeamingEnabled } from "@/lib/team-settings";
 import { getIO } from "@/server/socket/io";
 import { emitCheckInUpdate } from "@/server/socket/handlers";
 import { broadcastCheckInAnnouncement } from "@/lib/check-in-chat-broadcast";
@@ -65,7 +66,11 @@ export async function PATCH(
     include: userWithAccountInclude,
   });
 
-  if (!updated.teamId && isTeamAssignableMember(updated.account.permissions as never, false)) {
+  if (
+    (await isTeamingEnabled(event.id)) &&
+    !updated.teamId &&
+    isTeamAssignableMember(updated.account.permissions as never, false)
+  ) {
     await assignTeams(event.id, { userIds: [updated.id], onlyUnassigned: true });
     updated = await prisma.user.findUniqueOrThrow({
       where: { id: userId },

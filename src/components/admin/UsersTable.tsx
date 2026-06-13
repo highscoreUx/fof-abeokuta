@@ -17,6 +17,7 @@ import {
   useUsersQuery,
 } from "@/hooks/useUsersQuery";
 import { useEventSlug } from "@/hooks/useEventSlug";
+import { useEventSettings } from "@/hooks/useEventSettings";
 import { useHasPermission } from "@/hooks/useHasPermission";
 import { EVENT_SCOPED_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
 import { cn } from "@/lib/cn";
@@ -61,6 +62,7 @@ function SortableHeader({
 
 export function UsersTable() {
   const eventSlug = useEventSlug();
+  const { teamingEnabled } = useEventSettings();
   const { data, isLoading, isFetching, error, refetch } = useUsersQuery();
   const { data: teamsData } = useTeamsQuery();
   const checkInUser = useCheckInUserMutation();
@@ -102,6 +104,13 @@ export function UsersTable() {
   );
 
   const showActionsColumn = canCheckIn || canViewDetails || canChangeRole;
+  const tableColSpan = (showActionsColumn ? 1 : 0) + (teamingEnabled ? 5 : 4);
+
+  useEffect(() => {
+    if (!teamingEnabled && teamId !== "all") {
+      setTeamId("all");
+    }
+  }, [teamingEnabled, teamId, setTeamId]);
 
   useEffect(() => {
     if (error) {
@@ -115,6 +124,12 @@ export function UsersTable() {
   const canChangeUserRole = (user: EventUserRow) =>
     canChangeRole &&
     (user.isParticipantAccount !== false || Boolean(user.isEventScopedAccess));
+
+  useEffect(() => {
+    if (!teamingEnabled && teamId !== "all") {
+      setTeamId("all");
+    }
+  }, [teamingEnabled, teamId, setTeamId]);
 
   const toggleCheckIn = async (user: EventUserRow) => {
     if (!canCheckIn) return;
@@ -165,14 +180,16 @@ export function UsersTable() {
           <option value="yes">Checked in</option>
           <option value="no">Not checked in</option>
         </Select>
-        <Select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-          <option value="all">All teams</option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.letter} — {team.name}
-            </option>
-          ))}
-        </Select>
+        {teamingEnabled && (
+          <Select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+            <option value="all">All teams</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.letter} — {team.name}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
@@ -213,9 +230,11 @@ export function UsersTable() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Access
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Team
-                </th>
+                {teamingEnabled && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Team
+                  </th>
+                )}
                 <SortableHeader field="checkedInAt" label="Checked in" />
                 {showActionsColumn && (
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -228,14 +247,14 @@ export function UsersTable() {
               {isLoading &&
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="border-b border-border/60">
-                    <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-4">
+                    <td colSpan={tableColSpan} className="px-4 py-4">
                       <div className="h-4 animate-pulse rounded bg-muted" />
                     </td>
                   </tr>
                 ))}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-muted-foreground">
                     <p>Could not load users.</p>
                     <Button variant="outline" size="sm" className="mt-3" onClick={() => void refetch()}>
                       Retry
@@ -245,7 +264,7 @@ export function UsersTable() {
               )}
               {!isLoading && !error && users.length === 0 && (
                 <tr>
-                  <td colSpan={showActionsColumn ? 6 : 5} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center text-muted-foreground">
                     No users match your filters
                   </td>
                 </tr>
@@ -271,7 +290,9 @@ export function UsersTable() {
                         {user.permissionProfile}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>
+                    {teamingEnabled && (
+                      <td className="px-4 py-3">{user.teamLetter ?? "—"}</td>
+                    )}
                     <td className="px-4 py-3">
                       {user.checkedInAt ? (
                         <Badge variant="success">Yes</Badge>

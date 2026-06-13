@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
+import { guardTeamingEnabled } from "@/lib/team-settings";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { buildTeamsOrderBy, buildTeamsWhere } from "@/lib/teams-query";
 import { prisma } from "@/lib/prisma";
@@ -64,6 +65,9 @@ export async function POST(
   const ctx = await requireEventPermission(request, slug, "team.manage");
   if (ctx instanceof NextResponse) return ctx;
 
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
+
   const body = await request.json();
 
   if (body.action === "seed_figma") {
@@ -100,6 +104,9 @@ export async function PATCH(
   const { slug } = await params;
   const ctx = await requireEventPermission(request, slug, "team.manage");
   if (ctx instanceof NextResponse) return ctx;
+
+  const teamingGuard = await guardTeamingEnabled(ctx.event.id);
+  if (teamingGuard) return teamingGuard;
 
   const body = (await request.json()) as {
     teams?: Array<{ id: string; letter?: string; name?: string; color?: string }>;

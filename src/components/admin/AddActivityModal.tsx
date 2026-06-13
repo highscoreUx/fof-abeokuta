@@ -39,6 +39,7 @@ interface AddActivityModalProps {
     participationMode?: SpinnerParticipationMode;
     ticTacToeMode?: TicTacToeMode;
   }) => Promise<void>;
+  teamingEnabled?: boolean;
 }
 
 export function AddActivityModal({
@@ -47,6 +48,7 @@ export function AddActivityModal({
   permissions,
   eventActivities,
   onCreate,
+  teamingEnabled = true,
 }: AddActivityModalProps) {
   const creatableTypes = ACTIVITY_CATALOG.filter((entry) => {
     const eventRow = eventActivities.find((a) => a.slug === entry.slug);
@@ -182,7 +184,7 @@ export function AddActivityModal({
                   Whole event
                 </label>
               )}
-              {selectedConfig?.allowGroup && (
+              {teamingEnabled && selectedConfig?.allowGroup && (
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -193,7 +195,7 @@ export function AddActivityModal({
                 </label>
               )}
             </div>
-            {allowGroup && (
+            {teamingEnabled && allowGroup && (
               <p className="text-xs text-muted-foreground">
                 Team-scoped spinners post to that team&apos;s chat. Members can spectate live spins.
               </p>

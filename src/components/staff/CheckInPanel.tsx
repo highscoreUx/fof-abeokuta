@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
+import { useEventSettings } from "@/hooks/useEventSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,7 @@ function displayEmail(user: UserRow): string {
 
 export function CheckInPanel() {
   const { slug, api } = useEventApi();
+  const { teamingEnabled } = useEventSettings();
   const socket = useSocket();
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -122,7 +124,11 @@ export function CheckInPanel() {
                   {user.firstName} {user.lastName}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {user.teamLetter ? `Team ${user.teamLetter}` : "Team pending check-in"}
+                  {teamingEnabled
+                    ? user.teamLetter
+                      ? `Team ${user.teamLetter}`
+                      : "Team pending check-in"
+                    : user.username}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -217,7 +223,8 @@ export function CheckInPanel() {
             )}
             {recent.map((user) => (
               <div key={user.id} className="rounded-lg bg-muted p-2 text-sm">
-                {user.firstName} {user.lastName} — Team {user.teamLetter ?? "?"}
+                {user.firstName} {user.lastName}
+                {teamingEnabled ? ` — Team ${user.teamLetter ?? "?"}` : ""}
               </div>
             ))}
           </div>

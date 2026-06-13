@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/auth/middleware";
 import {
   ACTIVITY_SPINNER,
-  validateInstanceScopeAgainstEvent,
 } from "@/lib/activities/catalog";
 import {
   getEventActivityBySlug,
   isActivityEnabledForEvent,
+  validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { mapActiveSpinnerSessionsByChallengeId } from "@/server/games/spinnerEngine";
 import { hasPermission } from "@/lib/permissions";
@@ -98,7 +98,7 @@ export async function POST(
     allowGroupParticipants: Boolean(body.allowGroupParticipants),
   };
 
-  const scopeError = validateInstanceScopeAgainstEvent(eventActivity, scope);
+  const scopeError = await validateActivityInstanceScope(ctx.event.id, eventActivity, scope);
   if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
 
   const options = normalizeOptions(body.options);

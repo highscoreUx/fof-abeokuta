@@ -3,6 +3,7 @@ import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parseAgendaTemplate } from "@/lib/agenda-templates";
 import { parseTeamChatEnabled, setTeamChatEnabled, TEAM_CHAT_ENABLED_KEY } from "@/lib/chat-settings";
+import { parseTeamingEnabled, TEAMING_ENABLED_KEY } from "@/lib/team-settings";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
@@ -22,6 +23,7 @@ export async function GET(
     youtubeVideoId: map.youtube_video_id ?? "",
     streamLive: map.stream_live === "true",
     agendaTemplate: parseAgendaTemplate(map.agenda_template),
+    teamingEnabled: parseTeamingEnabled(map[TEAMING_ENABLED_KEY]),
     teamChatEnabled: parseTeamChatEnabled(map[TEAM_CHAT_ENABLED_KEY]),
     sponsors,
   });

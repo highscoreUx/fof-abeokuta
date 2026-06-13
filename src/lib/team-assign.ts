@@ -1,5 +1,6 @@
 import { isTeamAssignableMember } from "@/lib/account-permissions";
 import { resolveUserRolePermissions } from "@/lib/user-permissions";
+import { isTeamingEnabled } from "@/lib/team-settings";
 import { prisma } from "@/lib/prisma";
 
 export const TEAM_ASSIGN_ALGORITHMS = [
@@ -123,6 +124,10 @@ function pickBalancedTeam<T extends { id: string }>(
 }
 
 export async function assignTeams(eventId: string, options: AssignOptions = {}) {
+  if (!(await isTeamingEnabled(eventId))) {
+    throw new Error("Teaming is disabled for this event");
+  }
+
   const settings = await getTeamAssignSettings(eventId);
   const algorithm = options.algorithm ?? settings.algorithm;
   const onlyUnassigned = options.onlyUnassigned ?? settings.onlyUnassigned;

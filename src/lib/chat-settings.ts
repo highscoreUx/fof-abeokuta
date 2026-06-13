@@ -1,5 +1,6 @@
 import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
 import { invalidateEventCaches } from "@/lib/cache/invalidate";
+import { isTeamingEnabled } from "@/lib/team-settings";
 import { prisma } from "@/lib/prisma";
 
 export const TEAM_CHAT_ENABLED_KEY = "team_chat_enabled";
@@ -10,6 +11,8 @@ export function parseTeamChatEnabled(value: string | undefined | null): boolean 
 }
 
 export async function isTeamChatEnabled(eventId: string): Promise<boolean> {
+  if (!(await isTeamingEnabled(eventId))) return false;
+
   return cacheGetOrSet(`event:id:${eventId}:team-chat`, CACHE_TTL.settings, async () => {
     const setting = await prisma.appSetting.findUnique({
       where: { eventId_key: { eventId, key: TEAM_CHAT_ENABLED_KEY } },

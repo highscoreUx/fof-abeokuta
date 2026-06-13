@@ -11,6 +11,8 @@ import {
   useUncheckInUserMutation,
 } from "@/hooks/useUsersQuery";
 import { platformApiFetch } from "@/lib/platform-api-client";
+import { useEventSettings } from "@/hooks/useEventSettings";
+import { usePlatformEventSettings } from "@/hooks/usePlatformEventSettings";
 import type { CheckInUserPayload } from "@/lib/check-in";
 import { toastError } from "@/lib/toast";
 
@@ -23,6 +25,8 @@ interface UserCheckInModalProps {
   onUpdated?: () => void;
   /** When false, hides check-in / undo actions (details remain viewable). */
   canManageCheckIn?: boolean;
+  /** When false, hides team assignment details. */
+  showTeam?: boolean;
 }
 
 function displayEmail(user: EventUserRow): string {
@@ -40,6 +44,7 @@ function UserCheckInModalContent({
   onCheckIn,
   onUncheck,
   canManageCheckIn = true,
+  showTeam = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -51,6 +56,7 @@ function UserCheckInModalContent({
   onCheckIn: () => Promise<void>;
   onUncheck: () => Promise<void>;
   canManageCheckIn?: boolean;
+  showTeam?: boolean;
 }) {
   const fullName = `${details.firstName} ${details.lastName}`.trim();
   const needsEmail = details.needsEmail ?? !details.email;
@@ -110,12 +116,16 @@ function UserCheckInModalContent({
           </p>
           <p className="mt-1 font-mono text-lg font-semibold text-foreground">{details.username}</p>
 
-          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Team
-          </p>
-          <p className="mt-1 text-sm text-foreground">
-            {details.teamLetter ? `Team ${details.teamLetter}` : "Not assigned yet"}
-          </p>
+          {showTeam && (
+            <>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Team
+              </p>
+              <p className="mt-1 text-sm text-foreground">
+                {details.teamLetter ? `Team ${details.teamLetter}` : "Not assigned yet"}
+              </p>
+            </>
+          )}
         </div>
 
         <p className="text-sm text-muted-foreground">
@@ -157,7 +167,9 @@ function EventUserCheckInModal({
   onClose,
   user,
   canManageCheckIn = true,
-}: Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "canManageCheckIn">) {
+  showTeam,
+}: Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "canManageCheckIn" | "showTeam">) {
+  const { teamingEnabled } = useEventSettings();
   const checkInUser = useCheckInUserMutation();
   const uncheckInUser = useUncheckInUserMutation();
   const [details, setDetails] = useState<EventUserRow | null>(null);
@@ -221,6 +233,7 @@ function EventUserCheckInModal({
         }
       }}
       canManageCheckIn={canManageCheckIn}
+      showTeam={showTeam ?? teamingEnabled}
     />
   );
 }
@@ -232,8 +245,10 @@ function PlatformUserCheckInModal({
   platformEventId,
   onUpdated,
   canManageCheckIn = true,
+  showTeam,
 }: Required<Pick<UserCheckInModalProps, "platformEventId">> &
-  Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated" | "canManageCheckIn">) {
+  Pick<UserCheckInModalProps, "open" | "onClose" | "user" | "onUpdated" | "canManageCheckIn" | "showTeam">) {
+  const { teamingEnabled } = usePlatformEventSettings(platformEventId);
   const [details, setDetails] = useState<EventUserRow | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -312,6 +327,7 @@ function PlatformUserCheckInModal({
         }
       }}
       canManageCheckIn={canManageCheckIn}
+      showTeam={showTeam ?? teamingEnabled}
     />
   );
 }
@@ -323,6 +339,7 @@ export function UserCheckInModal({
   platformEventId,
   onUpdated,
   canManageCheckIn = true,
+  showTeam,
 }: UserCheckInModalProps) {
   if (platformEventId) {
     return (
@@ -333,6 +350,7 @@ export function UserCheckInModal({
         platformEventId={platformEventId}
         onUpdated={onUpdated}
         canManageCheckIn={canManageCheckIn}
+        showTeam={showTeam}
       />
     );
   }
@@ -343,6 +361,7 @@ export function UserCheckInModal({
       onClose={onClose}
       user={user}
       canManageCheckIn={canManageCheckIn}
+      showTeam={showTeam}
     />
   );
 }

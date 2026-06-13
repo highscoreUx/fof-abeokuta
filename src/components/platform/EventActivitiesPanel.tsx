@@ -18,9 +18,11 @@ interface EventActivityRow {
 export function EventActivitiesPanel({
   eventId,
   embedded = false,
+  teamingEnabled = true,
 }: {
   eventId: string;
   embedded?: boolean;
+  teamingEnabled?: boolean;
 }) {
   const [activities, setActivities] = useState<EventActivityRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -34,6 +36,12 @@ export function EventActivitiesPanel({
   useEffect(() => {
     load();
   }, [eventId]);
+
+  useEffect(() => {
+    if (!teamingEnabled) {
+      setActivities((rows) => rows.map((row) => ({ ...row, allowGroup: false })));
+    }
+  }, [teamingEnabled]);
 
   const toggle = (slug: string, patch: Partial<EventActivityRow>) => {
     setActivities((rows) =>
@@ -51,7 +59,7 @@ export function EventActivitiesPanel({
             slug: row.slug,
             enabled: row.enabled,
             allowGeneral: row.allowGeneral,
-            allowGroup: row.allowGroup,
+            allowGroup: teamingEnabled ? row.allowGroup : false,
             allowStaff: row.allowStaff,
           })),
         }),
@@ -71,7 +79,7 @@ export function EventActivitiesPanel({
           <h3 className="text-base font-semibold">Activities</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Enable activity types and choose which participant scopes event staff may use per
-            instance. Team scope means every team participates separately within their own team.
+            instance.{teamingEnabled ? " Team scope means every team participates separately within their own team." : ""}
           </p>
         </div>
       )}
@@ -104,14 +112,16 @@ export function EventActivitiesPanel({
                   />
                   Whole event
                 </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={row.allowGroup}
-                    onChange={(e) => toggle(row.slug, { allowGroup: e.target.checked })}
-                  />
-                  Team scope
-                </label>
+                {teamingEnabled && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={row.allowGroup}
+                      onChange={(e) => toggle(row.slug, { allowGroup: e.target.checked })}
+                    />
+                    Team scope
+                  </label>
+                )}
               </div>
             )}
           </div>

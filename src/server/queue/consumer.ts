@@ -1,9 +1,14 @@
 import type { Channel, ConsumeMessage } from "amqplib";
 import { isEmailConfigured } from "@/lib/email/config";
+import { sendAccountCredentialsEmail } from "@/lib/email/send-account-credentials-email";
 import { sendCheckInWelcomeEmail } from "@/lib/email/send-check-in-email";
 import { EMAIL_QUEUE_NAME, isQueueConfigured } from "@/server/queue/config";
 import { getQueueChannel } from "@/server/queue/connection";
-import { CHECK_IN_WELCOME_JOB, parseEmailJob } from "@/server/queue/jobs";
+import {
+  ACCOUNT_CREDENTIALS_JOB,
+  CHECK_IN_WELCOME_JOB,
+  parseEmailJob,
+} from "@/server/queue/jobs";
 
 async function handleMessage(message: ConsumeMessage, channel: Channel): Promise<void> {
   const job = parseEmailJob(message.content);
@@ -16,6 +21,11 @@ async function handleMessage(message: ConsumeMessage, channel: Channel): Promise
   try {
     if (job.type === CHECK_IN_WELCOME_JOB) {
       await sendCheckInWelcomeEmail(job.userId, job.eventId);
+    } else if (job.type === ACCOUNT_CREDENTIALS_JOB) {
+      await sendAccountCredentialsEmail(job.accountId, job.password, {
+        reason: job.reason,
+        loginPath: job.loginPath,
+      });
     }
     channel.ack(message);
   } catch (error) {

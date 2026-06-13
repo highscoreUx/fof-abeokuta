@@ -78,9 +78,11 @@ export function CommunityMembersView({ onToast }: CommunityMembersViewProps) {
         open={addOpen}
         audience={audience}
         onClose={() => setAddOpen(false)}
-        onCreated={(credentials) => {
+        onCreated={(payload) => {
           onToast(
-            `Created ${credentials.email} (${credentials.permissionProfile}) — temp password: ${credentials.password}`,
+            payload.emailQueued
+              ? `Created ${payload.email} (${payload.permissionProfile}) — sign-in details emailed`
+              : `Created ${payload.email} (${payload.permissionProfile})`,
           );
           setRefreshKey((key) => key + 1);
         }}

@@ -25,7 +25,7 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
   "user.import",
   "user.check_in",
   "user.assign_teams",
-  "user.password.view",
+  "user.password.reset",
   "agenda.list",
   "agenda.create",
   "agenda.update",
@@ -63,7 +63,7 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
 const STAFF_PERMISSIONS: Permission[] = [
   "user.list",
   "user.check_in",
-  "user.password.view",
+  "user.password.reset",
   "stage.view",
   "participant.home",
   "participant.chat",

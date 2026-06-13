@@ -42,6 +42,7 @@ interface EventDetailPanelProps {
     eventTitle: string;
     loginPath: string;
     user: PlatformCreatedEventUser;
+    emailQueued: boolean;
   }) => void;
 }
 

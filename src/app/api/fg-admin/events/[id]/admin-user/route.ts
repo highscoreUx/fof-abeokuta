@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/prisma";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { createEventAdminUser, serializePlatformCreatedUser } from "@/lib/users";
 
 const schema = z.object({
@@ -40,10 +41,17 @@ export async function POST(
       event.id,
       parsed.data,
     );
+    const { emailQueued } = deliverAccountCredentials(
+      user.accountId,
+      initialPassword!,
+      "welcome",
+      "/login",
+    );
     return NextResponse.json(
       {
-        user: serializePlatformCreatedUser(user, initialPassword, permissionProfile),
+        user: serializePlatformCreatedUser(user, permissionProfile),
         loginPath: "/login",
+        emailQueued,
       },
       { status: 201 },
     );

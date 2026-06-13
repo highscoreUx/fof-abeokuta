@@ -7,6 +7,7 @@ import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { userImportRowSchema } from "@/lib/validators/auth";
 import { assignTeams, assignableTeamRoleSlugs, getTeamAssignSettings } from "@/lib/team-assign";
 import { isTeamingEnabled } from "@/lib/team-settings";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { createUserFromRow } from "@/lib/users";
 import { pickUserProfile } from "@/lib/user-display";
 import { jsonError } from "@/lib/auth/middleware";
@@ -42,8 +43,8 @@ export async function POST(
   const created: Array<{
     email: string;
     username: string;
-    password: string;
     permissionProfile: string;
+    emailQueued: boolean;
   }> = [];
   const createdAssigneeIds: string[] = [];
   const errors: Array<{ row: number; error: string }> = [];
@@ -72,11 +73,20 @@ export async function POST(
         parsed.data,
       );
       const profile = pickUserProfile(user);
+      let emailQueued = false;
+      if (initialPassword && profile.email) {
+        ({ emailQueued } = deliverAccountCredentials(
+          user.accountId,
+          initialPassword,
+          "welcome",
+          `/${slug}/login`,
+        ));
+      }
       created.push({
-        email: profile.email ?? "(no email — set at check-in)",
+        email: profile.email ?? "(no email — credentials sent at check-in)",
         username: profile.username,
-        password: initialPassword ?? "(existing account — password unchanged)",
         permissionProfile,
+        emailQueued,
       });
       if (isTeamAssignableMember(resolveUserRolePermissions(user), false)) {
         createdAssigneeIds.push(user.id);

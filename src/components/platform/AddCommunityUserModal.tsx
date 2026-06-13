@@ -18,13 +18,13 @@ interface AddCommunityUserModalProps {
   eventTitle: string;
   mode: "members" | "staff" | "participants";
   onClose: () => void;
-  onCreated?: (credentials: {
+  onCreated?: (payload: {
     email: string;
     username: string;
-    password: string;
     firstName: string;
     lastName: string;
     permissionProfile: string;
+    emailQueued: boolean;
   }) => void;
 }
 
@@ -80,7 +80,7 @@ export function AddCommunityUserModal({
     try {
       const result = await platformApiFetch<{
         user: { email: string; username: string; permissionProfile: string };
-        initialPassword: string | null;
+        emailQueued: boolean;
         permissionProfile: string;
       }>(`/api/fg-admin/events/${eventId}/users`, {
         method: "POST",
@@ -95,10 +95,10 @@ export function AddCommunityUserModal({
       onCreated?.({
         email: result.user.email,
         username: result.user.username,
-        password: result.initialPassword ?? "—",
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         permissionProfile: result.permissionProfile ?? result.user.permissionProfile,
+        emailQueued: result.emailQueued,
       });
       handleClose();
     } catch (err) {
@@ -121,7 +121,7 @@ export function AddCommunityUserModal({
     mode === "staff"
       ? `Registers staff for ${eventTitle}. Staff are also community members with elevated access.`
       : mode === "participants"
-        ? `Creates a new participant account and registers them for ${eventTitle}. Share email and temporary password after creating the account.`
+        ? `Creates a new participant account and registers them for ${eventTitle}. Sign-in details are emailed automatically.`
         : `Registers a community member for ${eventTitle}. Share email and temporary password after creating the account.`;
 
   return (

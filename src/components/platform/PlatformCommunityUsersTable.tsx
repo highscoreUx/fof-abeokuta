@@ -16,7 +16,7 @@ import {
   EVENT_SCOPED_STAFF_PROFILE_SLUGS,
 } from "@/lib/community-audience";
 import { cn } from "@/lib/cn";
-import { toastError } from "@/lib/toast";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { usePlatformEventSettings } from "@/hooks/usePlatformEventSettings";
 import { platformApiFetch } from "@/lib/platform-api-client";
@@ -62,6 +62,7 @@ export function PlatformCommunityUsersTable({
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
   const [roleChangeUser, setRoleChangeUser] = useState<EventUserRow | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -183,6 +184,32 @@ export function PlatformCommunityUsersTable({
       );
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const resetPassword = async (user: EventUserRow) => {
+    if (!user.email) {
+      toastError("No email on account", "Add an email before resetting the password.");
+      return;
+    }
+    setResettingId(user.id);
+    try {
+      const result = await platformApiFetch<{ emailQueued: boolean; email: string }>(
+        `/api/fg-admin/events/${eventId}/users/${user.id}/reset-password`,
+        { method: "POST" },
+      );
+      toastSuccess(
+        result.emailQueued
+          ? `Password reset email sent to ${result.email}`
+          : "Password reset (email queue not configured)",
+      );
+    } catch (err) {
+      toastError(
+        "Failed to reset password",
+        err instanceof Error ? err.message : undefined,
+      );
+    } finally {
+      setResettingId(null);
     }
   };
 
@@ -366,13 +393,15 @@ export function PlatformCommunityUsersTable({
                     <td className="px-4 py-3 text-right">
                       <UserRowActionsMenu
                         user={user}
-                        busy={togglingId === user.id}
+                        busy={togglingId === user.id || resettingId === user.id}
                         canCheckIn
                         canViewDetails
                         canChangeRole={canChangeEventRole(user)}
+                        canResetPassword={Boolean(user.email)}
                         onCheckIn={() => void toggleCheckIn(user)}
                         onDetails={() => setDetailsUser(user)}
                         onChangeRole={() => setRoleChangeUser(user)}
+                        onResetPassword={() => void resetPassword(user)}
                       />
                     </td>
                   </tr>

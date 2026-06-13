@@ -77,7 +77,7 @@ export function useCreateUserMutation() {
     }) =>
       apiFetch<{
         user: EventUserRow;
-        initialPassword: string | null;
+        emailQueued: boolean;
         permissionProfile: string;
       }>(eventSlug, "/users", {
         method: "POST",

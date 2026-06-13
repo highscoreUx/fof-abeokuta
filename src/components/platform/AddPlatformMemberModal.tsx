@@ -16,13 +16,13 @@ interface AddPlatformMemberModalProps {
   open: boolean;
   audience: GlobalMembersAudience;
   onClose: () => void;
-  onCreated?: (credentials: {
+  onCreated?: (payload: {
     email: string;
     username: string;
-    password: string;
     firstName: string;
     lastName: string;
     permissionProfile: string;
+    emailQueued: boolean;
   }) => void;
 }
 
@@ -72,7 +72,7 @@ export function AddPlatformMemberModal({
     try {
       const result = await platformApiFetch<{
         member: { email: string; username: string };
-        initialPassword: string | null;
+        emailQueued: boolean;
         permissionProfile: string;
       }>("/api/fg-admin/members", {
         method: "POST",
@@ -87,10 +87,10 @@ export function AddPlatformMemberModal({
       onCreated?.({
         email: result.member.email,
         username: result.member.username,
-        password: result.initialPassword ?? "—",
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         permissionProfile: result.permissionProfile,
+        emailQueued: result.emailQueued,
       });
       handleClose();
     } catch (err) {

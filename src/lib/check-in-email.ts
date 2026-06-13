@@ -8,11 +8,14 @@ export class CheckInEmailError extends Error {
   }
 }
 
-export async function resolveEmailForCheckIn(accountId: string, email?: string): Promise<string> {
+export async function resolveEmailForCheckIn(
+  accountId: string,
+  email?: string,
+): Promise<{ email: string; wasNewEmail: boolean }> {
   const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } });
 
   if (account.email) {
-    return account.email;
+    return { email: account.email, wasNewEmail: false };
   }
 
   const trimmed = email?.trim();
@@ -29,5 +32,5 @@ export async function resolveEmailForCheckIn(accountId: string, email?: string):
   }
 
   const updated = await updateAccount(accountId, { email: normalized });
-  return updated.email!;
+  return { email: updated.email!, wasNewEmail: true };
 }

@@ -6,6 +6,7 @@ export interface FlashedCredentials {
   eventTitle: string;
   loginPath: string;
   user: PlatformCreatedEventUser;
+  emailQueued: boolean;
 }
 
 export function flashPlatformCredentials(payload: FlashedCredentials) {

@@ -160,7 +160,6 @@ export interface PlatformEvent {
 export interface PlatformCreatedEventUser {
   email: string;
   username: string;
-  password: string;
   firstName: string;
   lastName: string;
   permissionProfile: string;

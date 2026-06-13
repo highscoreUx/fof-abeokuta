@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAccount } from "@/lib/accounts";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { buildAccountsOrderBy, buildAccountsWhere } from "@/lib/accounts-query";
 import { jsonError } from "@/lib/auth/middleware";
 import {
@@ -74,10 +75,12 @@ export async function POST(request: NextRequest) {
       globalMember: true,
     });
 
+    const { emailQueued } = deliverAccountCredentials(account.id, initialPassword, "welcome");
+
     return NextResponse.json(
       {
         member: serializeMemberRow({ ...account, _count: { users: 0 } }),
-        initialPassword,
+        emailQueued,
         permissionProfile: getProfileLabelForPermissions(permissions),
       },
       { status: 201 },

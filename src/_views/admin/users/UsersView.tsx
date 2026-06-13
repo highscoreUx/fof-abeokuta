@@ -35,8 +35,8 @@ export function UsersView() {
             <div className="space-y-1">
               <CardTitle>Users</CardTitle>
               <CardDescription>
-                Search, filter, and manage event participants and staff. Share temporary passwords
-                when creating accounts.
+                Search, filter, and manage event participants and staff. New accounts receive sign-in
+                details by email.
               </CardDescription>
             </div>
             {(canImportUsers || canCreateUsers) && (
@@ -60,9 +60,11 @@ export function UsersView() {
       <AddUserModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onCreated={(credentials) =>
+        onCreated={(payload) =>
           showToast(
-            `Created ${credentials.email} (${credentials.permissionProfile}) — temp password: ${credentials.password}`,
+            payload.emailQueued
+              ? `Created ${payload.email} (${payload.permissionProfile}) — sign-in details emailed`
+              : `Created ${payload.email} (${payload.permissionProfile})`,
           )
         }
       />

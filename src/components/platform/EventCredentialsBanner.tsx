@@ -13,10 +13,27 @@ interface EventCredentialsBannerProps {
 export function EventCredentialsBanner({ credentials, onDismiss }: EventCredentialsBannerProps) {
   return (
     <Card className="border-primary/40 bg-primary/5">
-      <CardTitle>Community staff credentials</CardTitle>
+      <CardTitle>Sign-in details emailed</CardTitle>
       <p className="mt-1 text-sm text-muted-foreground">
-        Share these with event staff for <strong>{credentials.eventTitle}</strong>. They sign in
-        at{" "}
+        {credentials.emailQueued ? (
+          <>
+            A branded email with temporary sign-in details was sent to{" "}
+            <strong>{credentials.user.email}</strong>
+            {credentials.eventTitle ? (
+              <>
+                {" "}
+                for <strong>{credentials.eventTitle}</strong>
+              </>
+            ) : null}
+            . They must change their password on first sign-in.
+          </>
+        ) : (
+          <>
+            Email delivery is not configured (SMTP + queue). Share sign-in details with{" "}
+            <strong>{credentials.user.firstName}</strong> manually.
+          </>
+        )}{" "}
+        Sign in at{" "}
         <Link href={credentials.loginPath} className="text-primary underline">
           {credentials.loginPath}
         </Link>
@@ -30,10 +47,6 @@ export function EventCredentialsBanner({ credentials, onDismiss }: EventCredenti
         <div>
           <dt className="text-muted-foreground">Username</dt>
           <dd className="font-mono font-semibold">{credentials.user.username}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Temporary password</dt>
-          <dd className="font-mono font-semibold">{credentials.user.password}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Name</dt>

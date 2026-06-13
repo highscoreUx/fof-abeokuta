@@ -10,9 +10,11 @@ interface UserRowActionsMenuProps {
   canCheckIn: boolean;
   canViewDetails: boolean;
   canChangeRole: boolean;
+  canResetPassword: boolean;
   onCheckIn: () => void;
   onDetails: () => void;
   onChangeRole: () => void;
+  onResetPassword: () => void;
 }
 
 export function UserRowActionsMenu({
@@ -21,11 +23,13 @@ export function UserRowActionsMenu({
   canCheckIn,
   canViewDetails,
   canChangeRole,
+  canResetPassword,
   onCheckIn,
   onDetails,
   onChangeRole,
+  onResetPassword,
 }: UserRowActionsMenuProps) {
-  if (!canCheckIn && !canViewDetails && !canChangeRole) {
+  if (!canCheckIn && !canViewDetails && !canChangeRole && !canResetPassword) {
     return <span className="text-muted-foreground">—</span>;
   }
 
@@ -55,6 +59,9 @@ export function UserRowActionsMenu({
       )}
       {canViewDetails && <DropdownMenuItem onClick={onDetails}>Details</DropdownMenuItem>}
       {canChangeRole && <DropdownMenuItem onClick={onChangeRole}>Change role</DropdownMenuItem>}
+      {canResetPassword && (
+        <DropdownMenuItem onClick={onResetPassword}>Reset password</DropdownMenuItem>
+      )}
     </DropdownMenu>
   );
 }

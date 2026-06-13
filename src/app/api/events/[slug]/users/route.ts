@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { prisma } from "@/lib/prisma";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { createUserSchema } from "@/lib/validators/auth";
@@ -58,10 +59,21 @@ export async function POST(
       ctx.event.id,
       parsed.data,
     );
+
+    let emailQueued = false;
+    if (initialPassword) {
+      ({ emailQueued } = deliverAccountCredentials(
+        user.accountId,
+        initialPassword,
+        "welcome",
+        `/${slug}/login`,
+      ));
+    }
+
     return NextResponse.json(
       {
         user: serializeUserRow(user),
-        initialPassword,
+        emailQueued,
         permissionProfile,
       },
       { status: 201 },

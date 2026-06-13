@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { CommunityAudience } from "@/lib/community-audience";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
@@ -78,10 +79,21 @@ export async function POST(
       event.id,
       parsed.data,
     );
+
+    let emailQueued = false;
+    if (initialPassword) {
+      ({ emailQueued } = deliverAccountCredentials(
+        user.accountId,
+        initialPassword,
+        "welcome",
+        "/login",
+      ));
+    }
+
     return NextResponse.json(
       {
         user: serializeUserRow(user),
-        initialPassword,
+        emailQueued,
         permissionProfile,
       },
       { status: 201 },

@@ -26,7 +26,8 @@ import {
   type UsersSortField,
 } from "@/stores/usersTableStore";
 import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
-import { toastError } from "@/lib/toast";
+import { toastError, toastSuccess } from "@/lib/toast";
+import { apiFetch } from "@/lib/api-client";
 import type { EventUserRow } from "@/types/users";
 
 function SortableHeader({
@@ -71,10 +72,12 @@ export function UsersTable() {
   const [detailsUser, setDetailsUser] = useState<EventUserRow | null>(null);
   const [roleChangeUser, setRoleChangeUser] = useState<EventUserRow | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const canCheckIn = useHasPermission("user.check_in");
   const canViewDetails = useHasPermission("user.list");
   const canChangeRole = useHasPermission("user.update");
+  const canResetPassword = useHasPermission("user.password.reset");
 
   const search = useUsersTableStore((s) => s.search);
   const role = useUsersTableStore((s) => s.role);
@@ -103,7 +106,7 @@ export function UsersTable() {
     [],
   );
 
-  const showActionsColumn = canCheckIn || canViewDetails || canChangeRole;
+  const showActionsColumn = canCheckIn || canViewDetails || canChangeRole || canResetPassword;
   const tableColSpan = (showActionsColumn ? 1 : 0) + (teamingEnabled ? 5 : 4);
 
   useEffect(() => {
@@ -151,6 +154,34 @@ export function UsersTable() {
       );
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const resetPassword = async (user: EventUserRow) => {
+    if (!canResetPassword) return;
+    if (!user.email) {
+      toastError("No email on account", "Add an email before resetting the password.");
+      return;
+    }
+    setResettingId(user.id);
+    try {
+      const result = await apiFetch<{ emailQueued: boolean; email: string }>(
+        eventSlug,
+        `/users/${user.id}/reset-password`,
+        { method: "POST" },
+      );
+      toastSuccess(
+        result.emailQueued
+          ? `Password reset email sent to ${result.email}`
+          : "Password reset (email queue not configured)",
+      );
+    } catch (err) {
+      toastError(
+        "Failed to reset password",
+        err instanceof Error ? err.message : undefined,
+      );
+    } finally {
+      setResettingId(null);
     }
   };
 
@@ -304,13 +335,15 @@ export function UsersTable() {
                       <td className="px-4 py-3 text-right">
                         <UserRowActionsMenu
                           user={user}
-                          busy={togglingId === user.id}
+                          busy={togglingId === user.id || resettingId === user.id}
                           canCheckIn={canCheckIn}
                           canViewDetails={canViewDetails}
                           canChangeRole={canChangeUserRole(user)}
+                          canResetPassword={canResetPassword && Boolean(user.email)}
                           onCheckIn={() => void toggleCheckIn(user)}
                           onDetails={() => setDetailsUser(user)}
                           onChangeRole={() => setRoleChangeUser(user)}
+                          onResetPassword={() => void resetPassword(user)}
                         />
                       </td>
                     )}

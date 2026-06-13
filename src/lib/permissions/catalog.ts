@@ -8,7 +8,7 @@ export type Permission =
   | "user.import"
   | "user.check_in"
   | "user.assign_teams"
-  | "user.password.view"
+  | "user.password.reset"
   | "agenda.list"
   | "agenda.create"
   | "agenda.update"
@@ -59,7 +59,7 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 5;
+export const PERMISSIONS_CATALOG_REVISION = 6;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
   "platform.admin",
@@ -71,7 +71,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "user.import",
   "user.check_in",
   "user.assign_teams",
-  "user.password.view",
+  "user.password.reset",
   "agenda.list",
   "agenda.create",
   "agenda.update",
@@ -130,7 +130,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "user.import", label: "Import users" },
       { permission: "user.check_in", label: "Check in users" },
       { permission: "user.assign_teams", label: "Assign teams" },
-      { permission: "user.password.view", label: "View passwords" },
+      { permission: "user.password.reset", label: "Reset passwords" },
     ],
   },
   {
@@ -225,6 +225,10 @@ export function normalizeRolePermissions(raw: unknown): RolePermission[] {
   for (const item of raw) {
     if (item === "*") {
       if (!out.includes("*")) out.push("*");
+      continue;
+    }
+    if (item === "user.password.view") {
+      if (!out.includes("user.password.reset")) out.push("user.password.reset");
       continue;
     }
     if (typeof item === "string" && (ALL_PERMISSIONS as readonly string[]).includes(item)) {

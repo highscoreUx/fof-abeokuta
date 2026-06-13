@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { EditPlatformMemberModal } from "@/components/platform/EditPlatformMemberModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/cn";
-import { toastError } from "@/lib/toast";
+import { toastError, toastSuccess } from "@/lib/toast";
 import type { GlobalMembersAudience } from "@/lib/member-access";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
@@ -41,6 +42,7 @@ export function PlatformMembersTable({
   const [loadFailed, setLoadFailed] = useState(false);
   const [result, setResult] = useState<PaginatedResponse<PlatformMemberRow> | null>(null);
   const [editMember, setEditMember] = useState<PlatformMemberRow | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -95,6 +97,32 @@ export function PlatformMembersTable({
   };
 
   const members = result?.data ?? [];
+
+  const resetPassword = async (member: PlatformMemberRow) => {
+    if (!member.email) {
+      toastError("No email on account");
+      return;
+    }
+    setResettingId(member.id);
+    try {
+      const result = await platformApiFetch<{ emailQueued: boolean; email: string }>(
+        `/api/fg-admin/members/${member.id}/reset-password`,
+        { method: "POST" },
+      );
+      toastSuccess(
+        result.emailQueued
+          ? `Password reset email sent to ${result.email}`
+          : "Password reset (email queue not configured)",
+      );
+    } catch (err) {
+      toastError(
+        "Failed to reset password",
+        err instanceof Error ? err.message : undefined,
+      );
+    } finally {
+      setResettingId(null);
+    }
+  };
 
   const SortableHeader = ({ field, label }: { field: MembersSortField; label: string }) => {
     const active = sortBy === field;
@@ -228,9 +256,23 @@ export function PlatformMembersTable({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{member.eventCount}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="outline" onClick={() => setEditMember(member)}>
-                        Edit
-                      </Button>
+                      <DropdownMenu
+                        align="end"
+                        trigger={
+                          <Button size="sm" variant="outline" disabled={resettingId === member.id}>
+                            Actions ▾
+                          </Button>
+                        }
+                      >
+                        <DropdownMenuItem onClick={() => setEditMember(member)}>
+                          Edit
+                        </DropdownMenuItem>
+                        {member.email && (
+                          <DropdownMenuItem onClick={() => void resetPassword(member)}>
+                            Reset password
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}

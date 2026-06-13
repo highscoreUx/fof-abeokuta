@@ -14,6 +14,7 @@ interface CommunityStaffTabProps {
     eventTitle: string;
     loginPath: string;
     user: PlatformCreatedEventUser;
+    emailQueued: boolean;
   }) => void;
 }
 
@@ -62,10 +63,10 @@ export function CommunityStaffTab({
           onCredentials({
             eventTitle: event.title,
             loginPath: "/login",
+            emailQueued: credentials.emailQueued,
             user: {
               email: credentials.email,
               username: credentials.username,
-              password: credentials.password,
               firstName: credentials.firstName,
               lastName: credentials.lastName,
               permissionProfile: credentials.permissionProfile,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isTeamAssignableMember } from "@/lib/account-permissions";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
+import { resetAccountPasswordForDelivery } from "@/lib/auth/reset-account-password";
 import { serializeCheckInUser } from "@/lib/check-in";
 import { CheckInEmailError, resolveEmailForCheckIn } from "@/lib/check-in-email";
 import { jsonError } from "@/lib/auth/middleware";
@@ -52,8 +54,12 @@ export async function PATCH(
     return jsonError(parsed.error.message, "VALIDATION_ERROR", 400);
   }
 
+  let credentialsPassword: string | null = null;
   try {
-    await resolveEmailForCheckIn(user.accountId, parsed.data.email);
+    const emailResult = await resolveEmailForCheckIn(user.accountId, parsed.data.email);
+    if (emailResult.wasNewEmail) {
+      credentialsPassword = await resetAccountPasswordForDelivery(user.accountId);
+    }
   } catch (error) {
     if (error instanceof CheckInEmailError) {
       return jsonError(error.message, "EMAIL_REQUIRED", 400);
@@ -86,6 +92,10 @@ export async function PATCH(
     await broadcastCheckInAnnouncement(event.slug, { ...updated, ...profile }, event.id);
   } catch {
     // socket optional
+  }
+
+  if (credentialsPassword) {
+    deliverAccountCredentials(user.accountId, credentialsPassword, "check_in", "/login");
   }
 
   enqueueCheckInWelcomeEmail({ userId: updated.id, eventId: event.id });

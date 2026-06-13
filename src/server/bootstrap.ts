@@ -1,8 +1,12 @@
 import { ACTIVITY_CATALOG } from "@/lib/activities/catalog";
 import { seedActivityTypes } from "@/lib/activities/event-activities";
 import { createAccount } from "@/lib/accounts";
+import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { prisma } from "@/lib/prisma";
+import { canSendQueuedEmails } from "@/server/queue/publish";
+
+const DEFAULT_PLATFORM_EMAIL = "boyesiji@gmail.com";
 
 async function activityTypesReady(): Promise<boolean> {
   const slugs = ACTIVITY_CATALOG.map((entry) => entry.slug);
@@ -13,7 +17,7 @@ async function activityTypesReady(): Promise<boolean> {
 }
 
 async function platformAccountReady(): Promise<boolean> {
-  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@fofabeokuta.com";
+  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? DEFAULT_PLATFORM_EMAIL;
   return Boolean(await prisma.account.findUnique({ where: { email: platformEmail } }));
 }
 
@@ -22,24 +26,26 @@ async function platformRolesReady(): Promise<boolean> {
 }
 
 async function ensurePlatformAccount() {
-  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@fofabeokuta.com";
-  const platformPassword = process.env.PLATFORM_ADMIN_PASSWORD ?? "fofadmin123";
+  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? DEFAULT_PLATFORM_EMAIL;
   const platformUsername = process.env.PLATFORM_ADMIN_USERNAME ?? "platform_admin";
 
-  await createAccount({
+  const { account, initialPassword } = await createAccount({
     email: platformEmail,
     username: platformUsername,
     firstName: "Platform",
     lastName: "Admin",
     permissions: ["*"],
-    password: platformPassword,
-    mustChangePassword: process.env.NODE_ENV === "production",
+    mustChangePassword: true,
     globalMember: true,
   });
 
   console.log(`[bootstrap] Platform account created: ${platformEmail}`);
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[bootstrap] Dev password: ${platformPassword}`);
+
+  const { emailQueued } = deliverAccountCredentials(account.id, initialPassword, "welcome");
+  if (emailQueued) {
+    console.log(`[bootstrap] Credentials email queued for ${platformEmail}`);
+  } else if (!canSendQueuedEmails()) {
+    console.log(`[bootstrap] Email queue/SMTP not configured — dev password: ${initialPassword}`);
   }
 }
 

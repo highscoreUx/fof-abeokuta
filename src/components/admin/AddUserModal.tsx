@@ -6,16 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateUserMutation } from "@/hooks/useUsersQuery";
-import { toastError } from "@/lib/toast";
+import { toastError, toastSuccess } from "@/lib/toast";
 
 interface AddUserModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated?: (credentials: {
+  onCreated?: (payload: {
     email: string;
     username: string;
-    password: string;
     permissionProfile: string;
+    emailQueued: boolean;
   }) => void;
 }
 
@@ -51,9 +51,14 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
       onCreated?.({
         email: result.user.email ?? "",
         username: result.user.username,
-        password: result.initialPassword ?? "—",
         permissionProfile: result.permissionProfile ?? result.user.permissionProfile,
+        emailQueued: result.emailQueued ?? false,
       });
+      toastSuccess(
+        result.emailQueued
+          ? `Sign-in details emailed to ${result.user.email}`
+          : "Participant created",
+      );
       handleClose();
     } catch (err) {
       toastError(

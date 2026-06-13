@@ -207,14 +207,12 @@ export function serializePlatformEventUser(user: UserWithAccount) {
 
 export function serializePlatformCreatedUser(
   user: UserWithAccount,
-  initialPassword: string | null,
   permissionProfile: string,
 ) {
   const profile = pickUserProfile(user);
   return {
     email: profile.email,
     username: profile.username,
-    password: initialPassword ?? "",
     firstName: profile.firstName,
     lastName: profile.lastName,
     permissionProfile,

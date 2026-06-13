@@ -7,11 +7,11 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useInvalidateUsers } from "@/hooks/useUsersQuery";
 import { useAuthStore } from "@/stores/authStore";
 
-interface CredentialRow {
+interface ImportSummaryRow {
   email: string;
   username: string;
-  password: string;
   permissionProfile: string;
+  emailQueued: boolean;
 }
 
 interface BulkImportModalProps {
@@ -20,13 +20,13 @@ interface BulkImportModalProps {
 }
 
 export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
-  const { slug, path } = useEventApi();
+  const { path } = useEventApi();
   const invalidateUsers = useInvalidateUsers();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     created: number;
     errors: Array<{ row: number; error: string }>;
-    credentialSheet: CredentialRow[];
+    summary: ImportSummaryRow[];
   } | null>(null);
 
   const reset = () => {
@@ -57,26 +57,13 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
     setResult({
       created: data.created ?? 0,
       errors: data.errors ?? [],
-      credentialSheet: data.credentialSheet ?? data.pinSheet ?? [],
+      summary: data.credentialSheet ?? [],
     });
     setLoading(false);
     void invalidateUsers();
   };
 
-  const downloadCredentialSheet = () => {
-    const sheet = result?.credentialSheet;
-    if (!sheet?.length) return;
-    const csv = [
-      "email,username,password,permissionProfile",
-      ...sheet.map((r) => `${r.email},${r.username},${r.password},${r.permissionProfile}`),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${slug}-credentials.csv`;
-    a.click();
-  };
+  const emailedCount = result?.summary.filter((row) => row.emailQueued).length ?? 0;
 
   return (
     <Modal
@@ -88,8 +75,9 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Each row needs a globally unique email and username. Temporary passwords are generated
-          when omitted. New participants can be auto-assigned to teams based on your settings.
+          Each row needs a globally unique email and username. Temporary passwords are generated when
+          omitted and emailed when SMTP and the queue are configured. Participants without email at
+          import receive credentials when they check in and provide an email.
         </p>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center transition hover:border-primary/40 hover:bg-muted/50">
           <span className="text-sm font-medium text-foreground">
@@ -111,6 +99,11 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
         {result && (
           <div className="rounded-xl border border-border bg-muted/20 p-4 text-sm">
             <p className="font-medium text-foreground">Created {result.created} user(s)</p>
+            {emailedCount > 0 && (
+              <p className="mt-1 text-muted-foreground">
+                Sign-in details emailed to {emailedCount} account(s).
+              </p>
+            )}
             {result.errors.length > 0 && (
               <div className="mt-2 space-y-1 text-danger">
                 {result.errors.map((e) => (
@@ -119,11 +112,6 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
                   </p>
                 ))}
               </div>
-            )}
-            {result.credentialSheet.length > 0 && (
-              <Button variant="outline" size="sm" className="mt-3" onClick={downloadCredentialSheet}>
-                Download credentials
-              </Button>
             )}
           </div>
         )}

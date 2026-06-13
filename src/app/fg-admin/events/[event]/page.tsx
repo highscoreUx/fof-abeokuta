@@ -55,6 +55,7 @@ export default function PlatformEventPage() {
     eventTitle: string;
     loginPath: string;
     user: PlatformCreatedEventUser;
+    emailQueued: boolean;
   }) => {
     flashPlatformCredentials(payload);
     setCreatedCredentials(payload);

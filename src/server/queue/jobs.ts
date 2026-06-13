@@ -1,39 +1,29 @@
-export const CHECK_IN_WELCOME_JOB = "check_in_welcome" as const;
-export const ACCOUNT_CREDENTIALS_JOB = "account_credentials" as const;
+import type { SendEmailMeta } from "@/lib/email/prepared-email";
 
-export type EmailJobType = typeof CHECK_IN_WELCOME_JOB | typeof ACCOUNT_CREDENTIALS_JOB;
+export const SEND_EMAIL_JOB = "send_email" as const;
 
-export interface CheckInWelcomeEmailJob {
-  type: typeof CHECK_IN_WELCOME_JOB;
-  userId: string;
-  eventId: string;
+export interface SendEmailJob {
+  type: typeof SEND_EMAIL_JOB;
+  messageId: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  meta?: SendEmailMeta;
 }
 
-export interface AccountCredentialsEmailJob {
-  type: typeof ACCOUNT_CREDENTIALS_JOB;
-  accountId: string;
-  password: string;
-  reason: "welcome" | "reset" | "check_in";
-  loginPath?: string;
-}
+export type EmailJob = SendEmailJob;
 
-export type EmailJob = CheckInWelcomeEmailJob | AccountCredentialsEmailJob;
-
-export function parseEmailJob(raw: Buffer): EmailJob | null {
+export function parseEmailJob(raw: Buffer): SendEmailJob | null {
   try {
-    const parsed = JSON.parse(raw.toString("utf8")) as EmailJob;
-    if (parsed?.type === CHECK_IN_WELCOME_JOB) {
-      if (typeof parsed.userId !== "string" || typeof parsed.eventId !== "string") return null;
-      return parsed;
-    }
-    if (parsed?.type === ACCOUNT_CREDENTIALS_JOB) {
-      if (typeof parsed.accountId !== "string" || typeof parsed.password !== "string") return null;
-      if (parsed.reason !== "welcome" && parsed.reason !== "reset" && parsed.reason !== "check_in") {
-        return null;
-      }
-      return parsed;
-    }
-    return null;
+    const parsed = JSON.parse(raw.toString("utf8")) as SendEmailJob;
+    if (parsed?.type !== SEND_EMAIL_JOB) return null;
+    if (typeof parsed.messageId !== "string" || !parsed.messageId.trim()) return null;
+    if (typeof parsed.to !== "string" || !parsed.to.trim()) return null;
+    if (typeof parsed.subject !== "string") return null;
+    if (typeof parsed.html !== "string") return null;
+    if (typeof parsed.text !== "string") return null;
+    return parsed;
   } catch {
     return null;
   }

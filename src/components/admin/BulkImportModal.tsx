@@ -76,7 +76,7 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Each row needs a globally unique email and username. Temporary passwords are generated when
-          omitted and emailed when SMTP and the queue are configured. Participants without email at
+          omitted and queued for email when the message queue is configured. Participants without email at
           import receive credentials when they check in and provide an email.
         </p>
         <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center transition hover:border-primary/40 hover:bg-muted/50">

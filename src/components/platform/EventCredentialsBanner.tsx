@@ -29,7 +29,7 @@ export function EventCredentialsBanner({ credentials, onDismiss }: EventCredenti
           </>
         ) : (
           <>
-            Email delivery is not configured (SMTP + queue). Share sign-in details with{" "}
+            Email delivery is not configured (queue). Share sign-in details with{" "}
             <strong>{credentials.user.firstName}</strong> manually.
           </>
         )}{" "}

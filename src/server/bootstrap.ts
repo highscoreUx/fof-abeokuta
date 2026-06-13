@@ -4,7 +4,7 @@ import { createAccount } from "@/lib/accounts";
 import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { prisma } from "@/lib/prisma";
-import { canSendQueuedEmails } from "@/server/queue/publish";
+import { canEnqueueEmails } from "@/server/queue/publish";
 
 const DEFAULT_PLATFORM_EMAIL = "boyesiji@gmail.com";
 
@@ -44,8 +44,8 @@ async function ensurePlatformAccount() {
   const { emailQueued } = deliverAccountCredentials(account.id, initialPassword, "welcome");
   if (emailQueued) {
     console.log(`[bootstrap] Credentials email queued for ${platformEmail}`);
-  } else if (!canSendQueuedEmails()) {
-    console.log(`[bootstrap] Email queue/SMTP not configured — dev password: ${initialPassword}`);
+  } else if (!canEnqueueEmails()) {
+    console.log(`[bootstrap] Email queue not configured — dev password: ${initialPassword}`);
   }
 }
 

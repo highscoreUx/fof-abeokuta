@@ -3,17 +3,17 @@ import {
   buildAccountCredentialsEmail,
   type AccountCredentialsReason,
 } from "@/lib/email/templates/account-credentials";
-import { sendMail } from "@/lib/email/transport";
+import type { PreparedEmail } from "@/lib/email/prepared-email";
 import { prisma } from "@/lib/prisma";
 
-export async function sendAccountCredentialsEmail(
+export async function prepareAccountCredentialsEmail(
   accountId: string,
   password: string,
   options: {
     reason: AccountCredentialsReason;
     loginPath?: string;
   },
-): Promise<void> {
+): Promise<PreparedEmail | null> {
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   if (!account) {
     throw new Error(`Account ${accountId} not found`);
@@ -22,7 +22,7 @@ export async function sendAccountCredentialsEmail(
   const email = account.email?.trim();
   if (!email) {
     console.info(`[email] Skipping credentials email for account ${accountId}: no email`);
-    return;
+    return null;
   }
 
   const loginPath = options.loginPath ?? "/login";
@@ -37,6 +37,11 @@ export async function sendAccountCredentialsEmail(
     reason: options.reason,
   });
 
-  await sendMail({ to: email, subject, html, text });
-  console.info(`[email] Sent ${options.reason} credentials email to ${email}`);
+  return {
+    to: email,
+    subject,
+    html,
+    text,
+    meta: { kind: "account_credentials", reason: options.reason },
+  };
 }

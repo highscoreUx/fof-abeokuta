@@ -1,35 +1,30 @@
 import type { Channel, ConsumeMessage } from "amqplib";
 import { isEmailConfigured } from "@/lib/email/config";
-import { sendAccountCredentialsEmail } from "@/lib/email/send-account-credentials-email";
-import { sendCheckInWelcomeEmail } from "@/lib/email/send-check-in-email";
+import { sendMail } from "@/lib/email/transport";
 import { EMAIL_QUEUE_NAME, isQueueConfigured } from "@/server/queue/config";
 import { getQueueChannel } from "@/server/queue/connection";
-import {
-  ACCOUNT_CREDENTIALS_JOB,
-  CHECK_IN_WELCOME_JOB,
-  parseEmailJob,
-} from "@/server/queue/jobs";
+import { parseEmailJob } from "@/server/queue/jobs";
 
 async function handleMessage(message: ConsumeMessage, channel: Channel): Promise<void> {
   const job = parseEmailJob(message.content);
   if (!job) {
-    console.warn("[queue] Dropping invalid email job payload");
+    console.warn("[queue] Dropping invalid send_email job payload");
     channel.ack(message);
     return;
   }
 
   try {
-    if (job.type === CHECK_IN_WELCOME_JOB) {
-      await sendCheckInWelcomeEmail(job.userId, job.eventId);
-    } else if (job.type === ACCOUNT_CREDENTIALS_JOB) {
-      await sendAccountCredentialsEmail(job.accountId, job.password, {
-        reason: job.reason,
-        loginPath: job.loginPath,
-      });
-    }
+    await sendMail({
+      to: job.to,
+      subject: job.subject,
+      html: job.html,
+      text: job.text,
+    });
+    const kind = job.meta?.kind ?? "email";
+    console.info(`[email] Sent ${kind} to ${job.to} (${job.messageId})`);
     channel.ack(message);
   } catch (error) {
-    console.error("[queue] Failed to process email job:", error);
+    console.error(`[queue] Failed to send email ${job.messageId}:`, error);
     channel.nack(message, false, false);
   }
 }

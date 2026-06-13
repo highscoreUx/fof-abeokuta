@@ -1,16 +1,15 @@
 import {
-  canSendQueuedEmails,
+  canEnqueueEmails,
   enqueueAccountCredentialsEmail,
 } from "@/server/queue/publish";
-import type { AccountCredentialsEmailJob } from "@/server/queue/jobs";
 
 export function deliverAccountCredentials(
   accountId: string,
   password: string,
-  reason: AccountCredentialsEmailJob["reason"],
+  reason: "welcome" | "reset" | "check_in",
   loginPath?: string,
 ): { emailQueued: boolean } {
-  if (!canSendQueuedEmails()) {
+  if (!canEnqueueEmails()) {
     return { emailQueued: false };
   }
   enqueueAccountCredentialsEmail({ accountId, password, reason, loginPath });

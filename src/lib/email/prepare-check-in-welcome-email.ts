@@ -1,11 +1,14 @@
 import { getAppBaseUrl } from "@/lib/email/config";
 import { loadAgendaForEmail } from "@/lib/email/agenda-for-email";
 import { buildCheckInWelcomeEmail } from "@/lib/email/templates/check-in-welcome";
-import { sendMail } from "@/lib/email/transport";
+import type { PreparedEmail } from "@/lib/email/prepared-email";
 import { prisma } from "@/lib/prisma";
 import { userWithAccountInclude } from "@/lib/user-display";
 
-export async function sendCheckInWelcomeEmail(userId: string, eventId: string): Promise<void> {
+export async function prepareCheckInWelcomeEmail(
+  userId: string,
+  eventId: string,
+): Promise<PreparedEmail | null> {
   const user = await prisma.user.findFirst({
     where: { id: userId, eventId },
     include: userWithAccountInclude,
@@ -18,7 +21,7 @@ export async function sendCheckInWelcomeEmail(userId: string, eventId: string): 
   const email = user.account.email?.trim();
   if (!email) {
     console.info(`[email] Skipping check-in email for user ${userId}: no email on account`);
-    return;
+    return null;
   }
 
   const event = await prisma.event.findUnique({
@@ -43,12 +46,11 @@ export async function sendCheckInWelcomeEmail(userId: string, eventId: string): 
     teamLetter: user.team?.letter ?? null,
   });
 
-  await sendMail({
+  return {
     to: email,
     subject,
     html,
     text,
-  });
-
-  console.info(`[email] Sent check-in welcome email to ${email} for event ${event.slug}`);
+    meta: { kind: "check_in_welcome" },
+  };
 }

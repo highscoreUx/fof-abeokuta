@@ -1,6 +1,8 @@
 import type { Channel, ConsumeMessage } from "amqplib";
 import {
   EMAIL_QUEUE_NAME,
+  getEmailPrefetchCount,
+  getEmailProvider,
   isEmailConfigured,
   isQueueConfigured,
 } from "@/server/email-worker/config";
@@ -38,12 +40,15 @@ export async function startEmailQueueConsumer(): Promise<void> {
     return;
   }
   if (!isEmailConfigured()) {
-    console.info("[queue] SMTP not configured — email queue consumer disabled");
+    console.info("[queue] Email transport not configured — email queue consumer disabled");
     return;
   }
 
+  const provider = getEmailProvider();
+  const prefetch = getEmailPrefetchCount(provider);
+
   const channel = await getQueueChannel();
-  await channel.prefetch(1);
+  await channel.prefetch(prefetch);
 
   await channel.consume(
     EMAIL_QUEUE_NAME,
@@ -54,5 +59,7 @@ export async function startEmailQueueConsumer(): Promise<void> {
     { noAck: false },
   );
 
-  console.info(`[queue] Email consumer listening on "${EMAIL_QUEUE_NAME}"`);
+  console.info(
+    `[queue] Email consumer listening on "${EMAIL_QUEUE_NAME}" (${provider ?? "unknown"} transport, prefetch ${prefetch})`,
+  );
 }

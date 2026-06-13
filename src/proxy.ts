@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { clearAuthCookies } from "@/lib/auth/cookies";
 import { verifyRefreshToken } from "@/lib/auth/jwt";
-import { sanitizeNextParam } from "@/lib/post-login-redirect";
 import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
 
 const PLATFORM_PUBLIC = [
@@ -41,26 +41,27 @@ function loginRedirect(request: NextRequest, returnTo: string) {
   return NextResponse.redirect(url);
 }
 
+function clearStaleRefreshCookie(request: NextRequest): NextResponse | null {
+  const refreshToken = request.cookies.get("fof_refresh_token")?.value;
+  if (!refreshToken) return null;
+
+  try {
+    verifyRefreshToken(refreshToken);
+    return null;
+  } catch {
+    const response = NextResponse.next();
+    clearAuthCookies(response);
+    return response;
+  }
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasRefresh = request.cookies.has("fof_refresh_token");
 
   if (pathname === "/login" && hasRefresh) {
-    const next = sanitizeNextParam(request.nextUrl.searchParams.get("next"));
-    if (next) {
-      return NextResponse.redirect(new URL(next, request.url));
-    }
-
-    const refreshToken = request.cookies.get("fof_refresh_token")?.value;
-    if (refreshToken) {
-      try {
-        verifyRefreshToken(refreshToken);
-      } catch {
-        return loginRedirect(request, "/home");
-      }
-    }
-
-    return NextResponse.redirect(new URL(next ?? "/home", request.url));
+    const cleared = clearStaleRefreshCookie(request);
+    if (cleared) return cleared;
   }
 
   if (

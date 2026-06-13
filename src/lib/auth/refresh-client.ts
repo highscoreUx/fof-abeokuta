@@ -18,7 +18,12 @@ export async function refreshSessionFromServer(): Promise<boolean> {
         method: "POST",
         credentials: "include",
       });
-      if (!response.ok) return false;
+      if (!response.ok) {
+        if (response.status === 401) {
+          useAuthStore.getState().clearAuth();
+        }
+        return false;
+      }
 
       const data = (await response.json()) as RefreshResponse;
       if (!data.account) return false;

@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { PreparedEmail } from "@/lib/email/prepared-email";
 import { prepareAccountCredentialsEmail } from "@/lib/email/prepare-account-credentials-email";
 import { prepareCheckInWelcomeEmail } from "@/lib/email/prepare-check-in-welcome-email";
-import { EMAIL_QUEUE_NAME, isQueueConfigured } from "@/server/queue/config";
-import { getQueueChannel } from "@/server/queue/connection";
-import { SEND_EMAIL_JOB, type SendEmailJob } from "@/server/queue/jobs";
+import {
+  EMAIL_QUEUE_NAME,
+  isQueueConfigured,
+} from "@/server/email-worker/config";
+import { getQueueChannel } from "@/server/email-worker/connection";
+import { SEND_EMAIL_JOB, type SendEmailJob } from "@/server/email-worker/jobs";
 
 export function canEnqueueEmails(): boolean {
   return isQueueConfigured();
@@ -24,7 +27,9 @@ function toSendEmailJob(prepared: PreparedEmail): SendEmailJob {
     subject: prepared.subject,
     html: prepared.html,
     text: prepared.text,
-    meta: prepared.meta,
+    meta: prepared.meta
+      ? { kind: prepared.meta.kind, reason: prepared.meta.reason }
+      : undefined,
   };
 }
 

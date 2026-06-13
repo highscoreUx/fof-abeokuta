@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import type Mail from "nodemailer/lib/mailer";
-import { getSmtpConfig, isEmailConfigured } from "@/lib/email/config";
+import { getSmtpConfig, isEmailConfigured } from "@/server/email-worker/config";
 
 let transporter: nodemailer.Transporter | null = null;
 

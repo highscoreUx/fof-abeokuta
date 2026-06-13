@@ -5,7 +5,7 @@ import { Server as SocketIOServer } from "socket.io";
 import "dotenv/config";
 import { recoverQuizTimers } from "./src/server/games/quizEngine";
 import { ensurePlatformBootstrap } from "./src/server/bootstrap";
-import { startEmailQueueConsumer } from "./src/server/queue/consumer";
+import { startEmailQueueConsumer } from "./src/server/email-worker";
 import { setIO } from "./src/server/socket/io";
 import { registerSocketHandlers } from "./src/server/socket/handlers";
 

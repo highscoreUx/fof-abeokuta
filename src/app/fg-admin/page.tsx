@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { FG_ADMIN_EVENTS } from "@/lib/fg-admin-routes";
+import { FG_ADMIN_DASHBOARD } from "@/lib/fg-admin-routes";
 
 export default function FgAdminIndexPage() {
-  redirect(FG_ADMIN_EVENTS);
+  redirect(FG_ADMIN_DASHBOARD);
 }

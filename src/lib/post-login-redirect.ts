@@ -33,7 +33,7 @@ export function resolvePostLoginRedirect(options: {
   }
 
   if (!sanitized && canAccessPlatform(permissions)) {
-    return "/fg-admin/events";
+    return "/fg-admin/dashboard";
   }
 
   if (canAccessPlatform(permissions) && sanitized && isPlatformPath(sanitized)) {

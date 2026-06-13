@@ -7,7 +7,7 @@ import { BrandMark } from "@/components/layout/BrandMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { FG_ADMIN_DIAGNOSTICS, FG_ADMIN_EVENTS, FG_ADMIN_MEMBERS, FG_ADMIN_ROLES } from "@/lib/fg-admin-routes";
+import { FG_ADMIN_DASHBOARD, FG_ADMIN_DIAGNOSTICS, FG_ADMIN_EVENTS, FG_ADMIN_MEMBERS, FG_ADMIN_ROLES } from "@/lib/fg-admin-routes";
 import { loginPath } from "@/lib/routes";
 import { usePlatformAuthStore } from "@/stores/platformAuthStore";
 
@@ -30,7 +30,12 @@ function resolveActiveHref(pathname: string, nav: NavItem[]) {
       if (item.href === FG_ADMIN_EVENTS) {
         return pathname.startsWith(`${FG_ADMIN_EVENTS}/`);
       }
-      if (item.href === FG_ADMIN_MEMBERS || item.href === FG_ADMIN_ROLES || item.href === FG_ADMIN_DIAGNOSTICS) {
+      if (
+        item.href === FG_ADMIN_DASHBOARD ||
+        item.href === FG_ADMIN_MEMBERS ||
+        item.href === FG_ADMIN_ROLES ||
+        item.href === FG_ADMIN_DIAGNOSTICS
+      ) {
         return pathname === item.href || pathname.startsWith(`${item.href}/`);
       }
       return false;

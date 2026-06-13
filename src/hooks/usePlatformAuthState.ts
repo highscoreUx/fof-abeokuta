@@ -23,7 +23,7 @@ export function usePlatformAuthState(): PlatformAuthStatus {
     const returnTo =
       typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}`
-        : "/fg-admin/events";
+        : "/fg-admin/dashboard";
 
     if (accessToken && admin) {
       setStatus(canAccessPlatform(admin.permissions) ? "authenticated" : "access_denied");

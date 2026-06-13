@@ -76,7 +76,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (pathname === "/fg-admin") {
-    return NextResponse.redirect(new URL("/fg-admin/events", request.url));
+    return NextResponse.redirect(new URL("/fg-admin/dashboard", request.url));
   }
 
   const legacyEventLogin = pathname.match(/^\/([^/]+)\/login$/);

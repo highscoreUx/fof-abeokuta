@@ -5,7 +5,7 @@ import {
   isTeamAssignAlgorithm,
   saveTeamAssignSettings,
 } from "@/lib/team-assign";
-import { guardTeamingEnabled } from "@/lib/team-settings";
+import { guardTeamingEnabled } from "@/lib/team-settings-guard";
 
 export async function GET(
   request: NextRequest,

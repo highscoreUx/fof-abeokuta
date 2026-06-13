@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { assignTeams, isTeamAssignAlgorithm } from "@/lib/team-assign";
-import { guardTeamingEnabled } from "@/lib/team-settings";
+import { guardTeamingEnabled } from "@/lib/team-settings-guard";
 
 export async function POST(
   request: NextRequest,

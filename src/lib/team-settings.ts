@@ -1,7 +1,5 @@
-import { NextResponse } from "next/server";
 import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
 import { invalidateEventCaches } from "@/lib/cache/invalidate";
-import { jsonError } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/prisma";
 
 export const TEAMING_ENABLED_KEY = "teaming_enabled";
@@ -31,11 +29,4 @@ export async function setTeamingEnabled(
     update: { value: String(enabled) },
   });
   await invalidateEventCaches(eventId, eventSlug);
-}
-
-export async function guardTeamingEnabled(eventId: string): Promise<NextResponse | null> {
-  if (!(await isTeamingEnabled(eventId))) {
-    return jsonError("Teaming is disabled for this event", "TEAMING_DISABLED", 403);
-  }
-  return null;
 }

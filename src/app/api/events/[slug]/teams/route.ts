@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventContext, requireEventPermission } from "@/lib/auth/event-middleware";
-import { guardTeamingEnabled } from "@/lib/team-settings";
+import { guardTeamingEnabled } from "@/lib/team-settings-guard";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { buildTeamsOrderBy, buildTeamsWhere } from "@/lib/teams-query";
 import { prisma } from "@/lib/prisma";

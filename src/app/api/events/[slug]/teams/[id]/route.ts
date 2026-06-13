@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
-import { guardTeamingEnabled } from "@/lib/team-settings";
+import { guardTeamingEnabled } from "@/lib/team-settings-guard";
 import { deleteTeam } from "@/lib/teams";
 import { BRAND_PRIMARY } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";

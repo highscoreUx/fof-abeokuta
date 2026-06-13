@@ -18,7 +18,7 @@ import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
 
 interface EventActivityConfig {
-  slug: ActivitySlug;
+  slug: ActivitySlug | string;
   name: string;
   enabled: boolean;
   allowGeneral: boolean;

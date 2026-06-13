@@ -13,6 +13,10 @@ import {
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
 
+function isListView(request: NextRequest) {
+  return new URL(request.url).searchParams.get("view") === "list";
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
@@ -26,6 +30,41 @@ export async function GET(
     return NextResponse.json({ surveys: [] });
   }
 
+  const listView = isListView(request);
+  const isManager =
+    hasPermission(ctx.auth.permissions, "survey.manage") ||
+    hasPermission(ctx.auth.permissions, "survey.run");
+
+  if (listView) {
+    const surveys = await prisma.survey.findMany({
+      where: { eventId: ctx.event.id },
+      include: { _count: { select: { questions: true, responses: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    const visible = isManager
+      ? surveys
+      : surveys.filter((survey) =>
+          userCanAccessActivityInstance(ctx.auth, {
+            allowGeneralParticipants: survey.allowGeneralParticipants,
+            allowGroupParticipants: survey.allowGroupParticipants,
+          }),
+        );
+    return NextResponse.json({
+      surveys: visible.map((survey) => ({
+        id: survey.id,
+        title: survey.title,
+        status: survey.status,
+        allowGeneralParticipants: survey.allowGeneralParticipants,
+        allowGroupParticipants: survey.allowGroupParticipants,
+        opensAt: survey.opensAt?.toISOString() ?? null,
+        closesAt: survey.closesAt?.toISOString() ?? null,
+        allowEditsUntilClose: survey.allowEditsUntilClose,
+        questionCount: survey._count.questions,
+        _count: { responses: survey._count.responses },
+      })),
+    });
+  }
+
   const surveys = await prisma.survey.findMany({
     where: { eventId: ctx.event.id },
     include: {
@@ -34,10 +73,6 @@ export async function GET(
     },
     orderBy: { createdAt: "desc" },
   });
-
-  const isManager =
-    hasPermission(ctx.auth.permissions, "survey.manage") ||
-    hasPermission(ctx.auth.permissions, "survey.run");
 
   const visible = isManager
     ? surveys

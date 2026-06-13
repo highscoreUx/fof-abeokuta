@@ -13,6 +13,15 @@ export type ActivitySlug =
   | typeof ACTIVITY_SURVEY
   | typeof ACTIVITY_TIC_TAC_TOE;
 
+/** Activity types shown on the event admin activities index. */
+export const CONFIGURABLE_ACTIVITY_SLUGS = [
+  ACTIVITY_KAHOOT,
+  ACTIVITY_SPINNER,
+  ACTIVITY_SURVEY,
+  ACTIVITY_TIC_TAC_TOE,
+  "spin_to_build",
+] as const;
+
 export interface ActivityTypeDefinition {
   slug: ActivitySlug;
   name: string;
@@ -110,3 +119,14 @@ export function formatInstanceScope(scope: ActivityInstanceScope): string {
   if (scope.allowGroupParticipants) parts.push("Team scoped");
   return parts.join(" · ") || "No scope";
 }
+
+export const ACTIVITIES_ADMIN_PERMISSIONS: Permission[] = [
+  "quiz.manage",
+  "spin.manage",
+  "tic_tac_toe.manage",
+  "survey.manage",
+  "quiz.run",
+  "spin.run",
+  "tic_tac_toe.run",
+  "survey.run",
+];

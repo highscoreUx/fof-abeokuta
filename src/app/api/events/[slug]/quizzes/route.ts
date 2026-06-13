@@ -13,6 +13,10 @@ import {
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
 
+function isListView(request: NextRequest) {
+  return new URL(request.url).searchParams.get("view") === "list";
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
@@ -24,6 +28,34 @@ export async function GET(
   const enabled = await isActivityEnabledForEvent(ctx.event.id, ACTIVITY_KAHOOT);
   if (!enabled && !hasPermission(ctx.auth.permissions, "quiz.manage")) {
     return NextResponse.json({ quizzes: [] });
+  }
+
+  const listView = isListView(request);
+  const isManager = hasPermission(ctx.auth.permissions, "quiz.manage");
+
+  if (listView) {
+    const quizzes = await prisma.quiz.findMany({
+      where: { eventId: ctx.event.id },
+      include: { _count: { select: { questions: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    const visible = isManager
+      ? quizzes
+      : quizzes.filter((quiz) =>
+          userCanAccessActivityInstance(ctx.auth, {
+            allowGeneralParticipants: quiz.allowGeneralParticipants,
+            allowGroupParticipants: quiz.allowGroupParticipants,
+          }),
+        );
+    return NextResponse.json({
+      quizzes: visible.map((quiz) => ({
+        id: quiz.id,
+        title: quiz.title,
+        allowGeneralParticipants: quiz.allowGeneralParticipants,
+        allowGroupParticipants: quiz.allowGroupParticipants,
+        questionCount: quiz._count.questions,
+      })),
+    });
   }
 
   const quizzes = await prisma.quiz.findMany({
@@ -48,7 +80,6 @@ export async function GET(
     orderBy: { createdAt: "desc" },
   });
 
-  const isManager = hasPermission(ctx.auth.permissions, "quiz.manage");
   const visible = isManager
     ? quizzes
     : quizzes.filter((quiz) =>
@@ -81,11 +112,6 @@ export async function POST(
 
   const body = await request.json();
   if (!body.title) return jsonError("Title is required", "VALIDATION_ERROR", 400);
-
-  const scope = {
-    allowGeneralParticipants: true,
-    allowGroupParticipants: false,
-  };
 
   if (!eventActivity.allowGeneral) {
     return jsonError("Live Trivia must be whole-event scope on this event.", "VALIDATION_ERROR", 400);

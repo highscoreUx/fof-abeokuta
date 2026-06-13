@@ -1,17 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { ActivitiesListSkeleton } from "@/components/admin/ActivitiesListSkeleton";
 import { AddActivityModal } from "@/components/admin/AddActivityModal";
-import type { ActivityDetail, KahootActivityDetail } from "@/types/activities";
-import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
-import { CardTitle } from "@/components/ui/card";
 import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
@@ -22,28 +20,47 @@ import {
 } from "@/lib/activities/catalog";
 import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
+import type {
+  ActivityInstancesPayload,
+  ActivityListItem,
+  EventActivityConfigRow,
+} from "@/types/activities";
 import type { QuizStateSnapshot } from "@/types";
 
-interface EventActivityConfig {
-  slug: ActivitySlug;
-  name: string;
-  enabled: boolean;
-  allowGeneral: boolean;
-  allowGroup: boolean;
-}
-
-type ActivityRow = ActivityDetail;
+const QuizStageDisplay = dynamic(
+  () =>
+    import("@/components/quiz/QuizStageDisplay").then((module) => ({
+      default: module.QuizStageDisplay,
+    })),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Loading host view…</p>
+    ),
+  },
+);
 
 interface ActivitiesAdminProps {
   permissions: Permission[];
 }
 
+function activityQuestionCount(row: ActivityListItem): number {
+  if (row.kind === "kahoot" || row.kind === "survey") {
+    return row.questionCount;
+  }
+  return 0;
+}
+
 export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const { slug, api } = useEventApi();
   const { activityConfigure } = useEventNav();
+  const needsRealtime =
+    hasPermission(permissions, "quiz.run") ||
+    hasPermission(permissions, "spin.run") ||
+    hasPermission(permissions, "tic_tac_toe.run");
   const socket = useSocket();
-  const [eventActivities, setEventActivities] = useState<EventActivityConfig[]>([]);
-  const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [eventActivities, setEventActivities] = useState<EventActivityConfigRow[]>([]);
+  const [rows, setRows] = useState<ActivityListItem[]>([]);
+  const [anyEnabled, setAnyEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<QuizStateSnapshot | null>(null);
@@ -51,150 +68,30 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const canManageKahoot = hasPermission(permissions, "quiz.manage");
   const canRunKahoot = hasPermission(permissions, "quiz.run");
   const canManageSpin = hasPermission(permissions, "spin.manage");
-  const canRunSpin = hasPermission(permissions, "spin.run");
   const canManageSurvey = hasPermission(permissions, "survey.manage");
   const canRunSurvey = hasPermission(permissions, "survey.run");
   const canManageTtt = hasPermission(permissions, "tic_tac_toe.manage");
-  const canRunTtt = hasPermission(permissions, "tic_tac_toe.run");
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    const activityRes = await api<{ activities: EventActivityConfig[] }>("/activities").catch(
-      () => ({ activities: [] as EventActivityConfig[] }),
-    );
-    setEventActivities(activityRes.activities as EventActivityConfig[]);
-
-    const next: ActivityRow[] = [];
-
-    if (canManageKahoot || canRunKahoot) {
-      const quizRes = await api<{
-        quizzes: Array<{
-          id: string;
-          title: string;
-          allowGeneralParticipants: boolean;
-          allowGroupParticipants: boolean;
-          questions: KahootActivityDetail["questions"];
-        }>;
-      }>("/quizzes").catch(() => ({ quizzes: [] }));
-      for (const q of quizRes.quizzes) {
-        next.push({
-          kind: "kahoot",
-          id: q.id,
-          title: q.title,
-          allowGeneralParticipants: q.allowGeneralParticipants,
-          allowGroupParticipants: q.allowGroupParticipants,
-          questions: q.questions.map((question) => ({
-            ...question,
-            options: Array.isArray(question.options)
-              ? (question.options as string[])
-              : undefined,
-          })),
-        });
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const data = await api<ActivityInstancesPayload>("/activities/instances");
+        setEventActivities(data.activities);
+        setRows(data.instances);
+        setAnyEnabled(data.anyEnabled);
+        return data.instances;
+      } catch {
+        setEventActivities([]);
+        setRows([]);
+        setAnyEnabled(false);
+        return [];
+      } finally {
+        setLoading(false);
       }
-    }
-
-    if (canManageSpin || canRunSpin) {
-      const spinRes = await api<{
-        challenges: Array<{
-          id: string;
-          title: string;
-          allowGeneralParticipants: boolean;
-          allowGroupParticipants: boolean;
-          participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
-          config?: { options?: string[] };
-          activeSessionId?: string | null;
-        }>;
-      }>("/spin-challenges").catch(() => ({ challenges: [] }));
-      for (const c of spinRes.challenges) {
-        next.push({
-          kind: "spinner",
-          id: c.id,
-          title: c.title,
-          allowGeneralParticipants: c.allowGeneralParticipants,
-          allowGroupParticipants: c.allowGroupParticipants,
-          participationMode: c.participationMode,
-          optionsCount: Array.isArray(c.config?.options) ? c.config.options.length : 0,
-          activeSessionId: c.activeSessionId,
-        });
-      }
-    }
-
-    if (canManageTtt || canRunTtt) {
-      const tttRes = await api<{
-        challenges: Array<{
-          id: string;
-          title: string;
-          mode: "CHAMPION" | "COUNCIL";
-          allowGeneralParticipants: boolean;
-          allowGroupParticipants: boolean;
-          activeMatchId?: string | null;
-          activeMatchState?: string | null;
-        }>;
-      }>("/tic-tac-toe-challenges").catch(() => ({ challenges: [] }));
-      for (const c of tttRes.challenges) {
-        next.push({
-          kind: "tic_tac_toe",
-          id: c.id,
-          title: c.title,
-          mode: c.mode,
-          allowGeneralParticipants: c.allowGeneralParticipants,
-          allowGroupParticipants: c.allowGroupParticipants,
-          activeMatchId: c.activeMatchId,
-          activeMatchState: c.activeMatchState,
-        });
-      }
-    }
-
-    if (canManageSurvey || canRunSurvey) {
-      const surveyRes = await api<{
-        surveys: Array<{
-          id: string;
-          title: string;
-          status: string;
-          allowGeneralParticipants: boolean;
-          allowGroupParticipants: boolean;
-          opensAt: string | null;
-          closesAt: string | null;
-          allowEditsUntilClose: boolean;
-          questions: Array<{ id: string; type: string; text: string }>;
-          _count?: { responses: number };
-        }>;
-      }>("/surveys").catch(() => ({ surveys: [] }));
-      for (const s of surveyRes.surveys) {
-        next.push({
-          kind: "survey",
-          id: s.id,
-          title: s.title,
-          status: s.status,
-          allowGeneralParticipants: s.allowGeneralParticipants,
-          allowGroupParticipants: s.allowGroupParticipants,
-          opensAt: s.opensAt,
-          closesAt: s.closesAt,
-          allowEditsUntilClose: s.allowEditsUntilClose,
-          questions: s.questions.map((q) => ({
-            id: q.id,
-            type: q.type as "POLL",
-            text: q.text,
-          })),
-          responseCount: s._count?.responses,
-        });
-      }
-    }
-
-    setRows(next);
-    setLoading(false);
-    return next;
-  }, [
-    api,
-    canManageKahoot,
-    canManageSpin,
-    canManageSurvey,
-    canManageTtt,
-    canRunKahoot,
-    canRunSpin,
-    canRunSurvey,
-    canRunTtt,
-  ]);
+    },
+    [api],
+  );
 
   const refresh = useCallback(async () => {
     await load(true);
@@ -205,7 +102,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   }, [slug, load]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!needsRealtime || !socket) return;
     const onQuiz = (snapshot: QuizStateSnapshot) => {
       setActiveQuiz(snapshot);
       if (snapshot.state === "FINISHED") void refresh();
@@ -220,7 +117,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       socket.off("spinner:state", onSpinner);
       socket.off("ttt:state", onTtt);
     };
-  }, [socket, refresh]);
+  }, [needsRealtime, socket, refresh]);
 
   const handleCreate = async (data: {
     type: ActivitySlug;
@@ -273,14 +170,14 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     await refresh();
   };
 
-  const typeLabel = (row: ActivityRow) => {
+  const typeLabel = (row: ActivityListItem) => {
     if (row.kind === "kahoot") return "Live Trivia";
     if (row.kind === "survey") return "Survey";
     if (row.kind === "tic_tac_toe") return "Team Tic-Tac-Toe";
     return "Spinner";
   };
 
-  const stateLabel = (row: ActivityRow) => {
+  const stateLabel = (row: ActivityListItem) => {
     if (row.kind === "kahoot") return null;
     if (row.kind === "survey") {
       if (row.status === "OPEN") return "Open";
@@ -293,17 +190,29 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     return "Ready";
   };
 
-  const creatableCount = eventActivities.filter((a) => {
-    if (!a.enabled) return false;
-    if (a.slug === ACTIVITY_KAHOOT) return canManageKahoot;
-    if (a.slug === ACTIVITY_SPINNER) return canManageSpin;
-    if (a.slug === ACTIVITY_SURVEY) return canManageSurvey;
-    if (a.slug === ACTIVITY_TIC_TAC_TOE) return canManageTtt;
+  const creatableCount = eventActivities.filter((activity) => {
+    if (!activity.enabled) return false;
+    if (activity.slug === ACTIVITY_KAHOOT) return canManageKahoot;
+    if (activity.slug === ACTIVITY_SPINNER) return canManageSpin;
+    if (activity.slug === ACTIVITY_SURVEY) return canManageSurvey;
+    if (activity.slug === ACTIVITY_TIC_TAC_TOE) return canManageTtt;
     return false;
   }).length;
 
   if (loading) {
     return <ActivitiesListSkeleton />;
+  }
+
+  if (!anyEnabled) {
+    return (
+      <Card className="p-8">
+        <CardTitle>No activities enabled</CardTitle>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Platform admin must enable activity types for this event before you can configure them
+          here.
+        </p>
+      </Card>
+    );
   }
 
   return (
@@ -336,6 +245,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
               allowGroupParticipants: row.allowGroupParticipants,
             });
             const status = stateLabel(row);
+            const questionCount = activityQuestionCount(row);
             const isActiveKahoot =
               row.kind === "kahoot" &&
               activeQuiz?.quizId === row.id &&
@@ -364,7 +274,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                     <h3 className="mt-2 font-semibold">{row.title}</h3>
                     <p className="text-sm text-muted-foreground">
                       {row.kind === "kahoot" || row.kind === "survey"
-                        ? `${row.questions.length} question${row.questions.length === 1 ? "" : "s"}`
+                        ? `${questionCount} question${questionCount === 1 ? "" : "s"}`
                         : row.kind === "tic_tac_toe"
                           ? `${row.mode === "COUNCIL" ? "Council" : "Champion"} mode`
                           : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}
@@ -462,7 +372,6 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
         eventActivities={eventActivities}
         onCreate={handleCreate}
       />
-
     </div>
   );
 }

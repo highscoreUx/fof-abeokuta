@@ -72,4 +72,33 @@ export type ActivityDetail =
   | TicTacToeActivityDetail
   | SurveyActivityDetail;
 
+/** Lightweight rows for the activities admin index (no nested question payloads). */
+export type KahootActivityListItem = Omit<KahootActivityDetail, "questions"> & {
+  questionCount: number;
+};
+
+export type SurveyActivityListItem = Omit<SurveyActivityDetail, "questions"> & {
+  questionCount: number;
+};
+
+export type ActivityListItem =
+  | KahootActivityListItem
+  | SpinnerActivityDetail
+  | TicTacToeActivityDetail
+  | SurveyActivityListItem;
+
+export interface EventActivityConfigRow {
+  slug: string;
+  name: string;
+  enabled: boolean;
+  allowGeneral: boolean;
+  allowGroup: boolean;
+}
+
+export interface ActivityInstancesPayload {
+  activities: EventActivityConfigRow[];
+  instances: ActivityListItem[];
+  anyEnabled: boolean;
+}
+
 export type ActivityConfigureKind = ActivityDetail["kind"];

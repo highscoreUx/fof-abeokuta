@@ -10,12 +10,20 @@ import {
   getEventActivityBySlug,
   isActivityEnabledForEvent,
 } from "@/lib/activities/event-activities";
-import { getActiveSpinnerSessionForChallenge } from "@/server/games/spinnerEngine";
+import { mapActiveSpinnerSessionsByChallengeId } from "@/server/games/spinnerEngine";
 import { hasPermission } from "@/lib/permissions";
 
 function normalizeOptions(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((o) => String(o).trim()).filter(Boolean);
+}
+
+function spinOptionsCount(config: unknown): number {
+  return normalizeOptions((config as { options?: unknown } | null)?.options).length;
+}
+
+function isListView(request: NextRequest) {
+  return new URL(request.url).searchParams.get("view") === "list";
 }
 
 export async function GET(
@@ -36,15 +44,30 @@ export async function GET(
     orderBy: { createdAt: "desc" },
   });
 
-  const withSessions = await Promise.all(
-    challenges.map(async (challenge) => {
-      const activeSession = await getActiveSpinnerSessionForChallenge(challenge.id);
-      return {
-        ...challenge,
-        activeSessionId: activeSession?.id ?? null,
-      };
-    }),
+  const activeSessions = await mapActiveSpinnerSessionsByChallengeId(
+    challenges.map((challenge) => challenge.id),
   );
+
+  const listView = isListView(request);
+
+  const withSessions = challenges.map((challenge) => {
+    const activeSessionId = activeSessions.get(challenge.id) ?? null;
+    if (listView) {
+      return {
+        id: challenge.id,
+        title: challenge.title,
+        allowGeneralParticipants: challenge.allowGeneralParticipants,
+        allowGroupParticipants: challenge.allowGroupParticipants,
+        participationMode: challenge.participationMode,
+        optionsCount: spinOptionsCount(challenge.config),
+        activeSessionId,
+      };
+    }
+    return {
+      ...challenge,
+      activeSessionId,
+    };
+  });
 
   return NextResponse.json({ challenges: withSessions });
 }

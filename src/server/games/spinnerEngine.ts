@@ -96,6 +96,27 @@ export async function getActiveSpinnerSessionForChallenge(challengeId: string) {
   });
 }
 
+/** One query for active sessions across many challenges (list views). */
+export async function mapActiveSpinnerSessionsByChallengeId(
+  challengeIds: string[],
+): Promise<Map<string, string>> {
+  if (challengeIds.length === 0) return new Map();
+
+  const sessions = await prisma.spinnerSession.findMany({
+    where: { challengeId: { in: challengeIds }, state: "ACTIVE" },
+    select: { id: true, challengeId: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const map = new Map<string, string>();
+  for (const session of sessions) {
+    if (!map.has(session.challengeId)) {
+      map.set(session.challengeId, session.id);
+    }
+  }
+  return map;
+}
+
 export async function startSpinnerSession(
   io: SocketIOServer,
   params: {

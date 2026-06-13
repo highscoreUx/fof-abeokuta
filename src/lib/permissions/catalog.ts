@@ -124,10 +124,10 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
     label: "Users",
     permissions: [
       { permission: "user.list", label: "List users" },
-      { permission: "user.create", label: "Create users" },
+      { permission: "user.create", label: "Add user" },
       { permission: "user.update", label: "Update users" },
       { permission: "user.delete", label: "Delete users" },
-      { permission: "user.import", label: "Import users" },
+      { permission: "user.import", label: "Bulk add users" },
       { permission: "user.check_in", label: "Check in users" },
       { permission: "user.assign_teams", label: "Assign teams" },
       { permission: "user.password.reset", label: "Reset passwords" },

@@ -62,6 +62,7 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
 
 const STAFF_PERMISSIONS: Permission[] = [
   "user.list",
+  "user.create",
   "user.check_in",
   "user.password.reset",
   "stage.view",

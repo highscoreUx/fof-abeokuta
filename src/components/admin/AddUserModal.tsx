@@ -22,13 +22,11 @@ interface AddUserModalProps {
 export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
   const createUser = useCreateUserMutation();
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
   const reset = () => {
     setEmail("");
-    setUsername("");
     setFirstName("");
     setLastName("");
   };
@@ -43,7 +41,6 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
     try {
       const result = await createUser.mutateAsync({
         email: email.trim().toLowerCase(),
-        username: username.trim().toLowerCase(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         permissionProfile: "participant",
@@ -103,16 +100,6 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="username">Username</Label>
-          <Input
-            id="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
-            placeholder="ada_okafor"
             required
           />
         </div>

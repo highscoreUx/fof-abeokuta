@@ -67,7 +67,7 @@ export function useCreateUserMutation() {
   return useMutation({
     mutationFn: (body: {
       email: string;
-      username: string;
+      username?: string;
       firstName: string;
       lastName: string;
       middleName?: string;

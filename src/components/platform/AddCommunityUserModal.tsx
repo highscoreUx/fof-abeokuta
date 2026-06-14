@@ -50,7 +50,6 @@ export function AddCommunityUserModal({
     mode === "staff" ? "staff" : "participant";
 
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [permissionProfile, setPermissionProfile] = useState<string>(defaultProfile);
@@ -62,7 +61,6 @@ export function AddCommunityUserModal({
 
   const reset = () => {
     setEmail("");
-    setUsername("");
     setFirstName("");
     setLastName("");
     setPermissionProfile(defaultProfile);
@@ -86,7 +84,6 @@ export function AddCommunityUserModal({
         method: "POST",
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
-          username: username.trim().toLowerCase(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           permissionProfile,
@@ -154,15 +151,6 @@ export function AddCommunityUserModal({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="member-username">Username</Label>
-          <Input
-            id="member-username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
             required
           />
         </div>

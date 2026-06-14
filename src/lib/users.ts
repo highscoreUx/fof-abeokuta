@@ -112,7 +112,7 @@ export async function createUserFromRow(
   eventId: string,
   row: {
     email: string;
-    username: string;
+    username?: string;
     firstName: string;
     lastName: string;
     middleName?: string;
@@ -123,7 +123,10 @@ export async function createUserFromRow(
   },
 ) {
   const email = normalizeEmail(row.email);
-  const username = normalizeUsername(row.username);
+  const { generateUniqueUsername } = await import("@/lib/username");
+  const username = row.username
+    ? normalizeUsername(row.username)
+    : await generateUniqueUsername(row.firstName, row.lastName);
 
   const profileSlug =
     row.permissionProfile ?? (row.role ? legacyRoleToProfileSlug(row.role) : "participant");
@@ -148,7 +151,7 @@ export async function createUserFromRow(
   let initialPassword: string | null = null;
 
   if (account) {
-    if (account.username !== username) {
+    if (row.username && account.username !== username) {
       throw new Error("Email is already linked to a different username");
     }
   } else {

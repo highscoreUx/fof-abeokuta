@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAccount } from "@/lib/accounts";
+import { createAccount, normalizeUsername } from "@/lib/accounts";
+import { generateUniqueUsername } from "@/lib/username";
 import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
 import { buildAccountsOrderBy, buildAccountsWhere } from "@/lib/accounts-query";
 import { jsonError } from "@/lib/auth/middleware";
@@ -71,9 +72,12 @@ export async function POST(request: NextRequest) {
     }
 
     const permissions = permissionsForMemberProfile(parsed.data.permissionProfile);
+    const username = parsed.data.username
+      ? normalizeUsername(parsed.data.username)
+      : await generateUniqueUsername(parsed.data.firstName, parsed.data.lastName);
     const { account, initialPassword } = await createAccount({
       email: parsed.data.email,
-      username: parsed.data.username,
+      username,
       firstName: parsed.data.firstName,
       lastName: parsed.data.lastName,
       middleName: parsed.data.middleName,

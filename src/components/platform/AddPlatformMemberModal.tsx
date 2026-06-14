@@ -44,7 +44,6 @@ export function AddPlatformMemberModal({
     audience === "staff" ? "staff" : "participant";
 
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [permissionProfile, setPermissionProfile] = useState<string>(defaultProfile);
@@ -56,7 +55,6 @@ export function AddPlatformMemberModal({
 
   const reset = () => {
     setEmail("");
-    setUsername("");
     setFirstName("");
     setLastName("");
     setPermissionProfile(defaultProfile);
@@ -80,7 +78,6 @@ export function AddPlatformMemberModal({
         method: "POST",
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
-          username: username.trim().toLowerCase(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           permissionProfile,
@@ -141,15 +138,6 @@ export function AddPlatformMemberModal({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="platform-member-username">Username</Label>
-          <Input
-            id="platform-member-username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
             required
           />
         </div>

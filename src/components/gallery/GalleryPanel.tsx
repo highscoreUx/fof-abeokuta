@@ -2,6 +2,7 @@
 
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
 import { GalleryGridSkeleton } from "@/components/gallery/GalleryGridSkeleton";
+import { GalleryMasonry, galleryMasonryItemClassName } from "@/components/gallery/GalleryMasonry";
 import { GalleryMediaPreview } from "@/components/gallery/GalleryMediaPreview";
 import { useAuth } from "@/hooks/useAuth";
 import { useGalleryDeleteMutation, useGalleryQuery } from "@/hooks/useGalleryQuery";
@@ -67,18 +68,18 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
           })}
         />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <GalleryMasonry>
           {photos.map((photo: GalleryPhotoRow) => (
             <figure
               key={photo.id}
-              className={cn(
-                "group overflow-hidden rounded-xl border border-border bg-card",
-                photo.status !== "READY" && "opacity-80",
+              className={galleryMasonryItemClassName(
+                cn(
+                  "group overflow-hidden rounded-xl border border-border bg-card",
+                  photo.status !== "READY" && "opacity-80",
+                ),
               )}
             >
-              <div className="relative aspect-square bg-muted">
-                <GalleryMediaPreview photo={photo} />
-              </div>
+              <GalleryMediaPreview photo={photo} layout="masonry" />
               <figcaption className="space-y-1 p-3 text-xs">
                 {photo.isOfficial ? (
                   <p className="font-medium text-primary">Official</p>
@@ -102,7 +103,7 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
               </figcaption>
             </figure>
           ))}
-        </div>
+        </GalleryMasonry>
       )}
     </div>
   );

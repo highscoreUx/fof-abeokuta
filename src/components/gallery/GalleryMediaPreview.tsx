@@ -4,20 +4,27 @@ import { useState } from "react";
 import { GalleryLightbox } from "@/components/gallery/GalleryLightbox";
 import { useGalleryMediaSrc } from "@/hooks/useGalleryMediaSrc";
 import { isGalleryVideoMime } from "@/lib/gallery-media";
+import { cn } from "@/lib/cn";
 import type { GalleryPhotoRow } from "@/types/gallery";
 
 interface GalleryMediaPreviewProps {
   photo: GalleryPhotoRow;
   className?: string;
+  layout?: "masonry" | "square";
 }
 
-export function GalleryMediaPreview({ photo, className }: GalleryMediaPreviewProps) {
+export function GalleryMediaPreview({
+  photo,
+  className,
+  layout = "square",
+}: GalleryMediaPreviewProps) {
   const [loadError, setLoadError] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const alt = photo.caption ?? photo.originalFilename ?? "Gallery media";
   const isVideo = isGalleryVideoMime(photo.mimeType);
   const isReady = photo.status === "READY";
+  const isMasonry = layout === "masonry";
   const thumbSrc = useGalleryMediaSrc(photo.id, "thumb", isReady);
   const fullSrc = useGalleryMediaSrc(photo.id, "full", isReady && isVideo);
 
@@ -25,40 +32,44 @@ export function GalleryMediaPreview({ photo, className }: GalleryMediaPreviewPro
     if (isReady && thumbSrc && !loadError) setLightboxOpen(true);
   };
 
+  const placeholderClass = cn(
+    "flex items-center justify-center bg-muted p-3 text-center text-xs text-muted-foreground",
+    isMasonry ? "min-h-[140px] w-full" : "h-full",
+  );
+
   if (!isReady) {
     return (
-      <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
+      <div className={placeholderClass}>
         {photo.status === "FAILED" ? (photo.errorMessage ?? "Upload failed") : "Processing…"}
       </div>
     );
   }
 
   if (loadError) {
-    return (
-      <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
-        Could not load preview
-      </div>
-    );
+    return <div className={placeholderClass}>Could not load preview</div>;
   }
 
   if (!thumbSrc) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        Loading…
-      </div>
-    );
+    return <div className={cn(placeholderClass, !isMasonry && "h-full")}>Loading…</div>;
   }
+
+  const imageClass = cn(
+    isMasonry
+      ? "block w-full h-auto bg-muted transition hover:opacity-95"
+      : "h-full w-full object-cover transition hover:opacity-95",
+    className,
+  );
 
   return (
     <>
       {isVideo && fullSrc ? (
-        <div className="relative h-full w-full">
+        <div className={cn("relative w-full", isMasonry && "bg-muted")}>
           <video
             src={fullSrc}
             poster={thumbSrc}
             controls
             preload="metadata"
-            className={className ?? "h-full w-full object-cover"}
+            className={cn(isMasonry ? "block w-full" : "h-full w-full object-cover", className)}
             onError={() => setLoadError(true)}
           />
           <button
@@ -73,7 +84,10 @@ export function GalleryMediaPreview({ photo, className }: GalleryMediaPreviewPro
       ) : (
         <button
           type="button"
-          className="block h-full w-full cursor-zoom-in overflow-hidden"
+          className={cn(
+            "block w-full cursor-zoom-in overflow-hidden",
+            !isMasonry && "h-full",
+          )}
           onClick={openLightbox}
           aria-label="View full size"
         >
@@ -81,7 +95,7 @@ export function GalleryMediaPreview({ photo, className }: GalleryMediaPreviewPro
           <img
             src={thumbSrc}
             alt={alt}
-            className={className ?? "h-full w-full object-cover transition hover:opacity-95"}
+            className={imageClass}
             onError={() => setLoadError(true)}
           />
         </button>

@@ -118,12 +118,7 @@ export function ParticipantView() {
             <ParticipantChat className="min-h-0 min-w-0 w-full flex-1 overflow-hidden" />
           )}
           {tab === "gallery" && canViewGallery && (
-            <Card>
-              <CardHeader className="mb-4">
-                <CardTitle>Gallery</CardTitle>
-              </CardHeader>
-              <GalleryPanel filter={galleryFilter} team={galleryTeam} />
-            </Card>
+            <GalleryPanel filter={galleryFilter} team={galleryTeam} />
           )}
           {tab === "agenda" &&
             (manageAgenda ? (

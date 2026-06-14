@@ -25,6 +25,8 @@ interface TttMatchRow {
   teamO: { letter: string; name: string };
 }
 
+const SOCKET_REFRESH_MS = 800;
+
 export function TicTacToeActivitiesPanel() {
   const { api } = useEventApi();
   const socket = useSocket();
@@ -37,29 +39,38 @@ export function TicTacToeActivitiesPanel() {
   const [matches, setMatches] = useState<TttMatchRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(focusMatchId);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api<{ challenges: TttChallengeRow[] }>("/tic-tac-toe-challenges");
-      setChallenges(data.challenges);
-      if (focusId) setSelectedId(focusId);
-      else if (data.challenges.length === 1) setSelectedId(data.challenges[0].id);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, focusId]);
+  const load = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!options?.silent) setInitialLoading(true);
+      try {
+        const data = await api<{ challenges: TttChallengeRow[] }>("/tic-tac-toe-challenges");
+        setChallenges(data.challenges);
+        if (focusId) setSelectedId(focusId);
+        else if (data.challenges.length === 1) setSelectedId(data.challenges[0].id);
+      } catch {
+        // Keep the last known list during background refresh failures.
+      } finally {
+        if (!options?.silent) setInitialLoading(false);
+      }
+    },
+    [api, focusId],
+  );
 
   const loadMatches = useCallback(
     async (challengeId: string) => {
-      const data = await api<{ matches: TttMatchRow[] }>(
-        `/tic-tac-toe-challenges/${challengeId}/matches`,
-      );
-      setMatches(data.matches.filter((m) => m.state !== "FINISHED"));
-      const active = data.matches.find((m) => m.state === "ACTIVE" || m.state === "WAITING");
-      if (focusMatchId) setSelectedMatchId(focusMatchId);
-      else if (active) setSelectedMatchId(active.id);
+      try {
+        const data = await api<{ matches: TttMatchRow[] }>(
+          `/tic-tac-toe-challenges/${challengeId}/matches`,
+        );
+        setMatches(data.matches.filter((m) => m.state !== "FINISHED"));
+        const active = data.matches.find((m) => m.state === "ACTIVE" || m.state === "WAITING");
+        if (focusMatchId) setSelectedMatchId(focusMatchId);
+        else if (active) setSelectedMatchId(active.id);
+      } catch {
+        // Live board updates still flow over the socket in TicTacToeMatchLive.
+      }
     },
     [api, focusMatchId],
   );
@@ -70,12 +81,19 @@ export function TicTacToeActivitiesPanel() {
 
   useEffect(() => {
     if (!socket) return;
-    const refresh = () => {
-      void load();
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void load({ silent: true });
+      }, SOCKET_REFRESH_MS);
     };
-    socket.on("ttt:state", refresh);
+
+    socket.on("ttt:state", scheduleRefresh);
     return () => {
-      socket.off("ttt:state", refresh);
+      socket.off("ttt:state", scheduleRefresh);
+      if (timer) clearTimeout(timer);
     };
   }, [socket, load]);
 
@@ -96,7 +114,7 @@ export function TicTacToeActivitiesPanel() {
       record.type === "ttt" && !liveMatchIds.has(record.matchId),
   );
 
-  if (loading) {
+  if (initialLoading) {
     return null;
   }
 

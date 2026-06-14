@@ -16,6 +16,8 @@ interface SpinnerInstance {
   config?: { options?: string[] };
 }
 
+const SOCKET_REFRESH_MS = 800;
+
 export function SpinnerActivitiesPanel() {
   const { api } = useEventApi();
   const socket = useSocket();
@@ -24,32 +26,46 @@ export function SpinnerActivitiesPanel() {
   const focusId = searchParams.get("spinner");
   const focusSession = searchParams.get("session");
   const [instances, setInstances] = useState<SpinnerInstance[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const loadInstances = useCallback(() => {
-    setLoading(true);
-    api<{ challenges: SpinnerInstance[] }>("/spin-challenges")
-      .then((d) => setInstances(d.challenges))
-      .catch(() => setInstances([]))
-      .finally(() => setLoading(false));
-  }, [api]);
+  const loadInstances = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!options?.silent) setInitialLoading(true);
+      try {
+        const data = await api<{ challenges: SpinnerInstance[] }>("/spin-challenges");
+        setInstances(data.challenges);
+      } catch {
+        // Keep the last known list during background refresh failures.
+      } finally {
+        if (!options?.silent) setInitialLoading(false);
+      }
+    },
+    [api],
+  );
 
   useEffect(() => {
-    loadInstances();
+    void loadInstances();
   }, [loadInstances]);
 
   useEffect(() => {
     if (!socket) return;
-    const refresh = () => {
-      loadInstances();
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void loadInstances({ silent: true });
+      }, SOCKET_REFRESH_MS);
     };
-    socket.on("spinner:state", refresh);
+
+    socket.on("spinner:state", scheduleRefresh);
     return () => {
-      socket.off("spinner:state", refresh);
+      socket.off("spinner:state", scheduleRefresh);
+      if (timer) clearTimeout(timer);
     };
   }, [socket, loadInstances]);
 
-  if (loading) {
+  if (initialLoading) {
     return null;
   }
 

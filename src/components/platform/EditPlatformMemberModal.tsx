@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { PLATFORM_ADMIN_PROFILE_SLUG } from "@/lib/member-access";
+import { useMemberProfileOptions } from "@/hooks/useMemberProfileOptions";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import { toastError } from "@/lib/toast";
@@ -43,9 +43,10 @@ export function EditPlatformMemberModal({
   }, [member]);
 
   const { roles } = usePlatformRoles();
-  const profileOptions = member?.isPlatformAdmin
-    ? [{ slug: PLATFORM_ADMIN_PROFILE_SLUG, name: "Platform admin" }]
-    : roles;
+  const profileOptions = useMemberProfileOptions({
+    roles,
+    memberIsPlatformAdmin: member?.isPlatformAdmin,
+  });
 
   const handleClose = () => {
     if (loading || deleting) return;

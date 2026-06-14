@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import type { GlobalMembersAudience } from "@/lib/member-access";
+import { useMemberProfileOptions } from "@/hooks/useMemberProfileOptions";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { platformApiFetch } from "@/lib/platform-api-client";
 import { toastError } from "@/lib/toast";
@@ -33,10 +34,11 @@ export function AddPlatformMemberModal({
   onCreated,
 }: AddPlatformMemberModalProps) {
   const { roles } = usePlatformRoles();
-  const profileOptions =
+  const profileOptions = useMemberProfileOptions({ roles });
+  const selectableProfiles =
     audience === "staff"
-      ? roles.filter((profile) => profile.slug !== "participant")
-      : roles;
+      ? profileOptions.filter((profile) => profile.slug !== "participant")
+      : profileOptions;
 
   const defaultProfile: SystemEventUserRoleSlug =
     audience === "staff" ? "staff" : "participant";
@@ -159,7 +161,7 @@ export function AddPlatformMemberModal({
             value={permissionProfile}
             onChange={(e) => setPermissionProfile(e.target.value)}
           >
-            {profileOptions.map((profile) => (
+            {selectableProfiles.map((profile) => (
               <option key={profile.slug} value={profile.slug}>
                 {profile.name}
               </option>

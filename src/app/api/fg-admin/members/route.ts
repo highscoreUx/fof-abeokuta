@@ -5,9 +5,12 @@ import { buildAccountsOrderBy, buildAccountsWhere } from "@/lib/accounts-query";
 import { jsonError } from "@/lib/auth/middleware";
 import {
   parseGlobalMembersAudience,
-  permissionsForMemberProfileSlug,
 } from "@/lib/member-access";
-import { ensurePlatformRolesSeeded, getProfileBySlug } from "@/lib/platform-roles.server";
+import {
+  permissionsForMemberProfile,
+  validateMemberProfileAssignment,
+} from "@/lib/member-profile-assignment";
+import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
@@ -59,10 +62,15 @@ export async function POST(request: NextRequest) {
 
   try {
     await ensurePlatformRolesSeeded();
-    if (!getProfileBySlug(parsed.data.permissionProfile)) {
-      return jsonError("Unknown role", "VALIDATION_ERROR", 400);
+    const assignmentError = validateMemberProfileAssignment(
+      authResult.auth.permissions,
+      parsed.data.permissionProfile,
+    );
+    if (assignmentError) {
+      return jsonError(assignmentError, "FORBIDDEN", 403);
     }
-    const permissions = permissionsForMemberProfileSlug(parsed.data.permissionProfile);
+
+    const permissions = permissionsForMemberProfile(parsed.data.permissionProfile);
     const { account, initialPassword } = await createAccount({
       email: parsed.data.email,
       username: parsed.data.username,
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
       password: parsed.data.password,
       permissions,
       mustChangePassword: true,
-      globalMember: true,
+      globalMember: parsed.data.permissionProfile !== "participant",
     });
 
     const { emailQueued } = deliverAccountCredentials(account.id, initialPassword, "welcome");

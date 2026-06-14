@@ -4,10 +4,13 @@ import { jsonError } from "@/lib/auth/middleware";
 import {
   isLockedMemberAccount,
   isPlatformAdminPermissions,
-  permissionsForMemberProfileSlug,
+  PLATFORM_ADMIN_PROFILE_SLUG,
 } from "@/lib/member-access";
+import {
+  permissionsForMemberProfile,
+  validateMemberProfileAssignment,
+} from "@/lib/member-profile-assignment";
 import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
-import { getProfileBySlug } from "@/lib/platform-roles.server";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { prisma } from "@/lib/prisma";
 import { serializeMemberRow } from "@/lib/users";
@@ -38,13 +41,19 @@ export async function PATCH(
   if (
     parsed.data.permissionProfile &&
     isPlatformAdminPermissions(existing.permissions) &&
-    parsed.data.permissionProfile !== "platform_admin"
+    parsed.data.permissionProfile !== PLATFORM_ADMIN_PROFILE_SLUG
   ) {
     return jsonError("Platform admin permission profile cannot be changed", "FORBIDDEN", 403);
   }
 
-  if (parsed.data.permissionProfile && !getProfileBySlug(parsed.data.permissionProfile)) {
-    return jsonError("Unknown role", "VALIDATION_ERROR", 400);
+  if (parsed.data.permissionProfile) {
+    const assignmentError = validateMemberProfileAssignment(
+      authResult.auth.permissions,
+      parsed.data.permissionProfile,
+    );
+    if (assignmentError) {
+      return jsonError(assignmentError, "FORBIDDEN", 403);
+    }
   }
 
   try {
@@ -55,14 +64,21 @@ export async function PATCH(
       lastName: parsed.data.lastName,
       middleName: parsed.data.middleName,
       permissions: parsed.data.permissionProfile
-        ? permissionsForMemberProfileSlug(parsed.data.permissionProfile)
+        ? permissionsForMemberProfile(parsed.data.permissionProfile)
         : undefined,
     });
 
-    const refreshed = await prisma.account.findUniqueOrThrow({
-      where: { id: account.id },
-      include: { _count: { select: { users: true } } },
-    });
+    const refreshed =
+      parsed.data.permissionProfile === PLATFORM_ADMIN_PROFILE_SLUG
+        ? await prisma.account.update({
+            where: { id: account.id },
+            data: { globalMember: true },
+            include: { _count: { select: { users: true } } },
+          })
+        : await prisma.account.findUniqueOrThrow({
+            where: { id: account.id },
+            include: { _count: { select: { users: true } } },
+          });
 
     return NextResponse.json({
       member: serializeMemberRow(refreshed),

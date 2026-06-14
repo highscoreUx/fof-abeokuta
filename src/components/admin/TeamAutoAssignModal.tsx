@@ -20,17 +20,20 @@ const ALGORITHM_OPTIONS: Array<{ value: TeamAssignAlgorithm; label: string; desc
     {
       value: "round_robin",
       label: "Round robin",
-      description: "Walk through teams in order (by team code) as participants are listed.",
+      description:
+        "Cycle through teams in order (A → B → C …), continuing from the current team sizes.",
     },
     {
       value: "alphabetical_round_robin",
       label: "Alphabetical round robin",
-      description: "Sort by name, then cycle through teams evenly.",
+      description:
+        "Sort by last name, then cycle through teams evenly from the current team sizes.",
     },
     {
       value: "checked_in_balanced",
       label: "Check-in priority",
-      description: "Checked-in participants first (earliest first), balanced across teams.",
+      description:
+        "Checked-in participants first (earliest first), each placed on the smallest team.",
     },
     {
       value: "random",
@@ -163,7 +166,7 @@ export function TeamAutoAssignModal({ open, onClose, onMessage }: TeamAutoAssign
               }
               className="mt-0.5 h-4 w-4 rounded border-border"
             />
-            <span>Auto-assign new participants after CSV import</span>
+            <span>Auto-assign new participants after CSV import (uses algorithm above)</span>
           </label>
 
           <label className="flex cursor-pointer items-start gap-2.5 text-sm">

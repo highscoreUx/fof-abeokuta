@@ -44,7 +44,6 @@ export function BulkImportModal({ open, onClose }: BulkImportModalProps) {
     setResult(null);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("autoAssignTeams", "true");
 
     const token = useAuthStore.getState().accessToken;
     const response = await globalThis.fetch(path("/users/import"), {

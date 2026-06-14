@@ -118,9 +118,12 @@ function pickBalancedTeam<T extends { id: string }>(
   teams: T[],
   teamCounts: Map<string, number>,
 ): T {
-  return teams.reduce((min, team) =>
-    (teamCounts.get(team.id) ?? 0) < (teamCounts.get(min.id) ?? 0) ? team : min,
-  );
+  let minCount = Infinity;
+  for (const team of teams) {
+    minCount = Math.min(minCount, teamCounts.get(team.id) ?? 0);
+  }
+  const tied = teams.filter((team) => (teamCounts.get(team.id) ?? 0) === minCount);
+  return tied[Math.floor(Math.random() * tied.length)]!;
 }
 
 function totalAssignedCount(teamCounts: Map<string, number>) {

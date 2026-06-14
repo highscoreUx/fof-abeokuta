@@ -34,7 +34,6 @@ export async function POST(
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
-  const autoAssignTeams = formData.get("autoAssignTeams") === "true";
 
   if (!file) return jsonError("No file provided", "NO_FILE", 400);
 
@@ -103,15 +102,12 @@ export async function POST(
   const assignableSlugs = assignableTeamRoleSlugs(assignSettings.includeStaff);
   const teamingEnabled = await isTeamingEnabled(ctx.event.id);
 
-  if (teamingEnabled) {
-    if (autoAssignTeams) {
-      await assignTeams(ctx.event.id, { includeStaff: assignSettings.includeStaff });
-    } else if (assignSettings.autoAssignOnImport && createdAssigneeIds.length > 0) {
-      await assignTeams(ctx.event.id, {
-        userIds: createdAssigneeIds,
-        includeStaff: assignSettings.includeStaff,
-      });
-    }
+  if (teamingEnabled && assignSettings.autoAssignOnImport && createdAssigneeIds.length > 0) {
+    await assignTeams(ctx.event.id, {
+      userIds: createdAssigneeIds,
+      onlyUnassigned: true,
+      includeStaff: assignSettings.includeStaff,
+    });
   }
 
   void assignableSlugs;

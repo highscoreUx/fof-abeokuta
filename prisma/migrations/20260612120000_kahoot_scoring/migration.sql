@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "QuizAnswer" ADD COLUMN     "responseTimeMs" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "isCorrect" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "streakAtAnswer" INTEGER NOT NULL DEFAULT 0;

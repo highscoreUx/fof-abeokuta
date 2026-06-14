@@ -29,7 +29,7 @@ export interface EventPhotoLibraryRow {
   id: string;
   eventId: string;
   googleAlbumId: string | null;
-  /** Google Photos productUrl — populated automatically when the album is created. */
+  /** Public share link for the Official filter — set manually in gallery settings. */
   officialGalleryUrl: string | null;
 }
 

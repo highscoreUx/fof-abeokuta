@@ -1,13 +1,16 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
+import { GalleryGridSkeleton } from "@/components/gallery/GalleryGridSkeleton";
 import { GalleryMediaPreview } from "@/components/gallery/GalleryMediaPreview";
 import { useAuth } from "@/hooks/useAuth";
 import { useGalleryDeleteMutation, useGalleryQuery } from "@/hooks/useGalleryQuery";
 import { useHasPermission } from "@/hooks/useHasPermission";
+import { galleryEmptyMessage } from "@/lib/gallery-filters";
 import type { GalleryFilter, GalleryPhotoRow } from "@/types/gallery";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface GalleryPanelProps {
   filter: GalleryFilter;
@@ -18,7 +21,7 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
   const { user } = useAuth();
   const canManage = useHasPermission("gallery.manage");
 
-  const { data, isLoading, isFetching } = useGalleryQuery({
+  const { data, isLoading } = useGalleryQuery({
     filter: filter === "team" ? "team" : filter,
     team: filter === "team" ? team : undefined,
     pollPending: true,
@@ -28,6 +31,8 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
 
   const albumUrl = data?.library.officialGalleryUrl;
   const showOfficialLink = filter === "official" && albumUrl;
+  const photos = data?.data ?? [];
+  const isEmpty = !isLoading && photos.length === 0;
 
   return (
     <div className="w-full space-y-6">
@@ -53,56 +58,51 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading gallery…</p>
+        <GalleryGridSkeleton />
+      ) : isEmpty ? (
+        <AgendaEmpty
+          message={galleryEmptyMessage(filter, {
+            team,
+            officialGalleryUrl: albumUrl,
+          })}
+        />
       ) : (
-        <>
-          {isFetching && <p className="text-xs text-muted-foreground">Refreshing…</p>}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {data?.data.map((photo: GalleryPhotoRow) => (
-              <figure
-                key={photo.id}
-                className={cn(
-                  "group overflow-hidden rounded-xl border border-border bg-card",
-                  photo.status !== "READY" && "opacity-80",
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {photos.map((photo: GalleryPhotoRow) => (
+            <figure
+              key={photo.id}
+              className={cn(
+                "group overflow-hidden rounded-xl border border-border bg-card",
+                photo.status !== "READY" && "opacity-80",
+              )}
+            >
+              <div className="relative aspect-square bg-muted">
+                <GalleryMediaPreview photo={photo} />
+              </div>
+              <figcaption className="space-y-1 p-3 text-xs">
+                {photo.isOfficial ? (
+                  <p className="font-medium text-primary">Official</p>
+                ) : photo.uploadedByTeamLetter ? (
+                  <p className="font-medium">Team {photo.uploadedByTeamLetter}</p>
+                ) : null}
+                {photo.uploaderName && (
+                  <p className="text-muted-foreground">{photo.uploaderName}</p>
                 )}
-              >
-                <div className="relative aspect-square bg-muted">
-                  <GalleryMediaPreview photo={photo} />
-                </div>
-                <figcaption className="space-y-1 p-3 text-xs">
-                  {photo.isOfficial ? (
-                    <p className="font-medium text-primary">Official</p>
-                  ) : photo.uploadedByTeamLetter ? (
-                    <p className="font-medium">Team {photo.uploadedByTeamLetter}</p>
-                  ) : null}
-                  {photo.uploaderName && (
-                    <p className="text-muted-foreground">{photo.uploaderName}</p>
-                  )}
-                  {(photo.uploadedByUserId === user?.id || canManage) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => void deleteMutation.mutateAsync(photo.id)}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-          {!data?.data.length && filter !== "official" && (
-            <p className="text-sm text-muted-foreground">No media yet.</p>
-          )}
-          {!data?.data.length && filter === "official" && !albumUrl && (
-            <p className="text-sm text-muted-foreground">
-              No official media uploaded in-app yet. Ask an admin to set the Google Photos album
-              link.
-            </p>
-          )}
-        </>
+                {(photo.uploadedByUserId === user?.id || canManage) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => void deleteMutation.mutateAsync(photo.id)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
       )}
     </div>
   );

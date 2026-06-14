@@ -23,3 +23,21 @@ export function parseGalleryFilterValue(value: string): {
   }
   return { filter: value as GalleryFilter };
 }
+
+export function galleryEmptyMessage(
+  filter: GalleryFilter,
+  options?: { team?: string; officialGalleryUrl?: string | null },
+): string {
+  if (filter === "official") {
+    return options?.officialGalleryUrl
+      ? "No official media in the app gallery yet."
+      : "No official media uploaded in-app yet. Ask an admin to set the Google Photos album link.";
+  }
+  if (filter === "mine") {
+    return "You haven't uploaded any media yet.";
+  }
+  if (filter === "team" && options?.team) {
+    return `No media from Team ${options.team} yet.`;
+  }
+  return "No media yet. Upload photos and videos to get started.";
+}

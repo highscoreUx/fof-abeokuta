@@ -123,6 +123,37 @@ function pickBalancedTeam<T extends { id: string }>(
   );
 }
 
+function totalAssignedCount(teamCounts: Map<string, number>) {
+  let total = 0;
+  for (const count of teamCounts.values()) total += count;
+  return total;
+}
+
+async function loadExistingTeamCounts(
+  eventId: string,
+  teams: Array<{ id: string }>,
+  includeStaff: boolean,
+  excludeUserIds: string[],
+) {
+  const teamCounts = new Map(teams.map((team) => [team.id, 0]));
+  const assigned = await prisma.user.findMany({
+    where: {
+      eventId,
+      teamId: { not: null },
+      ...(excludeUserIds.length > 0 ? { id: { notIn: excludeUserIds } } : {}),
+    },
+    include: { account: true },
+  });
+
+  for (const user of assigned) {
+    if (!user.teamId || !teamCounts.has(user.teamId)) continue;
+    if (!isTeamAssignableMember(resolveUserRolePermissions(user), includeStaff)) continue;
+    teamCounts.set(user.teamId, (teamCounts.get(user.teamId) ?? 0) + 1);
+  }
+
+  return teamCounts;
+}
+
 export async function assignTeams(eventId: string, options: AssignOptions = {}) {
   if (!(await isTeamingEnabled(eventId))) {
     throw new Error("Teaming is disabled for this event");
@@ -153,7 +184,12 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
     return [];
   }
 
-  const teamCounts = new Map(teams.map((t) => [t.id, 0]));
+  const teamCounts = await loadExistingTeamCounts(
+    eventId,
+    teams,
+    includeStaff,
+    users.map((user) => user.id),
+  );
 
   const assignUser = async (userId: string, teamId: string) => {
     await prisma.user.update({ where: { id: userId }, data: { teamId } });
@@ -169,8 +205,9 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
       break;
     }
     case "round_robin": {
+      const offset = totalAssignedCount(teamCounts) % teams.length;
       for (let i = 0; i < users.length; i++) {
-        await assignUser(users[i].id, teams[i % teams.length].id);
+        await assignUser(users[i].id, teams[(offset + i) % teams.length].id);
       }
       break;
     }
@@ -179,8 +216,9 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
         const last = a.account.lastName.localeCompare(b.account.lastName);
         return last !== 0 ? last : a.account.firstName.localeCompare(b.account.firstName);
       });
+      const offset = totalAssignedCount(teamCounts) % teams.length;
       for (let i = 0; i < sorted.length; i++) {
-        await assignUser(sorted[i].id, teams[i % teams.length].id);
+        await assignUser(sorted[i].id, teams[(offset + i) % teams.length].id);
       }
       break;
     }

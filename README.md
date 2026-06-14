@@ -70,6 +70,26 @@ CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
 ```
 
+## Event gallery (Google Photos)
+
+Gallery uploads use the **Google Photos Library API** only (server-side, one Google account). Quiz and other media still use Cloudinary/R2 above.
+
+When an event is created, FOF creates a Google Photos album for that event. All gallery uploads go to your account via API; Postgres stores attribution (user, team, official flag).
+
+```env
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_PHOTOS_REFRESH_TOKEN=...
+```
+
+OAuth scopes: `photoslibrary.appendonly`, `photoslibrary.readonly.appcreateddata`, `photoslibrary.edit.appcreateddata`.
+
+Generate a refresh token once (OAuth playground or a one-time local script), then set `GOOGLE_PHOTOS_REFRESH_TOKEN` on Render.
+
+Optional: after sharing the event album in Google Photos, paste the public link in **Event settings → Gallery** so users can open the full album outside FOF.
+
+Gallery uploads also use `CLOUDAMQP_URL` when set (same queue as email) so multiple files process in the background.
+
 ## Transactional emails (optional)
 
 Account credentials (welcome, reset, check-in) and check-in welcome emails are sent asynchronously via RabbitMQ + SMTP. APIs only enqueue jobs; the custom server processes the queue in the background so requests stay fast.

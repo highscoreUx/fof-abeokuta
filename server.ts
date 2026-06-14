@@ -6,6 +6,7 @@ import "dotenv/config";
 import { recoverQuizTimers } from "./src/server/games/quizEngine";
 import { ensurePlatformBootstrap } from "./src/server/bootstrap";
 import { startEmailQueueConsumer } from "./src/server/email-worker";
+import { startGalleryQueueConsumer } from "./src/server/gallery-worker";
 import { setIO } from "./src/server/socket/io";
 import { registerSocketHandlers } from "./src/server/socket/handlers";
 
@@ -52,6 +53,12 @@ app.prepare().then(async () => {
     await startEmailQueueConsumer();
   } catch (error) {
     console.warn("[startup] Email queue consumer skipped:", error);
+  }
+
+  try {
+    await startGalleryQueueConsumer();
+  } catch (error) {
+    console.warn("[startup] Gallery queue consumer skipped:", error);
   }
 
   httpServer.listen(port, bindHost, () => {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { ChatSettings } from "@/components/admin/ChatSettings";
+import { GallerySettings } from "@/components/admin/GallerySettings";
 import { StreamControls } from "@/components/admin/StreamControls";
 import { TeamSettings } from "@/components/admin/TeamSettings";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +12,12 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useEventSettings } from "@/hooks/useEventSettings";
 
-type SettingsTab = "teams" | "chat" | "broadcasting";
+import { useHasPermission } from "@/hooks/useHasPermission";
+
+type SettingsTab = "teams" | "chat" | "broadcasting" | "gallery";
 
 function parseTab(value: string | null, teamingEnabled: boolean): SettingsTab {
-  if (value === "chat" || value === "broadcasting") return value;
+  if (value === "chat" || value === "broadcasting" || value === "gallery") return value;
   if (value === "teams" && teamingEnabled) return "teams";
   return teamingEnabled ? "teams" : "chat";
 }
@@ -24,6 +27,7 @@ export function SettingsView() {
   const searchParams = useSearchParams();
   const { settings: settingsPath } = useEventNav();
   const { teamingEnabled, loading } = useEventSettings();
+  const canManageGallery = useHasPermission("gallery.manage");
   const tab = parseTab(searchParams.get("tab"), teamingEnabled);
 
   const tabOptions = useMemo(() => {
@@ -31,8 +35,9 @@ export function SettingsView() {
     if (teamingEnabled) options.push({ value: "teams", label: "Teams" });
     options.push({ value: "chat", label: "Chat" });
     options.push({ value: "broadcasting", label: "Broadcasting" });
+    if (canManageGallery) options.push({ value: "gallery", label: "Gallery" });
     return options;
-  }, [teamingEnabled]);
+  }, [teamingEnabled, canManageGallery]);
 
   useEffect(() => {
     if (loading) return;
@@ -55,7 +60,7 @@ export function SettingsView() {
   );
 
   return (
-    <PermissionGuard anyOf={["team.list", "team.manage", "settings.broadcasting"]} embedded>
+    <PermissionGuard anyOf={["team.list", "team.manage", "settings.broadcasting", "gallery.manage"]} embedded>
       <div className="space-y-6">
         <Card>
           <CardHeader className="space-y-4">
@@ -79,6 +84,7 @@ export function SettingsView() {
         {tab === "teams" && teamingEnabled && <TeamSettings />}
         {tab === "chat" && <ChatSettings teamingEnabled={teamingEnabled} />}
         {tab === "broadcasting" && <StreamControls />}
+        {tab === "gallery" && canManageGallery && <GallerySettings />}
       </div>
     </PermissionGuard>
   );

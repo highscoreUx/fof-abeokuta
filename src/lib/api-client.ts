@@ -64,3 +64,45 @@ export async function apiFetch<T>(
 }
 
 export { refreshAccessToken };
+
+export async function eventApiUpload<T>(
+  eventSlug: string,
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  const token = useAuthStore.getState().accessToken;
+
+  const response = await fetch(eventApiPath(eventSlug, path), {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+    credentials: "include",
+  });
+
+  if (response.status === 403) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiForbiddenError(
+      typeof data.error === "string" ? data.error : "You do not have permission for this action.",
+    );
+  }
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return eventApiUpload<T>(eventSlug, path, formData);
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") {
+      window.location.href = getLoginRedirectFromPathname(
+        window.location.pathname,
+        window.location.search,
+      );
+      return new Promise(() => {}) as Promise<T>;
+    }
+    return new Promise(() => {}) as Promise<T>;
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Upload failed");
+  return data as T;
+}

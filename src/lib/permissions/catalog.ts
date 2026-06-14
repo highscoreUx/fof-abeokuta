@@ -42,7 +42,11 @@ export type Permission =
   | "participant.tic_tac_toe"
   | "participant.survey"
   | "participant.vote"
-  | "stage.view";
+  | "stage.view"
+  | "gallery.view"
+  | "gallery.upload"
+  | "gallery.media_upload"
+  | "gallery.manage";
 
 export type RolePermission = Permission | "*";
 
@@ -59,7 +63,7 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 6;
+export const PERMISSIONS_CATALOG_REVISION = 7;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
   "platform.admin",
@@ -106,6 +110,10 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "participant.survey",
   "participant.vote",
   "stage.view",
+  "gallery.view",
+  "gallery.upload",
+  "gallery.media_upload",
+  "gallery.manage",
 ] as const;
 
 export const PERMISSION_CATALOG: PermissionGroup[] = [
@@ -210,6 +218,16 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
     id: "stage",
     label: "Main stage",
     permissions: [{ permission: "stage.view", label: "View main stage" }],
+  },
+  {
+    id: "gallery",
+    label: "Gallery",
+    permissions: [
+      { permission: "gallery.view", label: "View event gallery" },
+      { permission: "gallery.upload", label: "Upload photos (participant)" },
+      { permission: "gallery.media_upload", label: "Upload official photos (media team)" },
+      { permission: "gallery.manage", label: "Manage gallery settings and moderation" },
+    ],
   },
 ];
 

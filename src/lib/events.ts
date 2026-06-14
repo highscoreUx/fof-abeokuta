@@ -1,6 +1,7 @@
 import slugify from "slugify";
 import { FIGMA_TEAMS } from "@/lib/figma-teams";
 import { ensureEventActivityRows, seedActivityTypes } from "@/lib/activities/event-activities";
+import { provisionEventPhotoLibrary } from "@/lib/gallery-library";
 import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
 import { invalidateEventBySlug } from "@/lib/cache/invalidate";
 import { prisma } from "@/lib/prisma";
@@ -126,6 +127,7 @@ export async function createEventWithDefaults(data: {
     include: { teams: true },
   });
 
+  await provisionEventPhotoLibrary(event.id, event.title, event.slug);
   await seedActivityTypes();
   await ensureEventActivityRows(event.id);
 

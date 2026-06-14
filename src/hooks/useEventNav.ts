@@ -47,6 +47,7 @@ export function useEventNav() {
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
         navIf("user.check_in", `${prefix}/staff/check-in`, "Check In", permissions),
+        navIf("gallery.view", `${prefix}/home/gallery`, "Gallery", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
@@ -66,6 +67,7 @@ export function useEventNav() {
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
         navIf("participant.activities", `${prefix}/home/activities`, "Activities", permissions),
+        navIf("gallery.view", `${prefix}/home/gallery`, "Gallery", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
@@ -87,6 +89,7 @@ export function useEventNav() {
     stage: `${prefix}/stage`,
     home: `${prefix}/home`,
     homeActivities: `${prefix}/home/activities`,
+    gallery: `${prefix}/home/gallery`,
     /** @deprecated use home */
     participant: `${prefix}/home`,
     /** @deprecated use homeActivities */

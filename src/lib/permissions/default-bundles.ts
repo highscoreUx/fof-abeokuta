@@ -58,6 +58,11 @@ const COORDINATOR_PERMISSIONS: Permission[] = [
   "participant.tic_tac_toe",
   "participant.survey",
   "participant.vote",
+  "stage.view",
+  "gallery.view",
+  "gallery.upload",
+  "gallery.media_upload",
+  "gallery.manage",
 ];
 
 const STAFF_PERMISSIONS: Permission[] = [
@@ -82,6 +87,8 @@ const PARTICIPANT_PERMISSIONS: Permission[] = [
   "participant.survey",
   "participant.vote",
   "stage.view",
+  "gallery.view",
+  "gallery.upload",
 ];
 
 export const DEFAULT_EVENT_USER_ROLE_BUNDLES: Array<{

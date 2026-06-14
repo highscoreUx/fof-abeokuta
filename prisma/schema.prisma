@@ -81,6 +81,13 @@ enum SurveyQuestionType {
   NPS
 }
 
+enum GalleryPhotoStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
 model PlatformRole {
   id                 String   @id @default(cuid())
   slug               String   @unique
@@ -144,6 +151,7 @@ model Event {
   eventActivities EventActivity[]
   appSettings     AppSetting[]
   auditLogs       AuditLog[]
+  photoLibrary    EventPhotoLibrary?
 }
 
 model ActivityType {
@@ -171,6 +179,48 @@ model EventActivity {
   @@unique([eventId, activityTypeId])
 }
 
+model EventPhotoLibrary {
+  id                 String         @id @default(cuid())
+  eventId            String         @unique
+  event              Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /** App-created Google Photos album for this event (gallery storage backend). */
+  googleAlbumId      String?
+  /** Optional public link after the album is shared in Google Photos (view album outside FOF). */
+  officialGalleryUrl String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  photos             GalleryPhoto[]
+}
+
+model GalleryPhoto {
+  id                 String             @id @default(cuid())
+  libraryId          String
+  library            EventPhotoLibrary  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  eventId            String
+  uploadedByUserId   String?
+  uploadedBy         User?              @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  uploadedByTeamId   String?
+  uploadedByTeam     Team?              @relation(fields: [uploadedByTeamId], references: [id], onDelete: SetNull)
+  uploadedByTeamName String?
+  isOfficial         Boolean            @default(false)
+  status             GalleryPhotoStatus @default(PENDING)
+  googleMediaItemId  String?
+  url                String?
+  thumbnailUrl       String?
+  urlExpiresAt       DateTime?
+  mimeType           String
+  originalFilename   String?
+  caption            String?
+  errorMessage       String?
+  uploadedAt         DateTime           @default(now())
+  processedAt        DateTime?
+
+  @@index([eventId, status, uploadedAt])
+  @@index([libraryId])
+  @@index([uploadedByUserId])
+  @@index([uploadedByTeamId])
+}
+
 model Team {
   id      String @id @default(cuid())
   eventId String
@@ -190,6 +240,7 @@ model Team {
   ticTacToeMatchesAsX TicTacToeMatch[] @relation("TttTeamX")
   ticTacToeMatchesAsO TicTacToeMatch[] @relation("TttTeamO")
   ticTacToeWins       TicTacToeMatch[] @relation("TttWinner")
+  galleryPhotos       GalleryPhoto[]
 
   @@unique([eventId, letter])
 }
@@ -226,6 +277,7 @@ model User {
   tttChampionO        TicTacToeMatch[] @relation("TttChampionO")
   surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
+  galleryPhotos GalleryPhoto[]
 
   @@unique([accountId, eventId])
   @@unique([eventId, ticketNumber])

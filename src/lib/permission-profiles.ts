@@ -1,11 +1,12 @@
 import {
+  hasWildcardAccess,
   normalizeRolePermissions,
   permissionsFingerprint,
   resolvePermissionsList,
   type Permission,
   type RolePermission,
 } from "@/lib/permissions/catalog";
-import { isPlatformAdminPermissions } from "@/lib/member-access";
+import { canAccessPlatform } from "@/lib/account-permissions";
 import {
   DEFAULT_EVENT_USER_ROLE_BUNDLES,
   type SystemEventUserRoleSlug,
@@ -42,8 +43,10 @@ export function getProfilePermissions(slug: string): RolePermission[] {
 }
 
 export function getProfileLabelForPermissions(permissions: unknown): string {
-  if (isPlatformAdminPermissions(permissions)) return "Platform admin";
   const normalized = normalizeRolePermissions(permissions);
+  if (hasWildcardAccess(normalized) || canAccessPlatform(normalized)) {
+    return "Platform admin";
+  }
   const fingerprint = permissionsFingerprint(normalized);
   for (const profile of DEFAULT_EVENT_USER_ROLE_BUNDLES) {
     if (permissionsFingerprint(profile.permissions) === fingerprint) {

@@ -127,13 +127,6 @@ export async function POST(
   }
 
   const isOfficial = isOfficialRequested && canUploadOfficial;
-  if (!isOfficial && !user.teamId) {
-    return jsonError(
-      "You must be assigned to a team before uploading media",
-      "TEAM_REQUIRED",
-      400,
-    );
-  }
 
   const library = await ensureEventPhotoLibrary(ctx.event.id);
   const { saveGalleryStagingFile } = await import("@/server/gallery-worker/staging");

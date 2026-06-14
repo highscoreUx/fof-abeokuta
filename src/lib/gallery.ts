@@ -108,6 +108,8 @@ export function serializeGalleryPhoto(photo: {
   isOfficial: boolean;
   status: GalleryPhotoStatus;
   mimeType: string;
+  mediaWidth: number | null;
+  mediaHeight: number | null;
   url: string | null;
   thumbnailUrl: string | null;
   caption: string | null;
@@ -137,6 +139,8 @@ export function serializeGalleryPhoto(photo: {
     isOfficial: photo.isOfficial,
     status: photo.status,
     mimeType: photo.mimeType,
+    mediaWidth: photo.mediaWidth,
+    mediaHeight: photo.mediaHeight,
     url: null,
     thumbnailUrl: null,
     caption: photo.caption,

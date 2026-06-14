@@ -77,6 +77,8 @@ export async function processGalleryUpload(photoId: string): Promise<void> {
         urlExpiresAt: googlePhotoUrlExpiresAt(),
         processedAt: new Date(),
         errorMessage: null,
+        mediaWidth: photo.mediaWidth ?? mediaItem.width ?? null,
+        mediaHeight: photo.mediaHeight ?? mediaItem.height ?? null,
       },
     });
 

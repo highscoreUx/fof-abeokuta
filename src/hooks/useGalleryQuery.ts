@@ -1,9 +1,12 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useEventApi } from "@/hooks/useEventApi";
 import { eventApiUpload } from "@/lib/api-client";
+import { readGalleryFileDimensions } from "@/lib/gallery-file-dimensions";
 import type { GalleryFilter, GalleryListResponse, GalleryPhotoRow } from "@/types/gallery";
+
+export const GALLERY_PAGE_LIMIT = 24;
 
 export function galleryQueryKey(
   slug: string,
@@ -29,7 +32,7 @@ export function useGalleryQuery(options: {
       const params = new URLSearchParams({
         filter: options.filter,
         page: String(page),
-        limit: "24",
+        limit: String(GALLERY_PAGE_LIMIT),
       });
       if (options.filter === "team" && options.team) {
         params.set("team", options.team);
@@ -47,6 +50,7 @@ export function useGalleryQuery(options: {
             : false;
         }
       : false,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -57,9 +61,11 @@ export function useGalleryUploadMutation() {
   return useMutation({
     mutationFn: async (input: { files: File[]; isOfficial?: boolean; caption?: string }) => {
       const formData = new FormData();
+      const fileMeta = await Promise.all(input.files.map((file) => readGalleryFileDimensions(file)));
       for (const file of input.files) {
         formData.append("files", file);
       }
+      formData.set("fileMeta", JSON.stringify(fileMeta));
       if (input.isOfficial) formData.set("isOfficial", "true");
       if (input.caption) formData.set("caption", input.caption);
 

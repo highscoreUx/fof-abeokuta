@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GalleryShimmer } from "@/components/gallery/GalleryShimmer";
 import { useGalleryMediaSrc } from "@/hooks/useGalleryMediaSrc";
 import { isGalleryVideoMime } from "@/lib/gallery-media";
@@ -15,6 +15,13 @@ interface GalleryMediaPreviewProps {
   onOpenLightbox?: () => void;
 }
 
+function galleryMediaAspectStyle(photo: GalleryPhotoRow): React.CSSProperties | undefined {
+  if (photo.mediaWidth && photo.mediaHeight) {
+    return { aspectRatio: `${photo.mediaWidth} / ${photo.mediaHeight}` };
+  }
+  return undefined;
+}
+
 export function GalleryMediaPreview({
   photo,
   className,
@@ -22,23 +29,39 @@ export function GalleryMediaPreview({
   onOpenLightbox,
 }: GalleryMediaPreviewProps) {
   const [loadError, setLoadError] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
 
   const alt = photo.caption ?? photo.originalFilename ?? "Gallery media";
   const isVideo = isGalleryVideoMime(photo.mimeType);
   const isReady = photo.status === "READY";
   const isProcessing = photo.status === "PENDING" || photo.status === "PROCESSING";
-  const thumbSrc = useGalleryMediaSrc(photo.id, "thumb", isReady);
+  const mediaSrc = useGalleryMediaSrc(photo.id, "full", isReady);
   const fullSrc = useGalleryMediaSrc(photo.id, "full", isReady && isVideo);
+  const thumbSrc = useGalleryMediaSrc(photo.id, "thumb", isReady && isVideo);
+
+  useEffect(() => {
+    setMediaLoaded(false);
+    setLoadError(false);
+  }, [photo.id, mediaSrc, fullSrc]);
 
   const openLightbox = () => {
-    if (isReady && thumbSrc && !loadError) onOpenLightbox?.();
+    if (isReady && mediaSrc && mediaLoaded && !loadError) onOpenLightbox?.();
   };
 
   const errorClass =
     "flex h-full w-full items-center justify-center bg-muted p-3 text-center text-xs text-muted-foreground";
 
+  const aspectStyle = galleryMediaAspectStyle(photo);
+  const showShimmer =
+    isProcessing ||
+    (isReady && !loadError && !mediaLoaded && Boolean(isVideo ? fullSrc : mediaSrc));
+
   if (isProcessing) {
-    return <GalleryShimmer className="h-full w-full rounded-2xl" label="Processing upload" />;
+    return (
+      <div className="relative h-full w-full" style={aspectStyle}>
+        <GalleryShimmer className="h-full w-full rounded-2xl" label="Processing upload" />
+      </div>
+    );
   }
 
   if (!isReady) {
@@ -53,40 +76,57 @@ export function GalleryMediaPreview({
     return <div className={errorClass}>Could not load preview</div>;
   }
 
-  if (!thumbSrc) {
-    return <GalleryShimmer className="h-full w-full rounded-2xl" label="Loading media" />;
-  }
-
   const mediaClass = cn(
     "h-full w-full object-cover",
-    !passive && "cursor-zoom-in transition hover:opacity-95",
+    !passive && "cursor-zoom-in transition-opacity duration-200",
+    !mediaLoaded && "opacity-0",
+    mediaLoaded && "opacity-100",
     className,
   );
 
-  if (isVideo && fullSrc) {
-    return (
-      <video
-        src={fullSrc}
-        poster={thumbSrc}
-        controls={!passive}
-        preload="metadata"
-        className={mediaClass}
-        onError={() => setLoadError(true)}
-      />
-    );
-  }
+  const mediaFrame = (
+    <div className="relative h-full w-full" style={aspectStyle}>
+      {showShimmer && (
+        <GalleryShimmer
+          className="absolute inset-0 z-10 h-full w-full rounded-2xl"
+          label={mediaSrc || fullSrc ? "Loading media" : "Fetching media"}
+        />
+      )}
 
-  if (passive) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={thumbSrc}
-        alt={alt}
-        className={mediaClass}
-        decoding="async"
-        onError={() => setLoadError(true)}
-      />
-    );
+      {isVideo && fullSrc ? (
+        <video
+          src={fullSrc}
+          poster={thumbSrc ?? undefined}
+          controls={!passive}
+          preload="metadata"
+          className={mediaClass}
+          width={photo.mediaWidth ?? undefined}
+          height={photo.mediaHeight ?? undefined}
+          onLoadedData={() => setMediaLoaded(true)}
+          onError={() => setLoadError(true)}
+        />
+      ) : mediaSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={mediaSrc}
+          alt={alt}
+          className={mediaClass}
+          decoding="async"
+          width={photo.mediaWidth ?? undefined}
+          height={photo.mediaHeight ?? undefined}
+          onLoad={() => setMediaLoaded(true)}
+          onError={() => setLoadError(true)}
+        />
+      ) : (
+        !showShimmer && (
+          <GalleryShimmer className="h-full w-full rounded-2xl" label="Fetching media" />
+        )
+      )}
+    </div>
+  );
+
+  if (isVideo || passive) {
+    return mediaFrame;
   }
 
   return (
@@ -96,14 +136,7 @@ export function GalleryMediaPreview({
       onClick={openLightbox}
       aria-label="View full size"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={thumbSrc}
-        alt={alt}
-        className={mediaClass}
-        decoding="async"
-        onError={() => setLoadError(true)}
-      />
+      {mediaFrame}
     </button>
   );
 }

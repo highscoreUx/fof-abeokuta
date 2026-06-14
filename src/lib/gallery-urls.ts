@@ -6,6 +6,7 @@ import {
   googleMediaDisplayUrls,
   googlePhotoUrlExpiresAt,
   isGooglePhotoUrlExpired,
+  usesLegacyGoogleMediaSizing,
 } from "@/server/google-photos";
 
 export type GalleryMediaSize = "thumb" | "full";
@@ -30,7 +31,9 @@ export async function ensureGalleryPhotoGoogleUrls(photo: {
     !photo.url ||
     !photo.thumbnailUrl ||
     isMalformedGoogleMediaUrl(photo.url) ||
-    isMalformedGoogleMediaUrl(photo.thumbnailUrl);
+    isMalformedGoogleMediaUrl(photo.thumbnailUrl) ||
+    usesLegacyGoogleMediaSizing(photo.url, photo.mimeType) ||
+    usesLegacyGoogleMediaSizing(photo.thumbnailUrl, photo.mimeType);
 
   if (!needsRefresh) {
     return photo;
@@ -135,7 +138,8 @@ export async function refreshGalleryPhotoUrls(photos: Array<{
       !isGooglePhotoUrlExpired(photo.urlExpiresAt) &&
       photo.url &&
       !isMalformedGoogleMediaUrl(photo.url) &&
-      !isMalformedGoogleMediaUrl(photo.thumbnailUrl)
+      !isMalformedGoogleMediaUrl(photo.thumbnailUrl) &&
+      !usesLegacyGoogleMediaSizing(photo.url, photo.mimeType)
     ) {
       continue;
     }

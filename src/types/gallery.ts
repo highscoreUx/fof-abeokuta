@@ -12,6 +12,8 @@ export interface GalleryPhotoRow {
   isOfficial: boolean;
   status: GalleryPhotoStatus;
   mimeType: string;
+  mediaWidth: number | null;
+  mediaHeight: number | null;
   url: string | null;
   thumbnailUrl: string | null;
   caption: string | null;

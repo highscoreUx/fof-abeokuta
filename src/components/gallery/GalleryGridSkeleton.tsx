@@ -7,7 +7,7 @@ interface GalleryGridSkeletonProps {
   tiles?: number;
 }
 
-export function GalleryGridSkeleton({ tiles = 9 }: GalleryGridSkeletonProps) {
+export function GalleryGridSkeleton({ tiles = 12 }: GalleryGridSkeletonProps) {
   return (
     <GalleryGrid>
       {Array.from({ length: tiles }).map((_, index) => (

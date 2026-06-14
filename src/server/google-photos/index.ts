@@ -6,6 +6,7 @@ export {
   googlePhotoDisplayUrls,
   googlePhotoUrlExpiresAt,
   isGooglePhotoUrlExpired,
+  usesLegacyGoogleMediaSizing,
   fetchGooglePhotosMediaBytes,
   removeGooglePhotosMediaFromAlbum,
   searchAlbumMediaItemByFilename,

@@ -15,6 +15,27 @@ export interface GooglePhotosMediaItem {
   baseUrl: string;
   mimeType: string;
   filename?: string;
+  width?: number;
+  height?: number;
+}
+
+function parseGoogleMediaDimension(value: unknown): number | undefined {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 32_000) return undefined;
+  return Math.round(parsed);
+}
+
+function parseGoogleMediaMetadata(record: Record<string, unknown>) {
+  const metadata = record.mediaMetadata;
+  if (!metadata || typeof metadata !== "object") {
+    return { width: undefined, height: undefined };
+  }
+
+  const meta = metadata as Record<string, unknown>;
+  return {
+    width: parseGoogleMediaDimension(meta.width),
+    height: parseGoogleMediaDimension(meta.height),
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -33,11 +54,14 @@ function parseMediaItemPayload(data: unknown): GooglePhotosMediaItem | null {
   const baseUrl = typeof item.baseUrl === "string" ? item.baseUrl : null;
   const mimeType = typeof item.mimeType === "string" ? item.mimeType : "image/jpeg";
   if (!id || !baseUrl) return null;
+  const { width, height } = parseGoogleMediaMetadata(item);
   return {
     id,
     baseUrl,
     mimeType,
     filename: typeof item.filename === "string" ? item.filename : undefined,
+    width,
+    height,
   };
 }
 
@@ -121,10 +145,20 @@ export function googleMediaDisplayUrls(baseUrl: string, mimeType: string) {
     };
   }
 
+  // =d returns original image bytes (Google Photos Library API download param).
   return {
-    url: `${root}=w1600-h1600`,
-    thumbnailUrl: `${root}=w400-h400`,
+    url: `${root}=d`,
+    thumbnailUrl: `${root}=d`,
   };
+}
+
+/** True when cached Google URLs still use resized w/h params instead of original (=d). */
+export function usesLegacyGoogleMediaSizing(
+  url: string | null | undefined,
+  mimeType: string,
+): boolean {
+  if (!url || mimeType.startsWith("video/")) return false;
+  return url.endsWith("=d") === false;
 }
 
 /** @deprecated use googleMediaDisplayUrls */

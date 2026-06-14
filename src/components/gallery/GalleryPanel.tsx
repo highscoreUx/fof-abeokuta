@@ -1,11 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
 import { GalleryGrid } from "@/components/gallery/GalleryGrid";
 import { GalleryGridSkeleton } from "@/components/gallery/GalleryGridSkeleton";
 import { GalleryGridTile } from "@/components/gallery/GalleryGridTile";
+import { Pagination } from "@/components/ui/pagination";
 import { useAuth } from "@/hooks/useAuth";
-import { useGalleryDeleteMutation, useGalleryQuery } from "@/hooks/useGalleryQuery";
+import {
+  GALLERY_PAGE_LIMIT,
+  useGalleryDeleteMutation,
+  useGalleryQuery,
+} from "@/hooks/useGalleryQuery";
 import { useHasPermission } from "@/hooks/useHasPermission";
 import { galleryEmptyMessage } from "@/lib/gallery-filters";
 import type { GalleryFilter } from "@/types/gallery";
@@ -19,10 +25,16 @@ interface GalleryPanelProps {
 export function GalleryPanel({ filter, team }: GalleryPanelProps) {
   const { user } = useAuth();
   const canManage = useHasPermission("gallery.manage");
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useGalleryQuery({
+  useEffect(() => {
+    setPage(1);
+  }, [filter, team]);
+
+  const { data, isLoading, isFetching } = useGalleryQuery({
     filter: filter === "team" ? "team" : filter,
     team: filter === "team" ? team : undefined,
+    page,
     pollPending: true,
   });
 
@@ -31,7 +43,15 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
   const albumUrl = data?.library.officialGalleryUrl;
   const showOfficialLink = filter === "official" && albumUrl;
   const photos = data?.data ?? [];
-  const isEmpty = !isLoading && photos.length === 0;
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const showInitialSkeleton = isLoading && !data;
+  const isEmpty = !showInitialSkeleton && photos.length === 0;
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="min-w-0 w-full space-y-6">
@@ -56,7 +76,7 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
         </Card>
       )}
 
-      {isLoading ? (
+      {showInitialSkeleton ? (
         <GalleryGridSkeleton />
       ) : isEmpty ? (
         <AgendaEmpty
@@ -66,17 +86,29 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
           })}
         />
       ) : (
-        <GalleryGrid>
-          {photos.map((photo) => (
-            <GalleryGridTile
-              key={photo.id}
-              photo={photo}
-              canDelete={photo.uploadedByUserId === user?.id || canManage}
-              isDeleting={deleteMutation.isPending}
-              onDelete={() => void deleteMutation.mutateAsync(photo.id)}
-            />
-          ))}
-        </GalleryGrid>
+        <div className="space-y-6">
+          <div className={isFetching ? "opacity-60 transition-opacity" : undefined}>
+            <GalleryGrid>
+              {photos.map((photo) => (
+                <GalleryGridTile
+                  key={photo.id}
+                  photo={photo}
+                  canDelete={photo.uploadedByUserId === user?.id || canManage}
+                  isDeleting={deleteMutation.isPending}
+                  onDelete={() => void deleteMutation.mutateAsync(photo.id)}
+                />
+              ))}
+            </GalleryGrid>
+          </div>
+
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={total}
+            itemsPerPage={GALLERY_PAGE_LIMIT}
+            onPageChange={handlePageChange}
+          />
+        </div>
       )}
     </div>
   );

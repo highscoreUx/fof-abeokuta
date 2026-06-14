@@ -139,10 +139,21 @@ export async function POST(
   const { saveGalleryStagingFile } = await import("@/server/gallery-worker/staging");
   const { enqueueGalleryUploadFireAndForget } = await import("@/server/gallery-worker");
   const { GALLERY_ALLOWED_MIME_TYPES, galleryMaxBytesForMime } = await import("@/lib/gallery-media");
+  const { parseGalleryFileMetaJson } = await import("@/lib/gallery-file-meta");
+
+  let fileMetas: Array<{ width: number; height: number } | null> = [];
+  const fileMetaRaw = formData.get("fileMeta");
+  if (typeof fileMetaRaw === "string" && fileMetaRaw.trim()) {
+    try {
+      fileMetas = parseGalleryFileMetaJson(JSON.parse(fileMetaRaw));
+    } catch {
+      fileMetas = [];
+    }
+  }
 
   const createdIds: string[] = [];
 
-  for (const file of files) {
+  for (const [index, file] of files.entries()) {
     if (!GALLERY_ALLOWED_MIME_TYPES.has(file.type)) {
       return jsonError(`Unsupported file type: ${file.type || "unknown"}`, "INVALID_TYPE", 400);
     }
@@ -151,6 +162,8 @@ export async function POST(
       const limitMb = Math.round(maxBytes / (1024 * 1024));
       return jsonError(`File too large (max ${limitMb}MB)`, "FILE_TOO_LARGE", 400);
     }
+
+    const dimensions = fileMetas[index] ?? null;
 
     const photo = await prisma.galleryPhoto.create({
       data: {
@@ -161,6 +174,8 @@ export async function POST(
         uploadedByTeamName: isOfficial ? null : user.team?.name ?? null,
         isOfficial,
         mimeType: file.type,
+        mediaWidth: dimensions?.width ?? null,
+        mediaHeight: dimensions?.height ?? null,
         originalFilename: file.name.replace(/[^a-zA-Z0-9._-]/g, "-"),
         caption,
       },

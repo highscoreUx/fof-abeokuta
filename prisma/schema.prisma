@@ -209,6 +209,8 @@ model GalleryPhoto {
   thumbnailUrl       String?
   urlExpiresAt       DateTime?
   mimeType           String
+  mediaWidth         Int?
+  mediaHeight        Int?
   originalFilename   String?
   caption            String?
   errorMessage       String?

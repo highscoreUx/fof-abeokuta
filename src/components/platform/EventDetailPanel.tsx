@@ -100,7 +100,14 @@ export function EventDetailPanel({
   return (
     <Card className="overflow-hidden p-0">
       <div className="relative aspect-[21/9] max-h-56 w-full bg-muted sm:max-h-72">
-        <Image src={coverUrl} alt="" fill className="object-cover" sizes="100vw" priority />
+        <Image
+          src={coverUrl}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="(max-width: 1024px) 100vw, 896px"
+          priority
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <div className="absolute bottom-4 left-6 right-6 flex flex-wrap items-end justify-between gap-3">
           <div>

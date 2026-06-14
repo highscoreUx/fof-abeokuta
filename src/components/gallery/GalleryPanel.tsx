@@ -2,10 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GalleryMediaPreview } from "@/components/gallery/GalleryMediaPreview";
 import { useAuth } from "@/hooks/useAuth";
 import { useGalleryDeleteMutation, useGalleryQuery } from "@/hooks/useGalleryQuery";
 import { useHasPermission } from "@/hooks/useHasPermission";
-import { isGalleryVideoMime } from "@/lib/gallery-media";
 import type { GalleryFilter, GalleryPhotoRow } from "@/types/gallery";
 import { cn } from "@/lib/cn";
 
@@ -67,30 +67,7 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
                 )}
               >
                 <div className="relative aspect-square bg-muted">
-                  {photo.status === "READY" &&
-                  isGalleryVideoMime(photo.mimeType) &&
-                  photo.url ? (
-                    <video
-                      src={photo.url}
-                      poster={photo.thumbnailUrl ?? undefined}
-                      controls
-                      preload="metadata"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : photo.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={photo.thumbnailUrl}
-                      alt={photo.caption ?? photo.originalFilename ?? "Gallery media"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
-                      {photo.status === "FAILED"
-                        ? (photo.errorMessage ?? "Upload failed")
-                        : "Processing…"}
-                    </div>
-                  )}
+                  <GalleryMediaPreview photo={photo} />
                 </div>
                 <figcaption className="space-y-1 p-3 text-xs">
                   {photo.isOfficial ? (

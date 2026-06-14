@@ -6,8 +6,8 @@ import type { Permission } from "@/lib/permissions/catalog";
 
 export function getBearerToken(request: NextRequest): string | null {
   const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-  return header.slice(7);
+  if (header?.startsWith("Bearer ")) return header.slice(7);
+  return request.nextUrl.searchParams.get("access_token");
 }
 
 export function authenticateRequest(request: NextRequest): AccessTokenPayload | null {

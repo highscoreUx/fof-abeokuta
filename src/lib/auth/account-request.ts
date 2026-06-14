@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server";
+import { getBearerToken } from "@/lib/auth/middleware";
 import { verifyAccountAccessToken } from "@/lib/auth/account-jwt";
 
 export function authenticateAccountRequest(request: NextRequest) {
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
+  const token = getBearerToken(request);
+  if (!token) return null;
   try {
-    return verifyAccountAccessToken(header.slice(7));
+    return verifyAccountAccessToken(token);
   } catch {
     return null;
   }

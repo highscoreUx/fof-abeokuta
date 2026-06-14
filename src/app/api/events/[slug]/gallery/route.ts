@@ -10,6 +10,7 @@ import {
   serializeGalleryPhoto,
 } from "@/lib/gallery";
 import { refreshGalleryPhotoUrls, serializePhotoLibrary } from "@/lib/gallery-urls";
+import { tryRepairGalleryPhotoFromGoogle } from "@/lib/gallery-repair";
 import { toPaginatedResponse } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 
@@ -55,13 +56,19 @@ export async function GET(
   const [photos, total] = await Promise.all([
     prisma.galleryPhoto.findMany({
       where,
-      include: galleryPhotoInclude,
+      include: { ...galleryPhotoInclude, library: true },
       orderBy: { uploadedAt: "desc" },
       skip,
       take: limit,
     }),
     prisma.galleryPhoto.count({ where }),
   ]);
+
+  await Promise.all(
+    photos
+      .filter((photo) => photo.status === "FAILED")
+      .map((photo) => tryRepairGalleryPhotoFromGoogle(photo).catch(() => false)),
+  );
 
   await refreshGalleryPhotoUrls(photos);
 

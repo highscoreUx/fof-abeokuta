@@ -106,3 +106,39 @@ export async function eventApiUpload<T>(
   if (!response.ok) throw new Error(data.error || "Upload failed");
   return data as T;
 }
+
+export async function eventApiBlob(
+  eventSlug: string,
+  path: string,
+  options: { retry?: boolean } = {},
+): Promise<Blob> {
+  const token = useAuthStore.getState().accessToken;
+
+  const response = await fetch(eventApiPath(eventSlug, path), {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+
+  if (response.status === 401 && !options.retry) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return eventApiBlob(eventSlug, path, { retry: true });
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") {
+      window.location.href = getLoginRedirectFromPathname(
+        window.location.pathname,
+        window.location.search,
+      );
+      return new Promise(() => {}) as Promise<Blob>;
+    }
+    return new Promise(() => {}) as Promise<Blob>;
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(typeof data.error === "string" ? data.error : "Failed to load media");
+  }
+
+  return response.blob();
+}

@@ -2,15 +2,13 @@
 
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
 import { GalleryGridSkeleton } from "@/components/gallery/GalleryGridSkeleton";
-import { GalleryMasonry, galleryMasonryItemClassName } from "@/components/gallery/GalleryMasonry";
-import { GalleryMediaPreview } from "@/components/gallery/GalleryMediaPreview";
+import { GalleryMasonry } from "@/components/gallery/GalleryMasonry";
+import { GalleryMasonryTile } from "@/components/gallery/GalleryMasonryTile";
 import { useAuth } from "@/hooks/useAuth";
 import { useGalleryDeleteMutation, useGalleryQuery } from "@/hooks/useGalleryQuery";
 import { useHasPermission } from "@/hooks/useHasPermission";
 import { galleryEmptyMessage } from "@/lib/gallery-filters";
-import type { GalleryFilter, GalleryPhotoRow } from "@/types/gallery";
-import { cn } from "@/lib/cn";
-import { Button } from "@/components/ui/button";
+import type { GalleryFilter } from "@/types/gallery";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface GalleryPanelProps {
@@ -69,39 +67,14 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
         />
       ) : (
         <GalleryMasonry>
-          {photos.map((photo: GalleryPhotoRow) => (
-            <figure
+          {photos.map((photo) => (
+            <GalleryMasonryTile
               key={photo.id}
-              className={galleryMasonryItemClassName(
-                cn(
-                  "group overflow-hidden rounded-xl border border-border bg-card",
-                  photo.status !== "READY" && "opacity-80",
-                ),
-              )}
-            >
-              <GalleryMediaPreview photo={photo} layout="masonry" />
-              <figcaption className="space-y-1 p-3 text-xs">
-                {photo.isOfficial ? (
-                  <p className="font-medium text-primary">Official</p>
-                ) : photo.uploadedByTeamLetter ? (
-                  <p className="font-medium">Team {photo.uploadedByTeamLetter}</p>
-                ) : null}
-                {photo.uploaderName && (
-                  <p className="text-muted-foreground">{photo.uploaderName}</p>
-                )}
-                {(photo.uploadedByUserId === user?.id || canManage) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => void deleteMutation.mutateAsync(photo.id)}
-                  >
-                    Remove
-                  </Button>
-                )}
-              </figcaption>
-            </figure>
+              photo={photo}
+              canDelete={photo.uploadedByUserId === user?.id || canManage}
+              isDeleting={deleteMutation.isPending}
+              onDelete={() => void deleteMutation.mutateAsync(photo.id)}
+            />
           ))}
         </GalleryMasonry>
       )}

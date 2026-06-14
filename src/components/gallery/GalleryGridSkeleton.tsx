@@ -8,12 +8,8 @@ function SkeletonBar({ className }: { className?: string }) {
 
 function GalleryTileSkeleton({ heightClass }: { heightClass: string }) {
   return (
-    <figure className="mb-3 break-inside-avoid overflow-hidden rounded-xl border border-border bg-card">
-      <SkeletonBar className={`${heightClass} w-full rounded-none`} />
-      <figcaption className="space-y-2 p-3">
-        <SkeletonBar className="h-3 w-14" />
-        <SkeletonBar className="h-3 w-20" />
-      </figcaption>
+    <figure className="mb-3 break-inside-avoid overflow-hidden rounded-xl">
+      <SkeletonBar className={`${heightClass} w-full rounded-xl`} />
     </figure>
   );
 }

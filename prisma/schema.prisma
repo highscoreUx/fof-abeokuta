@@ -185,7 +185,7 @@ model EventPhotoLibrary {
   event              Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   /** App-created Google Photos album for this event (gallery storage backend). */
   googleAlbumId      String?
-  /** Optional public link after the album is shared in Google Photos (view album outside FOF). */
+  /** Google Photos productUrl — set automatically when the album is created. */
   officialGalleryUrl String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt

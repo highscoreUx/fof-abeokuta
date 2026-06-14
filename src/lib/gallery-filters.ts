@@ -31,7 +31,7 @@ export function galleryEmptyMessage(
   if (filter === "official") {
     return options?.officialGalleryUrl
       ? "No official media in the app gallery yet."
-      : "No official media uploaded in-app yet. Ask an admin to set the Google Photos album link.";
+      : "No official media uploaded in-app yet.";
   }
   if (filter === "mine") {
     return "You haven't uploaded any media yet.";

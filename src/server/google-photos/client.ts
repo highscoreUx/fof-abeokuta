@@ -16,11 +16,23 @@ export interface GooglePhotosMediaItem {
   mimeType: string;
 }
 
-export function googlePhotoDisplayUrls(baseUrl: string) {
+export function googleMediaDisplayUrls(baseUrl: string, mimeType: string) {
+  if (mimeType.startsWith("video/")) {
+    return {
+      url: `${baseUrl}=dv`,
+      thumbnailUrl: `${baseUrl}=w400-h400-c`,
+    };
+  }
+
   return {
     url: `${baseUrl}=w1600-h1600`,
     thumbnailUrl: `${baseUrl}=w400-h400-c`,
   };
+}
+
+/** @deprecated use googleMediaDisplayUrls */
+export function googlePhotoDisplayUrls(baseUrl: string) {
+  return googleMediaDisplayUrls(baseUrl, "image/jpeg");
 }
 
 /** Google baseUrl leases are short-lived — cache ~50 minutes locally. */

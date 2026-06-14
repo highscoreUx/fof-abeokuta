@@ -4,8 +4,9 @@ import {
   deleteGalleryStagingFile,
   readGalleryStagingFile,
 } from "@/server/gallery-worker/staging";
+import { galleryDefaultExtension } from "@/lib/gallery-media";
 import {
-  googlePhotoDisplayUrls,
+  googleMediaDisplayUrls,
   googlePhotoUrlExpiresAt,
   uploadGooglePhotosMediaToAlbum,
 } from "@/server/google-photos";
@@ -48,7 +49,8 @@ export async function processGalleryUpload(photoId: string): Promise<void> {
       throw new Error("Google Photos album not configured for this event");
     }
 
-    const fileName = photo.originalFilename || `${photoId}.jpg`;
+    const fileName =
+      photo.originalFilename || `${photoId}.${galleryDefaultExtension(photo.mimeType)}`;
     const descriptionParts = [
       photo.isOfficial ? "Official" : null,
       photo.uploadedByTeamName ? `Team ${photo.uploadedByTeamName}` : null,
@@ -63,7 +65,7 @@ export async function processGalleryUpload(photoId: string): Promise<void> {
       description: descriptionParts.join(" · ") || undefined,
     });
 
-    const urls = googlePhotoDisplayUrls(mediaItem.baseUrl);
+    const urls = googleMediaDisplayUrls(mediaItem.baseUrl, mediaItem.mimeType || photo.mimeType);
 
     await prisma.galleryPhoto.update({
       where: { id: photoId },

@@ -50,6 +50,9 @@ export function pathPrefixForEventSlug(eventSlug: string, scopedPath: string): s
 
 function canAccessEventPath(permissions: RolePermission[], path: string): boolean {
   if (path === "/home" || path.startsWith("/home/")) {
+    if (path.startsWith("/home/gallery")) {
+      return hasPermission(permissions, "gallery.view");
+    }
     return hasPermission(permissions, "participant.home") || hasAdminShellAccess(permissions);
   }
   if (path.startsWith("/admin/users")) {
@@ -72,6 +75,7 @@ function canAccessEventPath(permissions: RolePermission[], path: string): boolea
       "team.list",
       "team.manage",
       "settings.broadcasting",
+      "gallery.manage",
     ]);
   }
   if (path.startsWith("/admin")) {

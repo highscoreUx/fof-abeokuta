@@ -33,6 +33,7 @@ export function useEventNav() {
         ? { href: `${prefix}/admin/activities`, label: "Activities" }
         : null,
       navIf("agenda.list", `${prefix}/admin/agenda`, "Agenda", permissions),
+      navIf("gallery.view", `${prefix}/home/gallery`, "Gallery", permissions),
       hasPermission(permissions, "team.list") ||
       hasPermission(permissions, "vote.list") ||
       hasPermission(permissions, "settings.broadcasting")
@@ -47,7 +48,7 @@ export function useEventNav() {
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
         navIf("user.check_in", `${prefix}/staff/check-in`, "Check In", permissions),
-        navIf("gallery.view", `${prefix}/home/gallery`, "Gallery", permissions),
+        navIf("gallery.view", `${prefix}/home?tab=gallery`, "Gallery", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
@@ -67,7 +68,7 @@ export function useEventNav() {
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
         navIf("participant.activities", `${prefix}/home/activities`, "Activities", permissions),
-        navIf("gallery.view", `${prefix}/home/gallery`, "Gallery", permissions),
+        navIf("gallery.view", `${prefix}/home?tab=gallery`, "Gallery", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
@@ -89,7 +90,7 @@ export function useEventNav() {
     stage: `${prefix}/stage`,
     home: `${prefix}/home`,
     homeActivities: `${prefix}/home/activities`,
-    gallery: `${prefix}/home/gallery`,
+    gallery: `${prefix}/home?tab=gallery`,
     /** @deprecated use home */
     participant: `${prefix}/home`,
     /** @deprecated use homeActivities */

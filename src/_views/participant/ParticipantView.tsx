@@ -6,10 +6,13 @@ import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { AgendaAdmin } from "@/components/admin/AgendaAdmin";
 import { ParticipantChat } from "@/components/chat/ParticipantChat";
+import { GalleryPanel } from "@/components/gallery/GalleryPanel";
+import { GalleryToolbarControls } from "@/components/gallery/GalleryToolbarControls";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
-import { canManageAgenda, hasAdminShellAccess } from "@/lib/permissions";
+import { useHasPermission } from "@/hooks/useHasPermission";
+import { canManageAgenda, hasAdminShellAccess, hasPermission } from "@/lib/permissions";
 import { AgendaList } from "@/components/agenda/AgendaList";
 import { AgendaListSkeleton } from "@/components/agenda/AgendaListSkeleton";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
@@ -17,12 +20,17 @@ import { DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-tem
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import type { GalleryFilter } from "@/types/gallery";
+
+type HomeTab = "agenda" | "chat" | "gallery";
 
 export function ParticipantView() {
   const { nav, participantNav } = useEventNav();
   const { api } = useEventApi();
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const canViewGallery = useHasPermission("gallery.view");
+  const canViewChat = user ? hasPermission(user.permissions, "participant.chat") : false;
   const shellNav = user && hasAdminShellAccess(user.permissions) ? nav : participantNav;
   const manageAgenda = user ? canManageAgenda(user.permissions) : false;
   const [agenda, setAgenda] = useState<AgendaListItem[]>([]);
@@ -30,8 +38,16 @@ export function ParticipantView() {
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
   const [agendaLoading, setAgendaLoading] = useState(true);
-  const [tab, setTab] = useState<"chat" | "agenda">("agenda");
+  const [tab, setTab] = useState<HomeTab>("agenda");
   const [openAddAgenda, setOpenAddAgenda] = useState<(() => void) | null>(null);
+  const [galleryFilter, setGalleryFilter] = useState<GalleryFilter>("all");
+  const [galleryTeam, setGalleryTeam] = useState<string | undefined>();
+
+  const tabOptions = [
+    { value: "agenda" as const, label: "Agenda" },
+    ...(canViewChat ? [{ value: "chat" as const, label: "Chat" }] : []),
+    ...(canViewGallery ? [{ value: "gallery" as const, label: "Gallery" }] : []),
+  ];
 
   const registerOpenAddAgenda = useCallback((openAdd: () => void) => {
     setOpenAddAgenda(() => openAdd);
@@ -39,10 +55,12 @@ export function ParticipantView() {
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam === "agenda" || tabParam === "chat") {
+    if (tabParam === "agenda" || tabParam === "chat" || tabParam === "gallery") {
+      if (tabParam === "gallery" && !canViewGallery) return;
+      if (tabParam === "chat" && !canViewChat) return;
       setTab(tabParam);
     }
-  }, [searchParams]);
+  }, [searchParams, canViewGallery, canViewChat]);
 
   useEffect(() => {
     if (manageAgenda) return;
@@ -77,20 +95,30 @@ export function ParticipantView() {
             <SegmentedControl
               className="shrink-0"
               value={tab}
-              onChange={setTab}
-              options={[
-                { value: "agenda", label: "Agenda" },
-                { value: "chat", label: "Chat" },
-              ]}
+              onChange={(value) => setTab(value as HomeTab)}
+              options={tabOptions}
             />
             {manageAgenda && tab === "agenda" && (
               <Button className="shrink-0" onClick={() => openAddAgenda?.()}>
                 Add agenda item
               </Button>
             )}
+            {tab === "gallery" && canViewGallery && (
+              <GalleryToolbarControls
+                filter={galleryFilter}
+                team={galleryTeam}
+                onFilterChange={(filter, team) => {
+                  setGalleryFilter(filter);
+                  setGalleryTeam(team);
+                }}
+              />
+            )}
           </div>
-          {tab === "chat" && (
+          {tab === "chat" && canViewChat && (
             <ParticipantChat className="min-h-0 min-w-0 w-full flex-1 overflow-hidden" />
+          )}
+          {tab === "gallery" && canViewGallery && (
+            <GalleryPanel filter={galleryFilter} team={galleryTeam} />
           )}
           {tab === "agenda" &&
             (manageAgenda ? (

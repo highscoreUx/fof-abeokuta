@@ -129,7 +129,7 @@ export async function POST(
   const isOfficial = isOfficialRequested && canUploadOfficial;
   if (!isOfficial && !user.teamId) {
     return jsonError(
-      "You must be assigned to a team before uploading photos",
+      "You must be assigned to a team before uploading media",
       "TEAM_REQUIRED",
       400,
     );
@@ -138,9 +138,7 @@ export async function POST(
   const library = await ensureEventPhotoLibrary(ctx.event.id);
   const { saveGalleryStagingFile } = await import("@/server/gallery-worker/staging");
   const { enqueueGalleryUploadFireAndForget } = await import("@/server/gallery-worker");
-  const { GALLERY_ALLOWED_MIME_TYPES, GALLERY_MAX_BYTES } = await import(
-    "@/server/gallery-worker"
-  );
+  const { GALLERY_ALLOWED_MIME_TYPES, galleryMaxBytesForMime } = await import("@/lib/gallery-media");
 
   const createdIds: string[] = [];
 
@@ -148,8 +146,10 @@ export async function POST(
     if (!GALLERY_ALLOWED_MIME_TYPES.has(file.type)) {
       return jsonError(`Unsupported file type: ${file.type || "unknown"}`, "INVALID_TYPE", 400);
     }
-    if (file.size > GALLERY_MAX_BYTES) {
-      return jsonError("File too large (max 10MB)", "FILE_TOO_LARGE", 400);
+    const maxBytes = galleryMaxBytesForMime(file.type);
+    if (file.size > maxBytes) {
+      const limitMb = Math.round(maxBytes / (1024 * 1024));
+      return jsonError(`File too large (max ${limitMb}MB)`, "FILE_TOO_LARGE", 400);
     }
 
     const photo = await prisma.galleryPhoto.create({

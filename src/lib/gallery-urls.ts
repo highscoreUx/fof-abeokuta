@@ -2,7 +2,7 @@ import { ensureGoogleAlbumForLibrary } from "@/lib/gallery-library";
 import { prisma } from "@/lib/prisma";
 import {
   getGooglePhotosMediaItem,
-  googlePhotoDisplayUrls,
+  googleMediaDisplayUrls,
   googlePhotoUrlExpiresAt,
   isGooglePhotoUrlExpired,
 } from "@/server/google-photos";
@@ -10,6 +10,7 @@ import {
 export async function refreshGalleryPhotoUrls(photos: Array<{
   id: string;
   googleMediaItemId: string | null;
+  mimeType: string;
   url: string | null;
   thumbnailUrl: string | null;
   urlExpiresAt: Date | null;
@@ -24,7 +25,7 @@ export async function refreshGalleryPhotoUrls(photos: Array<{
       (async () => {
         try {
           const item = await getGooglePhotosMediaItem(photo.googleMediaItemId!);
-          const urls = googlePhotoDisplayUrls(item.baseUrl);
+          const urls = googleMediaDisplayUrls(item.baseUrl, item.mimeType || photo.mimeType);
           await prisma.galleryPhoto.update({
             where: { id: photo.id },
             data: {

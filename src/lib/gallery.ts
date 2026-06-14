@@ -107,6 +107,7 @@ export function serializeGalleryPhoto(photo: {
   uploadedByTeamName: string | null;
   isOfficial: boolean;
   status: GalleryPhotoStatus;
+  mimeType: string;
   url: string | null;
   thumbnailUrl: string | null;
   caption: string | null;
@@ -135,6 +136,7 @@ export function serializeGalleryPhoto(photo: {
     uploadedByTeamName: photo.uploadedByTeamName ?? photo.uploadedByTeam?.name ?? null,
     isOfficial: photo.isOfficial,
     status: photo.status,
+    mimeType: photo.mimeType,
     url: photo.url,
     thumbnailUrl: photo.thumbnailUrl ?? photo.url,
     caption: photo.caption,

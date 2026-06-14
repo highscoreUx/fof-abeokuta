@@ -11,6 +11,7 @@ export interface GalleryPhotoRow {
   uploadedByTeamName: string | null;
   isOfficial: boolean;
   status: GalleryPhotoStatus;
+  mimeType: string;
   url: string | null;
   thumbnailUrl: string | null;
   caption: string | null;

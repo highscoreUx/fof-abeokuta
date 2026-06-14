@@ -2,6 +2,7 @@ export {
   createGooglePhotosAlbum,
   getGooglePhotosAlbum,
   getGooglePhotosMediaItem,
+  googleMediaDisplayUrls,
   googlePhotoDisplayUrls,
   googlePhotoUrlExpiresAt,
   isGooglePhotoUrlExpired,

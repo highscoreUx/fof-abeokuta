@@ -4,11 +4,11 @@ import { useState } from "react";
 import { MagnifyingGlassPlus, Trash } from "@phosphor-icons/react";
 import { GalleryLightbox } from "@/components/gallery/GalleryLightbox";
 import { GalleryMediaPreview } from "@/components/gallery/GalleryMediaPreview";
-import { galleryMasonryItemClassName } from "@/components/gallery/GalleryMasonry";
+import { galleryGridTileClassName } from "@/components/gallery/GalleryGrid";
 import { cn } from "@/lib/cn";
 import type { GalleryPhotoRow } from "@/types/gallery";
 
-interface GalleryMasonryTileProps {
+interface GalleryGridTileProps {
   photo: GalleryPhotoRow;
   canDelete: boolean;
   onDelete: () => void;
@@ -47,24 +47,26 @@ function GalleryTileAction({
   );
 }
 
-export function GalleryMasonryTile({
+export function GalleryGridTile({
   photo,
   canDelete,
   onDelete,
   isDeleting,
-}: GalleryMasonryTileProps) {
+}: GalleryGridTileProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const showActions = photo.status === "READY";
 
   return (
     <figure
-      className={galleryMasonryItemClassName(
-        cn("group relative overflow-hidden rounded-xl", photo.status !== "READY" && "opacity-80"),
+      className={galleryGridTileClassName(
+        cn(
+          "group aspect-square bg-muted shadow-sm",
+          photo.status === "FAILED" && "opacity-80",
+        ),
       )}
     >
       <GalleryMediaPreview
         photo={photo}
-        layout="masonry"
         passive={showActions}
         onOpenLightbox={() => setLightboxOpen(true)}
       />

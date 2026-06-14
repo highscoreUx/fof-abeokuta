@@ -83,7 +83,11 @@ export function ParticipantView() {
 
   return (
     <PermissionGuard permission="participant.home" allowAdminShell>
-      <AppShell title="Home" nav={shellNav}>
+      <AppShell
+        title="Home"
+        nav={shellNav}
+        contentClassName={tab === "gallery" ? "max-w-7xl" : undefined}
+      >
         <div
           className={
             tab === "chat"

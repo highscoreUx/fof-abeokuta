@@ -24,7 +24,7 @@ export function GalleryView() {
 
   return (
     <PermissionGuard permission="gallery.view">
-      <AppShell title="Gallery" nav={shellNav}>
+      <AppShell title="Gallery" nav={shellNav} contentClassName="max-w-7xl">
         <div className="w-full space-y-6">
           <div className="flex w-full justify-end">
             <GalleryToolbarControls

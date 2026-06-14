@@ -1,32 +1,20 @@
 "use client";
 
-const SKELETON_HEIGHTS = ["h-44", "h-56", "h-48", "h-64", "h-40", "h-52", "h-60", "h-36"] as const;
-
-function SkeletonBar({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />;
-}
-
-function GalleryTileSkeleton({ heightClass }: { heightClass: string }) {
-  return (
-    <figure className="mb-3 break-inside-avoid overflow-hidden rounded-xl">
-      <SkeletonBar className={`${heightClass} w-full rounded-xl`} />
-    </figure>
-  );
-}
+import { GalleryGrid, galleryGridTileClassName } from "@/components/gallery/GalleryGrid";
+import { GalleryShimmer } from "@/components/gallery/GalleryShimmer";
 
 interface GalleryGridSkeletonProps {
   tiles?: number;
 }
 
-export function GalleryGridSkeleton({ tiles = 10 }: GalleryGridSkeletonProps) {
+export function GalleryGridSkeleton({ tiles = 9 }: GalleryGridSkeletonProps) {
   return (
-    <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 xl:columns-5">
+    <GalleryGrid>
       {Array.from({ length: tiles }).map((_, index) => (
-        <GalleryTileSkeleton
-          key={index}
-          heightClass={SKELETON_HEIGHTS[index % SKELETON_HEIGHTS.length]}
-        />
+        <figure key={index} className={galleryGridTileClassName("aspect-square")}>
+          <GalleryShimmer className="h-full w-full rounded-2xl" label="Loading gallery" />
+        </figure>
       ))}
-    </div>
+    </GalleryGrid>
   );
 }

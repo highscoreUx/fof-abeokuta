@@ -1,9 +1,9 @@
 "use client";
 
 import { AgendaEmpty } from "@/components/agenda/AgendaEmpty";
+import { GalleryGrid } from "@/components/gallery/GalleryGrid";
 import { GalleryGridSkeleton } from "@/components/gallery/GalleryGridSkeleton";
-import { GalleryMasonry } from "@/components/gallery/GalleryMasonry";
-import { GalleryMasonryTile } from "@/components/gallery/GalleryMasonryTile";
+import { GalleryGridTile } from "@/components/gallery/GalleryGridTile";
 import { useAuth } from "@/hooks/useAuth";
 import { useGalleryDeleteMutation, useGalleryQuery } from "@/hooks/useGalleryQuery";
 import { useHasPermission } from "@/hooks/useHasPermission";
@@ -34,7 +34,7 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
   const isEmpty = !isLoading && photos.length === 0;
 
   return (
-    <div className="w-full space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       {showOfficialLink && (
         <Card>
           <CardHeader>
@@ -66,9 +66,9 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
           })}
         />
       ) : (
-        <GalleryMasonry>
+        <GalleryGrid>
           {photos.map((photo) => (
-            <GalleryMasonryTile
+            <GalleryGridTile
               key={photo.id}
               photo={photo}
               canDelete={photo.uploadedByUserId === user?.id || canManage}
@@ -76,7 +76,7 @@ export function GalleryPanel({ filter, team }: GalleryPanelProps) {
               onDelete={() => void deleteMutation.mutateAsync(photo.id)}
             />
           ))}
-        </GalleryMasonry>
+        </GalleryGrid>
       )}
     </div>
   );

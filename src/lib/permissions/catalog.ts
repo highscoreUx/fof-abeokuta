@@ -45,6 +45,7 @@ export type Permission =
   | "stage.view"
   | "gallery.view"
   | "gallery.upload"
+  | "gallery.official_upload"
   | "gallery.media_upload"
   | "gallery.manage";
 
@@ -63,7 +64,7 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 7;
+export const PERMISSIONS_CATALOG_REVISION = 8;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
   "platform.admin",
@@ -112,6 +113,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "stage.view",
   "gallery.view",
   "gallery.upload",
+  "gallery.official_upload",
   "gallery.media_upload",
   "gallery.manage",
 ] as const;
@@ -225,6 +227,10 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
     permissions: [
       { permission: "gallery.view", label: "View event gallery" },
       { permission: "gallery.upload", label: "Upload photos (participant)" },
+      {
+        permission: "gallery.official_upload",
+        label: "Upload official photos (always marked official)",
+      },
       { permission: "gallery.media_upload", label: "Upload official photos (media team)" },
       { permission: "gallery.manage", label: "Manage gallery settings and moderation" },
     ],

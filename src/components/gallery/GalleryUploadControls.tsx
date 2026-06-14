@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { GALLERY_FILE_ACCEPT } from "@/lib/gallery-media";
 import { useGalleryUploadMutation } from "@/hooks/useGalleryQuery";
-import { useHasAnyPermission } from "@/hooks/useHasPermission";
+import { useHasAnyPermission, useHasPermission } from "@/hooks/useHasPermission";
 import { toastError, toastSuccess } from "@/lib/toast";
 
 interface GalleryUploadControlsProps {
@@ -12,7 +12,12 @@ interface GalleryUploadControlsProps {
 }
 
 export function GalleryUploadControls({ className }: GalleryUploadControlsProps) {
-  const canUpload = useHasAnyPermission(["gallery.upload", "gallery.media_upload"]);
+  const forceOfficial = useHasPermission("gallery.official_upload");
+  const canUpload = useHasAnyPermission([
+    "gallery.upload",
+    "gallery.media_upload",
+    "gallery.official_upload",
+  ]);
   const uploadMutation = useGalleryUploadMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,11 +27,18 @@ export function GalleryUploadControls({ className }: GalleryUploadControlsProps)
     if (!fileList?.length) return;
     const files = Array.from(fileList);
     try {
-      await uploadMutation.mutateAsync({ files, isOfficial: false });
+      await uploadMutation.mutateAsync({
+        files,
+        isOfficial: forceOfficial,
+      });
       toastSuccess(
         files.length === 1
-          ? "Media queued for upload"
-          : `${files.length} items queued for upload`,
+          ? forceOfficial
+            ? "Official media queued for upload"
+            : "Media queued for upload"
+          : forceOfficial
+            ? `${files.length} official items queued for upload`
+            : `${files.length} items queued for upload`,
       );
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
@@ -49,7 +61,11 @@ export function GalleryUploadControls({ className }: GalleryUploadControlsProps)
         onClick={() => fileInputRef.current?.click()}
         disabled={uploadMutation.isPending}
       >
-        {uploadMutation.isPending ? "Queuing…" : "Upload media"}
+        {uploadMutation.isPending
+          ? "Queuing…"
+          : forceOfficial
+            ? "Upload official media"
+            : "Upload media"}
       </Button>
     </>
   );

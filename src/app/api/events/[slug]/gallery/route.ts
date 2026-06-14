@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
-import { hasAnyPermission } from "@/lib/permissions";
 import {
   buildGalleryWhere,
   ensureEventPhotoLibrary,
@@ -11,6 +10,11 @@ import {
 } from "@/lib/gallery";
 import { refreshGalleryPhotoUrls, serializePhotoLibrary } from "@/lib/gallery-urls";
 import { tryRepairGalleryPhotoFromGoogle } from "@/lib/gallery-repair";
+import {
+  canSubmitGalleryUpload,
+  canUploadToGallery,
+  resolveGalleryUploadOfficialFlag,
+} from "@/lib/gallery-upload-access";
 import { toPaginatedResponse } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 
@@ -91,9 +95,7 @@ export async function POST(
   const ctx = await requireEventPermission(request, slug, "gallery.view");
   if (ctx instanceof NextResponse) return ctx;
 
-  if (
-    !hasAnyPermission(ctx.auth.permissions, ["gallery.upload", "gallery.media_upload"])
-  ) {
+  if (!canUploadToGallery(ctx.auth.permissions)) {
     return jsonError("Forbidden", "FORBIDDEN", 403);
   }
 
@@ -101,18 +103,11 @@ export async function POST(
   const isOfficialRequested = formData.get("isOfficial") === "true";
   const caption = (formData.get("caption") as string | null)?.trim() || null;
 
-  const canUploadOfficial = hasAnyPermission(ctx.auth.permissions, [
-    "gallery.media_upload",
-    "gallery.manage",
-  ]);
-  const canUploadParticipant = hasAnyPermission(ctx.auth.permissions, ["gallery.upload"]);
+  if (!canSubmitGalleryUpload(ctx.auth.permissions, isOfficialRequested)) {
+    return jsonError("Forbidden", "FORBIDDEN", 403);
+  }
 
-  if (isOfficialRequested && !canUploadOfficial) {
-    return jsonError("Forbidden", "FORBIDDEN", 403);
-  }
-  if (!isOfficialRequested && !canUploadParticipant) {
-    return jsonError("Forbidden", "FORBIDDEN", 403);
-  }
+  const isOfficial = resolveGalleryUploadOfficialFlag(ctx.auth.permissions, isOfficialRequested);
 
   const files = formData
     .getAll("files")
@@ -132,8 +127,6 @@ export async function POST(
   if (!user) {
     return jsonError("User not found", "NOT_FOUND", 404);
   }
-
-  const isOfficial = isOfficialRequested && canUploadOfficial;
 
   const library = await ensureEventPhotoLibrary(ctx.event.id);
   const { saveGalleryStagingFile } = await import("@/server/gallery-worker/staging");

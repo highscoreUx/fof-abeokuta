@@ -5,6 +5,7 @@ export const SYSTEM_EVENT_USER_ROLE_SLUGS = [
   "coordinator",
   "staff",
   "judge",
+  "official_photographer",
   "participant",
 ] as const;
 
@@ -78,6 +79,12 @@ const STAFF_PERMISSIONS: Permission[] = [
 
 const JUDGE_PERMISSIONS: Permission[] = ["score.submit", "score.view_all", "stage.view"];
 
+const OFFICIAL_PHOTOGRAPHER_PERMISSIONS: Permission[] = [
+  "participant.home",
+  "gallery.view",
+  "gallery.official_upload",
+];
+
 const PARTICIPANT_PERMISSIONS: Permission[] = [
   "participant.home",
   "participant.activities",
@@ -119,6 +126,12 @@ export const DEFAULT_EVENT_USER_ROLE_BUNDLES: Array<{
     slug: "judge",
     name: "Judge",
     permissions: JUDGE_PERMISSIONS,
+    isSystem: true,
+  },
+  {
+    slug: "official_photographer",
+    name: "Official photographer",
+    permissions: OFFICIAL_PHOTOGRAPHER_PERMISSIONS,
     isSystem: true,
   },
   {

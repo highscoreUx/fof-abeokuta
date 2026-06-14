@@ -67,6 +67,7 @@ export function resolveMemberProfileSlug(permissions: unknown): string {
     "coordinator",
     "staff",
     "judge",
+    "official_photographer",
     PARTICIPANT_PROFILE_SLUG,
   ] as const;
   for (const slug of profiles) {

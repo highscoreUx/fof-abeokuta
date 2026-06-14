@@ -142,7 +142,7 @@ export function EventDetailPanel({
           <SegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/${event.slug}`}>
+            <Link href={`/${event.slug}/home`} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="secondary">
                 Visit event
               </Button>

@@ -1,15 +1,13 @@
 import {
   isPlatformAdminPermissions,
   permissionsForMemberProfileSlug,
+  PLATFORM_ADMIN_PROFILE_OPTION,
   PLATFORM_ADMIN_PROFILE_SLUG,
 } from "@/lib/member-access";
 import { getProfileBySlug } from "@/lib/platform-roles.server";
 import type { RolePermission } from "@/lib/permissions/catalog";
 
-export const PLATFORM_ADMIN_PROFILE_OPTION = {
-  slug: PLATFORM_ADMIN_PROFILE_SLUG,
-  name: "Platform admin",
-} as const;
+export { PLATFORM_ADMIN_PROFILE_OPTION };
 
 export function isKnownMemberProfileSlug(slug: string): boolean {
   return slug === PLATFORM_ADMIN_PROFILE_SLUG || Boolean(getProfileBySlug(slug));

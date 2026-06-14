@@ -14,6 +14,11 @@ function asPermissions(permissions: unknown): RolePermission[] {
 export const PARTICIPANT_PROFILE_SLUG = "participant";
 export const PLATFORM_ADMIN_PROFILE_SLUG = "platform_admin";
 
+export const PLATFORM_ADMIN_PROFILE_OPTION = {
+  slug: PLATFORM_ADMIN_PROFILE_SLUG,
+  name: "Platform admin",
+} as const;
+
 const PARTICIPANT_PERMISSIONS_FINGERPRINT = permissionsFingerprint(
   getProfilePermissions(PARTICIPANT_PROFILE_SLUG),
 );

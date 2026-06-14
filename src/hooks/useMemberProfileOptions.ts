@@ -3,9 +3,9 @@
 import { useMemo } from "react";
 import {
   isPlatformAdminPermissions,
+  PLATFORM_ADMIN_PROFILE_OPTION,
   PLATFORM_ADMIN_PROFILE_SLUG,
 } from "@/lib/member-access";
-import { PLATFORM_ADMIN_PROFILE_OPTION } from "@/lib/member-profile-assignment";
 import { usePlatformAuthStore } from "@/stores/platformAuthStore";
 import type { PlatformRoleRow } from "@/lib/platform-roles.types";
 

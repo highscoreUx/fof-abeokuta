@@ -1,3 +1,5 @@
+import type { BracketMatchContext } from "@/lib/activity-bracket/types";
+
 export type TicTacToeMode = "CHAMPION" | "COUNCIL";
 export type TicTacToeMark = "X" | "O";
 export type TicTacToeCell = TicTacToeMark | null;
@@ -36,6 +38,7 @@ export interface TicTacToeMatchSnapshot {
   councilVoteCounts: Record<number, number>;
   winnerTeamId: string | null;
   isDraw: boolean;
+  bracket?: BracketMatchContext | null;
   serverNow: number;
 }
 

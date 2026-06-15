@@ -5,6 +5,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { HangmanBackground } from "@/components/hangman/HangmanBackground";
+import { BracketMatchSeriesLabel } from "@/components/activity-bracket/BracketMatchSeriesLabel";
 import { HangmanFigure } from "@/components/hangman/HangmanFigure";
 import { HangmanKeyboard } from "@/components/hangman/HangmanKeyboard";
 import { HangmanWordDisplay } from "@/components/hangman/HangmanWordDisplay";
@@ -141,6 +142,10 @@ export function HangmanMatchLive({
             The Hangman Game
           </p>
           <h2 className="mt-2 text-xl font-black sm:text-3xl">{state.challengeTitle}</h2>
+          <BracketMatchSeriesLabel
+            bracket={state.bracket}
+            className="mt-2 text-xs font-semibold uppercase tracking-wide text-[#5DA9EF]"
+          />
           <p className="mt-2 text-sm text-white/80">
             Team {state.teamX.letter} vs Team {state.teamO.letter}
             {" · "}

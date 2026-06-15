@@ -5,6 +5,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { BracketMatchSeriesLabel } from "@/components/activity-bracket/BracketMatchSeriesLabel";
 import { TicTacToeBoard } from "@/components/tic-tac-toe/TicTacToeBoard";
 import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
 import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
@@ -144,6 +145,7 @@ export function TicTacToeMatchLive({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <CardTitle>{state.challengeTitle}</CardTitle>
+          <BracketMatchSeriesLabel bracket={state.bracket} />
           <p className="mt-1 text-sm text-muted-foreground">
             Team {state.teamX.letter} (X) vs Team {state.teamO.letter} (O)
             {" · "}

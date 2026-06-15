@@ -108,7 +108,8 @@ export function TicTacToeActivitiesPanel() {
 
   const liveChallenges = challenges.filter(
     (challenge) =>
-      (challenge.competitionFormat === "CHAMPIONSHIP" && challenge.bracketState === "ACTIVE") ||
+      (challenge.competitionFormat === "CHAMPIONSHIP" &&
+        (challenge.bracketState === "ACTIVE" || challenge.bracketState === "FINISHED")) ||
       (challenge.activeMatchId &&
         (challenge.activeMatchState === "WAITING" || challenge.activeMatchState === "ACTIVE")),
   );

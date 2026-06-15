@@ -13,6 +13,7 @@ import {
 } from "@/lib/hangman/types";
 import { eventRoom, hangmanMatchRoom, teamRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
+import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
 
 function parseGuessedLetters(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -69,6 +70,7 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
   const guessedLetters = parseGuessedLetters(match.guessedLetters);
   const councilVotes = parseCouncilVotes(match.councilVotes);
   const finished = match.state === "FINISHED";
+  const bracket = await loadBracketMatchContext(match.bracketSlotId);
 
   return {
     matchId: match.id,
@@ -107,6 +109,7 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
     councilVoteCounts: voteCounts(councilVotes),
     winnerTeamId: match.winnerTeamId,
     revealedWord: finished ? match.secretWord : null,
+    bracket,
     serverNow: Date.now(),
   };
 }

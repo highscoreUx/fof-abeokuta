@@ -437,6 +437,65 @@ export async function handleBracketGameResult(
   }
 }
 
+async function finishActiveChallengeMatches(
+  gameType: ActivityBracketGameType,
+  challengeId: string,
+) {
+  if (gameType === "tic_tac_toe") {
+    await prisma.ticTacToeMatch.updateMany({
+      where: { challengeId, state: { in: ["WAITING", "ACTIVE"] } },
+      data: { state: "FINISHED" },
+    });
+    return;
+  }
+
+  await prisma.hangmanMatch.updateMany({
+    where: { challengeId, state: { in: ["WAITING", "ACTIVE"] } },
+    data: { state: "FINISHED" },
+  });
+}
+
+/** Clear a finished or in-progress championship so it can be run again. */
+export async function restartActivityChampionship(
+  io: SocketIOServer,
+  params: {
+    gameType: ActivityBracketGameType;
+    challengeId: string;
+    eventId: string;
+    eventSlug: string;
+    targetWins: number;
+  },
+) {
+  const existing = await prisma.activityBracket.findFirst({
+    where:
+      params.gameType === "tic_tac_toe"
+        ? { tttChallengeId: params.challengeId }
+        : { hangmanChallengeId: params.challengeId },
+  });
+  if (!existing) {
+    throw new Error("No championship to restart.");
+  }
+  if (existing.state === "SETUP") {
+    throw new Error("Championship has not started yet.");
+  }
+
+  await finishActiveChallengeMatches(params.gameType, params.challengeId);
+  await prisma.activityBracketRound.deleteMany({ where: { bracketId: existing.id } });
+  await prisma.activityBracket.update({
+    where: { id: existing.id },
+    data: {
+      state: "SETUP",
+      currentRound: 0,
+      championTeamId: null,
+      targetWins: Math.max(1, Math.min(20, params.targetWins)),
+    },
+  });
+
+  await broadcastActivityBracketState(io, existing.id, params.eventSlug);
+
+  return startActivityChampionship(io, params);
+}
+
 export async function getBracketForChallenge(
   gameType: ActivityBracketGameType,
   challengeId: string,

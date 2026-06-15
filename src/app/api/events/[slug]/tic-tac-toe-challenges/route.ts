@@ -84,12 +84,20 @@ export async function POST(
   if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
 
   const mode = body.mode === "COUNCIL" ? "COUNCIL" : "CHAMPION";
+  const competitionFormat =
+    body.competitionFormat === "CHAMPIONSHIP" ? "CHAMPIONSHIP" : "SINGLE_MATCH";
+  const targetWins =
+    body.targetWins != null && Number(body.targetWins) > 0
+      ? Math.min(20, Math.round(Number(body.targetWins)))
+      : 1;
 
   const challenge = await prisma.ticTacToeChallenge.create({
     data: {
       eventId: ctx.event.id,
       title: body.title.trim(),
       mode,
+      competitionFormat,
+      targetWins,
       allowGeneralParticipants: scope.allowGeneralParticipants,
       allowGroupParticipants: scope.allowGroupParticipants,
     },

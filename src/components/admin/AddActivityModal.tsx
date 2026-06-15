@@ -17,6 +17,7 @@ import {
 import { parseDurationInput } from "@/lib/countdown/format";
 import type { TicTacToeMode } from "@/lib/tic-tac-toe/types";
 import type { HangmanMode } from "@/lib/hangman/types";
+import type { ActivityCompetitionFormat } from "@/lib/activity-bracket/types";
 import type { SpinnerParticipationMode } from "@/lib/spinner/types";
 import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
@@ -43,6 +44,8 @@ interface AddActivityModalProps {
     participationMode?: SpinnerParticipationMode;
     ticTacToeMode?: TicTacToeMode;
     hangmanMode?: HangmanMode;
+    competitionFormat?: ActivityCompetitionFormat;
+    targetWins?: number;
     durationSec?: number;
   }) => Promise<void>;
   teamingEnabled?: boolean;
@@ -70,6 +73,9 @@ export function AddActivityModal({
     useState<SpinnerParticipationMode>("ONE_AT_A_TIME");
   const [ticTacToeMode, setTicTacToeMode] = useState<TicTacToeMode>("CHAMPION");
   const [hangmanMode, setHangmanMode] = useState<HangmanMode>("CHAMPION");
+  const [competitionFormat, setCompetitionFormat] =
+    useState<ActivityCompetitionFormat>("SINGLE_MATCH");
+  const [targetWins, setTargetWins] = useState(3);
   const [durationInput, setDurationInput] = useState("5:00");
   const [saving, setSaving] = useState(false);
 
@@ -82,6 +88,8 @@ export function AddActivityModal({
     setType(first);
     setTitle("");
     setDurationInput("5:00");
+    setCompetitionFormat("SINGLE_MATCH");
+    setTargetWins(3);
     const cfg = eventActivities.find((a) => a.slug === first);
     setAllowGeneral(cfg?.allowGeneral ?? true);
     setAllowGroup(Boolean(cfg?.allowGroup && !cfg?.allowGeneral));
@@ -131,6 +139,14 @@ export function AddActivityModal({
         participationMode: type === ACTIVITY_SPINNER ? participationMode : undefined,
         ticTacToeMode: type === ACTIVITY_TIC_TAC_TOE ? ticTacToeMode : undefined,
         hangmanMode: type === ACTIVITY_HANGMAN ? hangmanMode : undefined,
+        competitionFormat:
+          type === ACTIVITY_TIC_TAC_TOE || type === ACTIVITY_HANGMAN
+            ? competitionFormat
+            : undefined,
+        targetWins:
+          type === ACTIVITY_TIC_TAC_TOE || type === ACTIVITY_HANGMAN
+            ? targetWins
+            : undefined,
         durationSec,
       });
       onClose();
@@ -264,33 +280,93 @@ export function AddActivityModal({
         )}
 
         {type === ACTIVITY_TIC_TAC_TOE && (
-          <div>
-            <label className="mb-2 block text-sm font-medium">Play mode</label>
-            <select
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              value={ticTacToeMode}
-              onChange={(e) => setTicTacToeMode(e.target.value as TicTacToeMode)}
-            >
-              <option value="CHAMPION">Champion — one mover per team</option>
-              <option value="COUNCIL">Council — team votes on moves</option>
-            </select>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium">Competition format</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={competitionFormat}
+                onChange={(e) =>
+                  setCompetitionFormat(e.target.value as ActivityCompetitionFormat)
+                }
+              >
+                <option value="SINGLE_MATCH">Single match — pick two teams later</option>
+                <option value="CHAMPIONSHIP">Championship — all teams, bracket rounds</option>
+              </select>
+            </div>
+            {competitionFormat === "CHAMPIONSHIP" && (
+              <div>
+                <label className="mb-2 block text-sm font-medium" htmlFor="ttt-target-wins">
+                  Race to (wins per matchup)
+                </label>
+                <Input
+                  id="ttt-target-wins"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={targetWins}
+                  onChange={(e) => setTargetWins(Number(e.target.value) || 1)}
+                />
+              </div>
+            )}
+            <div>
+              <label className="mb-2 block text-sm font-medium">Play mode</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={ticTacToeMode}
+                onChange={(e) => setTicTacToeMode(e.target.value as TicTacToeMode)}
+              >
+                <option value="CHAMPION">Champion — one mover per team</option>
+                <option value="COUNCIL">Council — team votes on moves</option>
+              </select>
+            </div>
           </div>
         )}
 
         {type === ACTIVITY_HANGMAN && (
-          <div>
-            <label className="mb-2 block text-sm font-medium">Play mode</label>
-            <select
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              value={hangmanMode}
-              onChange={(e) => setHangmanMode(e.target.value as HangmanMode)}
-            >
-              <option value="CHAMPION">Champion — one guesser per team</option>
-              <option value="COUNCIL">Council — team votes on letters</option>
-            </select>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Add words in Configure after creating the activity.
-            </p>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium">Competition format</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={competitionFormat}
+                onChange={(e) =>
+                  setCompetitionFormat(e.target.value as ActivityCompetitionFormat)
+                }
+              >
+                <option value="SINGLE_MATCH">Single match — pick two teams later</option>
+                <option value="CHAMPIONSHIP">Championship — all teams, bracket rounds</option>
+              </select>
+            </div>
+            {competitionFormat === "CHAMPIONSHIP" && (
+              <div>
+                <label className="mb-2 block text-sm font-medium" htmlFor="hangman-target-wins">
+                  Race to (wins per matchup)
+                </label>
+                <Input
+                  id="hangman-target-wins"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={targetWins}
+                  onChange={(e) => setTargetWins(Number(e.target.value) || 1)}
+                />
+              </div>
+            )}
+            <div>
+              <label className="mb-2 block text-sm font-medium">Play mode</label>
+              <select
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={hangmanMode}
+                onChange={(e) => setHangmanMode(e.target.value as HangmanMode)}
+              >
+                <option value="CHAMPION">Champion — one guesser per team</option>
+                <option value="COUNCIL">Council — team votes on letters</option>
+              </select>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Add words in Configure after creating the activity.
+              </p>
+            </div>
           </div>
         )}
 

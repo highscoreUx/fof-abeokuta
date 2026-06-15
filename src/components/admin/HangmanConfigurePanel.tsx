@@ -63,6 +63,7 @@ export function HangmanConfigurePanel({ challengeId, onReload }: HangmanConfigur
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [startingBracket, setStartingBracket] = useState(false);
+  const [restartingBracket, setRestartingBracket] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,6 +162,26 @@ export function HangmanConfigurePanel({ challengeId, onReload }: HangmanConfigur
       toastError("Failed to start championship", e instanceof Error ? e.message : undefined);
     } finally {
       setStartingBracket(false);
+    }
+  };
+
+  const restartChampionship = async () => {
+    if (
+      !window.confirm(
+        "Restart the championship? All bracket progress will be cleared and teams will be re-paired.",
+      )
+    ) {
+      return;
+    }
+    setRestartingBracket(true);
+    try {
+      await api(`/hangman-challenges/${challengeId}/bracket/restart`, { method: "POST" });
+      await load();
+      await onReload?.();
+    } catch (e) {
+      toastError("Failed to restart championship", e instanceof Error ? e.message : undefined);
+    } finally {
+      setRestartingBracket(false);
     }
   };
 
@@ -291,6 +312,15 @@ export function HangmanConfigurePanel({ challengeId, onReload }: HangmanConfigur
             {!bracketStarted && (
               <Button onClick={startChampionship} disabled={startingBracket || words.length === 0}>
                 {startingBracket ? "Starting…" : "Start championship"}
+              </Button>
+            )}
+            {challenge.bracket?.state === "FINISHED" && (
+              <Button
+                variant="secondary"
+                onClick={restartChampionship}
+                disabled={restartingBracket}
+              >
+                {restartingBracket ? "Restarting…" : "Restart championship"}
               </Button>
             )}
             <ChampionshipBracketPanel

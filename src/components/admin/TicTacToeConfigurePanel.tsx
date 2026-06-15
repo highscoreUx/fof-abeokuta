@@ -57,6 +57,7 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [startingBracket, setStartingBracket] = useState(false);
+  const [restartingBracket, setRestartingBracket] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,6 +134,26 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
     }
   };
 
+  const restartChampionship = async () => {
+    if (
+      !window.confirm(
+        "Restart the championship? All bracket progress will be cleared and teams will be re-paired.",
+      )
+    ) {
+      return;
+    }
+    setRestartingBracket(true);
+    try {
+      await api(`/tic-tac-toe-challenges/${challengeId}/bracket/restart`, { method: "POST" });
+      await load();
+      await onReload?.();
+    } catch (e) {
+      toastError("Failed to restart championship", e instanceof Error ? e.message : undefined);
+    } finally {
+      setRestartingBracket(false);
+    }
+  };
+
   if (loading) return <p className="text-muted-foreground">Loading…</p>;
   if (!challenge) return <p className="text-muted-foreground">Tournament not found.</p>;
 
@@ -205,6 +226,15 @@ export function TicTacToeConfigurePanel({ challengeId, onReload }: TicTacToeConf
             {!bracketStarted && (
               <Button onClick={startChampionship} disabled={startingBracket}>
                 {startingBracket ? "Starting…" : "Start championship"}
+              </Button>
+            )}
+            {challenge.bracket?.state === "FINISHED" && (
+              <Button
+                variant="secondary"
+                onClick={restartChampionship}
+                disabled={restartingBracket}
+              >
+                {restartingBracket ? "Restarting…" : "Restart championship"}
               </Button>
             )}
             <ChampionshipBracketPanel

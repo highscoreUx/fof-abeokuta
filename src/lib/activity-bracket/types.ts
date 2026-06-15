@@ -45,3 +45,11 @@ export interface BracketPairing {
   teamBId: string | null;
   isBye: boolean;
 }
+
+/** Series context for a single game inside a championship bracket slot. */
+export interface BracketMatchContext {
+  roundNumber: number;
+  teamAWins: number;
+  teamBWins: number;
+  targetWins: number;
+}

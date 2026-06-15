@@ -38,6 +38,9 @@ export interface TicTacToeActivityDetail {
   id: string;
   title: string;
   mode: "CHAMPION" | "COUNCIL";
+  competitionFormat?: "SINGLE_MATCH" | "CHAMPIONSHIP";
+  targetWins?: number;
+  bracketState?: string | null;
   allowGeneralParticipants: boolean;
   allowGroupParticipants: boolean;
   activeMatchId?: string | null;
@@ -82,6 +85,9 @@ export interface HangmanActivityDetail {
   id: string;
   title: string;
   mode: "CHAMPION" | "COUNCIL";
+  competitionFormat?: "SINGLE_MATCH" | "CHAMPIONSHIP";
+  targetWins?: number;
+  bracketState?: string | null;
   allowGeneralParticipants: boolean;
   allowGroupParticipants: boolean;
   wordCount?: number;

@@ -12,6 +12,7 @@ import {
 } from "@/lib/tic-tac-toe/types";
 import { eventRoom, teamRoom, ticTacToeMatchRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
+import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
 
 function parseBoard(raw: unknown): TicTacToeCell[] {
   if (!Array.isArray(raw) || raw.length !== 9) return [...EMPTY_BOARD];
@@ -63,6 +64,7 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
   if (!match) return null;
 
   const councilVotes = parseCouncilVotes(match.councilVotes);
+  const bracket = await loadBracketMatchContext(match.bracketSlotId);
 
   return {
     matchId: match.id,
@@ -95,6 +97,7 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
     councilVoteCounts: voteCounts(councilVotes),
     winnerTeamId: match.winnerTeamId,
     isDraw: match.isDraw,
+    bracket,
     serverNow: Date.now(),
   };
 }

@@ -154,17 +154,20 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       void refresh();
     };
     const onHangman = () => void refresh();
+    const onBracket = () => void refresh();
     socket.on("quiz:state", onQuiz);
     socket.on("spinner:state", onSpinner);
     socket.on("ttt:state", onTtt);
     socket.on("countdown:state", onCountdown);
     socket.on("hangman:state", onHangman);
+    socket.on("bracket:state", onBracket);
     return () => {
       socket.off("quiz:state", onQuiz);
       socket.off("spinner:state", onSpinner);
       socket.off("ttt:state", onTtt);
       socket.off("countdown:state", onCountdown);
       socket.off("hangman:state", onHangman);
+      socket.off("bracket:state", onBracket);
     };
   }, [needsRealtime, socket, refresh]);
 
@@ -176,6 +179,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
     ticTacToeMode?: "CHAMPION" | "COUNCIL";
     hangmanMode?: "CHAMPION" | "COUNCIL";
+    competitionFormat?: "SINGLE_MATCH" | "CHAMPIONSHIP";
+    targetWins?: number;
     durationSec?: number;
   }) => {
     if (data.type === ACTIVITY_KAHOOT) {
@@ -205,6 +210,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           allowGeneralParticipants: data.allowGeneralParticipants,
           allowGroupParticipants: data.allowGroupParticipants,
           mode: data.ticTacToeMode ?? "CHAMPION",
+          competitionFormat: data.competitionFormat ?? "SINGLE_MATCH",
+          targetWins: data.targetWins ?? 1,
         }),
       });
     } else if (data.type === ACTIVITY_COUNTDOWN) {
@@ -225,6 +232,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           allowGeneralParticipants: data.allowGeneralParticipants,
           allowGroupParticipants: data.allowGroupParticipants,
           mode: data.hangmanMode ?? "CHAMPION",
+          competitionFormat: data.competitionFormat ?? "SINGLE_MATCH",
+          targetWins: data.targetWins ?? 1,
           words: [],
         }),
       });
@@ -262,6 +271,16 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       return row.activeSessionState === "PAUSED" ? "Paused" : "Live";
     }
     if (row.kind === "spinner" && row.activeSessionId) return "Live";
+    if (row.kind === "tic_tac_toe" && row.competitionFormat === "CHAMPIONSHIP") {
+      if (row.bracketState === "ACTIVE") return "Championship live";
+      if (row.bracketState === "FINISHED") return "Champion crowned";
+      return "Championship ready";
+    }
+    if (row.kind === "hangman" && row.competitionFormat === "CHAMPIONSHIP") {
+      if (row.bracketState === "ACTIVE") return "Championship live";
+      if (row.bracketState === "FINISHED") return "Champion crowned";
+      return "Championship ready";
+    }
     if (row.kind === "tic_tac_toe" && row.activeMatchState === "ACTIVE") return "Live";
     if (row.kind === "hangman" && row.activeMatchState === "ACTIVE") return "Live";
     if (row.kind === "tic_tac_toe" && row.activeMatchState === "WAITING") return "Waiting";
@@ -343,7 +362,7 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                       {status && (
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            status === "Live"
+                            status === "Live" || status === "Championship live"
                               ? "bg-success/15 text-success"
                               : "bg-muted text-muted-foreground"
                           }`}
@@ -357,9 +376,13 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                       {row.kind === "kahoot" || row.kind === "survey"
                         ? `${questionCount} question${questionCount === 1 ? "" : "s"}`
                         : row.kind === "tic_tac_toe"
-                          ? `${row.mode === "COUNCIL" ? "Council" : "Champion"} mode`
+                          ? row.competitionFormat === "CHAMPIONSHIP"
+                            ? `Championship · race to ${row.targetWins ?? 1} · ${row.mode === "COUNCIL" ? "Council" : "Champion"}`
+                            : `${row.mode === "COUNCIL" ? "Council" : "Champion"} mode`
                           : row.kind === "hangman"
-                            ? `${row.mode === "COUNCIL" ? "Council" : "Champion"} · ${row.wordCount ?? 0} word${(row.wordCount ?? 0) === 1 ? "" : "s"}`
+                            ? row.competitionFormat === "CHAMPIONSHIP"
+                              ? `Championship · race to ${row.targetWins ?? 1} · ${row.mode === "COUNCIL" ? "Council" : "Champion"} · ${row.wordCount ?? 0} word${(row.wordCount ?? 0) === 1 ? "" : "s"}`
+                              : `${row.mode === "COUNCIL" ? "Council" : "Champion"} · ${row.wordCount ?? 0} word${(row.wordCount ?? 0) === 1 ? "" : "s"}`
                             : row.kind === "countdown"
                             ? `${Math.floor(row.durationSec / 60)}:${(row.durationSec % 60).toString().padStart(2, "0")} timer`
                             : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}

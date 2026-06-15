@@ -22,6 +22,7 @@ import { prisma } from "@/lib/prisma";
 import { mapActiveSpinnerSessionsByChallengeId } from "@/server/games/spinnerEngine";
 import { mapActiveCountdownSessionsByChallengeId } from "@/server/games/countdownEngine";
 import { parseHangmanWords } from "@/lib/hangman/types";
+import { getBracketForChallenge } from "@/server/games/activityBracketEngine";
 import type {
   ActivityInstancesPayload,
   ActivityListItem,
@@ -229,11 +230,15 @@ export async function loadActivityInstancesForAdmin(
   if (canTtt && tttEnabled) {
     for (const challenge of tttChallenges) {
       if (!teamingEnabled && isTeamOnlyInstance(challenge)) continue;
+      const bracket = await getBracketForChallenge("tic_tac_toe", challenge.id);
       instances.push({
         kind: "tic_tac_toe",
         id: challenge.id,
         title: challenge.title,
         mode: challenge.mode,
+        competitionFormat: challenge.competitionFormat,
+        targetWins: challenge.targetWins,
+        bracketState: bracket?.state ?? null,
         allowGeneralParticipants: challenge.allowGeneralParticipants,
         allowGroupParticipants: teamingEnabled ? challenge.allowGroupParticipants : false,
         activeMatchId: challenge.matches[0]?.id ?? null,
@@ -293,11 +298,15 @@ export async function loadActivityInstancesForAdmin(
   if (canHangman && hangmanEnabled) {
     for (const challenge of hangmanChallenges) {
       if (!teamingEnabled && isTeamOnlyInstance(challenge)) continue;
+      const bracket = await getBracketForChallenge("hangman", challenge.id);
       instances.push({
         kind: "hangman",
         id: challenge.id,
         title: challenge.title,
         mode: challenge.mode,
+        competitionFormat: challenge.competitionFormat,
+        targetWins: challenge.targetWins,
+        bracketState: bracket?.state ?? null,
         allowGeneralParticipants: challenge.allowGeneralParticipants,
         allowGroupParticipants: teamingEnabled ? challenge.allowGroupParticipants : false,
         wordCount: parseHangmanWords(challenge.config).length,

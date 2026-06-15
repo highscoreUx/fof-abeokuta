@@ -1,3 +1,5 @@
+import type { BracketMatchContext } from "@/lib/activity-bracket/types";
+
 export type HangmanMode = "CHAMPION" | "COUNCIL";
 export type HangmanMark = "X" | "O";
 export type HangmanMatchState = "WAITING" | "ACTIVE" | "FINISHED";
@@ -40,6 +42,7 @@ export interface HangmanMatchSnapshot {
   councilVoteCounts: Record<string, number>;
   winnerTeamId: string | null;
   revealedWord: string | null;
+  bracket?: BracketMatchContext | null;
   serverNow: number;
 }
 

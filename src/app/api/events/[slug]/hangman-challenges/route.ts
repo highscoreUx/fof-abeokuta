@@ -90,6 +90,12 @@ export async function POST(
   if (scopeError) return jsonError(scopeError, "VALIDATION_ERROR", 400);
 
   const mode = body.mode === "COUNCIL" ? "COUNCIL" : "CHAMPION";
+  const competitionFormat =
+    body.competitionFormat === "CHAMPIONSHIP" ? "CHAMPIONSHIP" : "SINGLE_MATCH";
+  const targetWins =
+    body.targetWins != null && Number(body.targetWins) > 0
+      ? Math.min(20, Math.round(Number(body.targetWins)))
+      : 1;
   const words = body.words !== undefined ? normalizeWords(body.words) : [];
   const maxWrongGuesses =
     body.maxWrongGuesses != null && Number(body.maxWrongGuesses) > 0
@@ -101,6 +107,8 @@ export async function POST(
       eventId: ctx.event.id,
       title: body.title.trim(),
       mode,
+      competitionFormat,
+      targetWins,
       maxWrongGuesses,
       config: { words },
       allowGeneralParticipants: scope.allowGeneralParticipants,

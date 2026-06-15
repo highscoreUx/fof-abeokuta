@@ -6,12 +6,16 @@ export const ACTIVITY_SPINNER = "spinner" as const;
 export const ACTIVITY_SPIN_TO_BUILD = ACTIVITY_SPINNER;
 export const ACTIVITY_SURVEY = "survey" as const;
 export const ACTIVITY_TIC_TAC_TOE = "tic_tac_toe" as const;
+export const ACTIVITY_COUNTDOWN = "countdown" as const;
+export const ACTIVITY_HANGMAN = "hangman" as const;
 
 export type ActivitySlug =
   | typeof ACTIVITY_KAHOOT
   | typeof ACTIVITY_SPINNER
   | typeof ACTIVITY_SURVEY
-  | typeof ACTIVITY_TIC_TAC_TOE;
+  | typeof ACTIVITY_TIC_TAC_TOE
+  | typeof ACTIVITY_COUNTDOWN
+  | typeof ACTIVITY_HANGMAN;
 
 /** Activity types shown on the event admin activities index. */
 export const CONFIGURABLE_ACTIVITY_SLUGS = [
@@ -19,6 +23,8 @@ export const CONFIGURABLE_ACTIVITY_SLUGS = [
   ACTIVITY_SPINNER,
   ACTIVITY_SURVEY,
   ACTIVITY_TIC_TAC_TOE,
+  ACTIVITY_COUNTDOWN,
+  ACTIVITY_HANGMAN,
   "spin_to_build",
 ] as const;
 
@@ -68,6 +74,24 @@ export const ACTIVITY_CATALOG: ActivityTypeDefinition[] = [
     runPermission: "tic_tac_toe.run",
     participantPermission: "participant.tic_tac_toe",
     sortOrder: 4,
+  },
+  {
+    slug: ACTIVITY_COUNTDOWN,
+    name: "Countdown timer",
+    description: "Start a synced countdown everyone can see on Activities and the main stage.",
+    managePermission: "countdown.manage",
+    runPermission: "countdown.run",
+    participantPermission: "participant.activities",
+    sortOrder: 5,
+  },
+  {
+    slug: ACTIVITY_HANGMAN,
+    name: "Team Hangman",
+    description: "Teams take turns guessing letters — champion or council mode with live spectating.",
+    managePermission: "hangman.manage",
+    runPermission: "hangman.run",
+    participantPermission: "participant.hangman",
+    sortOrder: 6,
   },
 ];
 
@@ -131,8 +155,12 @@ export const ACTIVITIES_ADMIN_PERMISSIONS: Permission[] = [
   "spin.manage",
   "tic_tac_toe.manage",
   "survey.manage",
+  "countdown.manage",
+  "hangman.manage",
   "quiz.run",
   "spin.run",
   "tic_tac_toe.run",
   "survey.run",
+  "countdown.run",
+  "hangman.run",
 ];

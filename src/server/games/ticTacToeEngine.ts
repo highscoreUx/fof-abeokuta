@@ -11,6 +11,7 @@ import {
   type TicTacToeMode,
 } from "@/lib/tic-tac-toe/types";
 import { eventRoom, teamRoom, ticTacToeMatchRoom } from "@/server/socket/rooms";
+import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 
 function parseBoard(raw: unknown): TicTacToeCell[] {
   if (!Array.isArray(raw) || raw.length !== 9) return [...EMPTY_BOARD];
@@ -129,6 +130,10 @@ export async function createTttMatch(
     where: { id: challengeId, eventId },
   });
   if (!challenge) throw new Error("Tournament not found.");
+
+  if (challenge.competitionFormat === "CHAMPIONSHIP") {
+    throw new Error("Use Start championship for bracket mode.");
+  }
 
   return prisma.ticTacToeMatch.create({
     data: {
@@ -258,7 +263,21 @@ async function applyMove(
     },
   });
 
-  return broadcastTttState(io, matchId, eventSlug);
+  const snapshot = await broadcastTttState(io, matchId, eventSlug);
+
+  if (finished && match.bracketSlotId) {
+    await handleBracketGameResult(io, {
+      gameType: "tic_tac_toe",
+      bracketSlotId: match.bracketSlotId,
+      winnerTeamId: draw ? null : winnerTeamId,
+      isDraw: draw,
+      eventId: match.eventId,
+      eventSlug,
+      finishedMatchId: matchId,
+    });
+  }
+
+  return snapshot;
 }
 
 export async function handleTttMove(

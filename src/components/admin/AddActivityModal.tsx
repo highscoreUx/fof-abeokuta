@@ -10,9 +10,13 @@ import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
   ACTIVITY_TIC_TAC_TOE,
+  ACTIVITY_COUNTDOWN,
+  ACTIVITY_HANGMAN,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
+import { parseDurationInput } from "@/lib/countdown/format";
 import type { TicTacToeMode } from "@/lib/tic-tac-toe/types";
+import type { HangmanMode } from "@/lib/hangman/types";
 import type { SpinnerParticipationMode } from "@/lib/spinner/types";
 import type { Permission } from "@/lib/permissions/catalog";
 import { hasPermission } from "@/lib/permissions";
@@ -38,6 +42,8 @@ interface AddActivityModalProps {
     allowGroupParticipants: boolean;
     participationMode?: SpinnerParticipationMode;
     ticTacToeMode?: TicTacToeMode;
+    hangmanMode?: HangmanMode;
+    durationSec?: number;
   }) => Promise<void>;
   teamingEnabled?: boolean;
 }
@@ -63,6 +69,8 @@ export function AddActivityModal({
   const [participationMode, setParticipationMode] =
     useState<SpinnerParticipationMode>("ONE_AT_A_TIME");
   const [ticTacToeMode, setTicTacToeMode] = useState<TicTacToeMode>("CHAMPION");
+  const [hangmanMode, setHangmanMode] = useState<HangmanMode>("CHAMPION");
+  const [durationInput, setDurationInput] = useState("5:00");
   const [saving, setSaving] = useState(false);
 
   const selectedConfig = eventActivities.find((a) => a.slug === type);
@@ -73,6 +81,7 @@ export function AddActivityModal({
     const first = creatableTypes[0]?.slug ?? ACTIVITY_KAHOOT;
     setType(first);
     setTitle("");
+    setDurationInput("5:00");
     const cfg = eventActivities.find((a) => a.slug === first);
     setAllowGeneral(cfg?.allowGeneral ?? true);
     setAllowGroup(Boolean(cfg?.allowGroup && !cfg?.allowGeneral));
@@ -80,7 +89,7 @@ export function AddActivityModal({
 
   useEffect(() => {
     if (!selectedConfig) return;
-    if (type === ACTIVITY_KAHOOT) {
+    if (type === ACTIVITY_KAHOOT || type === ACTIVITY_COUNTDOWN) {
       setAllowGeneral(true);
       setAllowGroup(false);
       return;
@@ -103,13 +112,26 @@ export function AddActivityModal({
 
     setSaving(true);
     try {
+      let durationSec: number | undefined;
+      if (type === ACTIVITY_COUNTDOWN) {
+        const parsed = parseDurationInput(durationInput);
+        if (parsed == null) {
+          toastError("Invalid duration", "Use M:SS or total seconds (e.g. 5:00 or 300).");
+          setSaving(false);
+          return;
+        }
+        durationSec = parsed;
+      }
+
       await onCreate({
         type,
         title: title.trim(),
-        allowGeneralParticipants: type === ACTIVITY_KAHOOT ? true : allowGeneral,
-        allowGroupParticipants: type === ACTIVITY_KAHOOT ? false : allowGroup,
+        allowGeneralParticipants: type === ACTIVITY_KAHOOT || type === ACTIVITY_COUNTDOWN ? true : allowGeneral,
+        allowGroupParticipants: type === ACTIVITY_KAHOOT || type === ACTIVITY_COUNTDOWN ? false : allowGroup,
         participationMode: type === ACTIVITY_SPINNER ? participationMode : undefined,
         ticTacToeMode: type === ACTIVITY_TIC_TAC_TOE ? ticTacToeMode : undefined,
+        hangmanMode: type === ACTIVITY_HANGMAN ? hangmanMode : undefined,
+        durationSec,
       });
       onClose();
     } catch (e) {
@@ -170,6 +192,11 @@ export function AddActivityModal({
             Live Trivia is always whole-event scope. When started, it is announced in general and
             team chats so everyone can join or spectate.
           </p>
+        ) : type === ACTIVITY_COUNTDOWN ? (
+          <p className="text-sm text-muted-foreground">
+            Countdown timers are whole-event scope. When started, everyone sees the same synced timer
+            on Activities and the main stage.
+          </p>
         ) : (
           <div className="space-y-2">
             <p className="text-sm font-medium">Who can participate?</p>
@@ -203,6 +230,23 @@ export function AddActivityModal({
           </div>
         )}
 
+        {type === ACTIVITY_COUNTDOWN && (
+          <div>
+            <label className="mb-2 block text-sm font-medium" htmlFor="countdown-duration">
+              Duration
+            </label>
+            <Input
+              id="countdown-duration"
+              value={durationInput}
+              onChange={(e) => setDurationInput(e.target.value)}
+              placeholder="5:00"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Use M:SS (e.g. 5:00) or total seconds (e.g. 300).
+            </p>
+          </div>
+        )}
+
         {type === ACTIVITY_SPINNER && (
           <div>
             <label className="mb-2 block text-sm font-medium">Participation</label>
@@ -230,6 +274,23 @@ export function AddActivityModal({
               <option value="CHAMPION">Champion — one mover per team</option>
               <option value="COUNCIL">Council — team votes on moves</option>
             </select>
+          </div>
+        )}
+
+        {type === ACTIVITY_HANGMAN && (
+          <div>
+            <label className="mb-2 block text-sm font-medium">Play mode</label>
+            <select
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={hangmanMode}
+              onChange={(e) => setHangmanMode(e.target.value as HangmanMode)}
+            >
+              <option value="CHAMPION">Champion — one guesser per team</option>
+              <option value="COUNCIL">Council — team votes on letters</option>
+            </select>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Add words in Configure after creating the activity.
+            </p>
           </div>
         )}
 

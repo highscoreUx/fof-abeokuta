@@ -4,6 +4,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { QuizFinishedResults } from "@/components/quiz/QuizFinishedResults";
 import { SpinnerFinishedResults } from "@/components/spinner/SpinnerFinishedResults";
 import { TttFinishedResults } from "@/components/tic-tac-toe/TttFinishedResults";
+import { HangmanFinishedResults } from "@/components/hangman/HangmanFinishedResults";
 import type { CompletedActivityRecord } from "@/components/activities/participant-activities-registry";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -49,6 +50,9 @@ export function CompletedActivityCards({ records }: { records: CompletedActivity
         }
         if (record.type === "ttt") {
           return <TttFinishedResults key={record.key} snapshot={record.snapshot} />;
+        }
+        if (record.type === "hangman") {
+          return <HangmanFinishedResults key={record.key} snapshot={record.snapshot} />;
         }
         return <SurveyResultsCard key={record.key} title={record.title} />;
       })}

@@ -66,11 +66,36 @@ export interface SurveyActivityDetail {
   responseCount?: number;
 }
 
+export interface CountdownActivityDetail {
+  kind: "countdown";
+  id: string;
+  title: string;
+  durationSec: number;
+  allowGeneralParticipants: boolean;
+  allowGroupParticipants: boolean;
+  activeSessionId?: string | null;
+  activeSessionState?: "RUNNING" | "PAUSED" | "FINISHED" | null;
+}
+
+export interface HangmanActivityDetail {
+  kind: "hangman";
+  id: string;
+  title: string;
+  mode: "CHAMPION" | "COUNCIL";
+  allowGeneralParticipants: boolean;
+  allowGroupParticipants: boolean;
+  wordCount?: number;
+  activeMatchId?: string | null;
+  activeMatchState?: string | null;
+}
+
 export type ActivityDetail =
   | KahootActivityDetail
   | SpinnerActivityDetail
   | TicTacToeActivityDetail
-  | SurveyActivityDetail;
+  | SurveyActivityDetail
+  | CountdownActivityDetail
+  | HangmanActivityDetail;
 
 /** Lightweight rows for the activities admin index (no nested question payloads). */
 export type KahootActivityListItem = Omit<KahootActivityDetail, "questions"> & {
@@ -85,7 +110,9 @@ export type ActivityListItem =
   | KahootActivityListItem
   | SpinnerActivityDetail
   | TicTacToeActivityDetail
-  | SurveyActivityListItem;
+  | SurveyActivityListItem
+  | CountdownActivityDetail
+  | HangmanActivityDetail;
 
 export interface EventActivityConfigRow {
   slug: string;

@@ -9,6 +9,10 @@ import {
   validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
+import {
+  buildActivityBracketSnapshot,
+  getBracketForChallenge,
+} from "@/server/games/activityBracketEngine";
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +41,17 @@ export async function GET(
   });
   if (!challenge) return jsonError("Activity not found", "NOT_FOUND", 404);
 
-  return NextResponse.json({ challenge });
+  const bracketRecord = await getBracketForChallenge("tic_tac_toe", challenge.id);
+  const bracket = bracketRecord
+    ? await buildActivityBracketSnapshot(bracketRecord.id)
+    : null;
+
+  return NextResponse.json({
+    challenge: {
+      ...challenge,
+      bracket,
+    },
+  });
 }
 
 export async function PATCH(
@@ -82,11 +96,25 @@ export async function PATCH(
   const mode =
     body.mode === "COUNCIL" ? "COUNCIL" : body.mode === "CHAMPION" ? "CHAMPION" : challenge.mode;
 
+  const competitionFormat =
+    body.competitionFormat === "CHAMPIONSHIP"
+      ? "CHAMPIONSHIP"
+      : body.competitionFormat === "SINGLE_MATCH"
+        ? "SINGLE_MATCH"
+        : challenge.competitionFormat;
+
+  const targetWins =
+    body.targetWins != null && Number(body.targetWins) > 0
+      ? Math.min(20, Math.round(Number(body.targetWins)))
+      : challenge.targetWins;
+
   const updated = await prisma.ticTacToeChallenge.update({
     where: { id: challenge.id },
     data: {
       title: body.title?.trim() || challenge.title,
       mode,
+      competitionFormat,
+      targetWins,
       allowGeneralParticipants: scope.allowGeneralParticipants,
       allowGroupParticipants: scope.allowGroupParticipants,
     },

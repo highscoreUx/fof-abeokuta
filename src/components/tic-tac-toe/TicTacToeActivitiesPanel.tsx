@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useSocket } from "@/hooks/useSocket";
 import { TicTacToeMatchLive } from "@/components/tic-tac-toe/TicTacToeMatchLive";
+import { BracketChampionshipSection } from "@/components/activity-bracket/BracketChampionshipSection";
 import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
 import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
@@ -14,6 +15,8 @@ interface TttChallengeRow {
   id: string;
   title: string;
   mode: "CHAMPION" | "COUNCIL";
+  competitionFormat?: "SINGLE_MATCH" | "CHAMPIONSHIP";
+  bracketState?: string | null;
   activeMatchId: string | null;
   activeMatchState: string | null;
 }
@@ -91,8 +94,10 @@ export function TicTacToeActivitiesPanel() {
     };
 
     socket.on("ttt:state", scheduleRefresh);
+    socket.on("bracket:state", scheduleRefresh);
     return () => {
       socket.off("ttt:state", scheduleRefresh);
+      socket.off("bracket:state", scheduleRefresh);
       if (timer) clearTimeout(timer);
     };
   }, [socket, load]);
@@ -103,8 +108,9 @@ export function TicTacToeActivitiesPanel() {
 
   const liveChallenges = challenges.filter(
     (challenge) =>
-      challenge.activeMatchId &&
-      (challenge.activeMatchState === "WAITING" || challenge.activeMatchState === "ACTIVE"),
+      (challenge.competitionFormat === "CHAMPIONSHIP" && challenge.bracketState === "ACTIVE") ||
+      (challenge.activeMatchId &&
+        (challenge.activeMatchState === "WAITING" || challenge.activeMatchState === "ACTIVE")),
   );
   const liveMatchIds = new Set(
     liveChallenges.map((challenge) => challenge.activeMatchId).filter(Boolean) as string[],
@@ -151,26 +157,38 @@ export function TicTacToeActivitiesPanel() {
             </div>
           )}
 
-          {liveMatches.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {liveMatches.map((m) => (
-                <Button
-                  key={m.id}
-                  size="sm"
-                  variant={m.id === selectedMatchId ? "primary" : "secondary"}
-                  onClick={() => setSelectedMatchId(m.id)}
-                >
-                  {m.teamX.letter} vs {m.teamO.letter}
-                  {m.state === "ACTIVE" ? " · Live" : ""}
-                </Button>
-              ))}
-            </div>
-          )}
+          {selected.competitionFormat === "CHAMPIONSHIP" ? (
+            <BracketChampionshipSection
+              challengeId={selected.id}
+              gameType="tic_tac_toe"
+              renderMatch={(matchId) => (
+                <TicTacToeMatchLive challengeId={selected.id} initialMatchId={matchId} />
+              )}
+            />
+          ) : (
+            <>
+              {liveMatches.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  {liveMatches.map((m) => (
+                    <Button
+                      key={m.id}
+                      size="sm"
+                      variant={m.id === selectedMatchId ? "primary" : "secondary"}
+                      onClick={() => setSelectedMatchId(m.id)}
+                    >
+                      {m.teamX.letter} vs {m.teamO.letter}
+                      {m.state === "ACTIVE" ? " · Live" : ""}
+                    </Button>
+                  ))}
+                </div>
+              )}
 
-          <TicTacToeMatchLive
-            challengeId={selected.id}
-            initialMatchId={selectedMatchId ?? selected.activeMatchId}
-          />
+              <TicTacToeMatchLive
+                challengeId={selected.id}
+                initialMatchId={selectedMatchId ?? selected.activeMatchId}
+              />
+            </>
+          )}
         </>
       )}
 

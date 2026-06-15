@@ -53,6 +53,46 @@ enum TicTacToeMatchState {
   FINISHED
 }
 
+enum HangmanMode {
+  CHAMPION
+  COUNCIL
+}
+
+enum HangmanMatchState {
+  WAITING
+  ACTIVE
+  FINISHED
+}
+
+enum ActivityCompetitionFormat {
+  SINGLE_MATCH
+  CHAMPIONSHIP
+}
+
+enum ActivityBracketState {
+  SETUP
+  ACTIVE
+  FINISHED
+}
+
+enum ActivityBracketRoundState {
+  PENDING
+  ACTIVE
+  COMPLETE
+}
+
+enum ActivityBracketSlotState {
+  PENDING
+  ACTIVE
+  COMPLETE
+}
+
+enum CountdownSessionState {
+  RUNNING
+  PAUSED
+  FINISHED
+}
+
 enum TriviaQuestionType {
   QUIZ
   QUIZ_IMAGE
@@ -145,8 +185,13 @@ model Event {
   scoreCriteria   ScoreCriterion[]
   spinChallenges  SpinChallenge[]
   spinnerSessions SpinnerSession[]
+  countdownChallenges CountdownChallenge[]
+  countdownSessions CountdownSession[]
   ticTacToeChallenges TicTacToeChallenge[]
   ticTacToeMatches    TicTacToeMatch[]
+  hangmanChallenges   HangmanChallenge[]
+  hangmanMatches      HangmanMatch[]
+  activityBrackets    ActivityBracket[]
   surveys         Survey[]
   eventActivities EventActivity[]
   appSettings     AppSetting[]
@@ -242,6 +287,13 @@ model Team {
   ticTacToeMatchesAsX TicTacToeMatch[] @relation("TttTeamX")
   ticTacToeMatchesAsO TicTacToeMatch[] @relation("TttTeamO")
   ticTacToeWins       TicTacToeMatch[] @relation("TttWinner")
+  hangmanMatchesAsX   HangmanMatch[]   @relation("HangmanTeamX")
+  hangmanMatchesAsO   HangmanMatch[]   @relation("HangmanTeamO")
+  hangmanWins         HangmanMatch[]   @relation("HangmanWinner")
+  bracketSlotWins     ActivityBracketSlot[] @relation("BracketSlotWinner")
+  bracketSlotTeamA    ActivityBracketSlot[] @relation("BracketSlotTeamA")
+  bracketSlotTeamB    ActivityBracketSlot[] @relation("BracketSlotTeamB")
+  bracketChampionships ActivityBracket[] @relation("BracketChampion")
   galleryPhotos       GalleryPhoto[]
 
   @@unique([eventId, letter])
@@ -275,8 +327,11 @@ model User {
   spinnerSpins SpinnerSpin[]
   spinnerSessionsStarted SpinnerSession[] @relation("SpinnerStartedBy")
   spinnerSessionsActive SpinnerSession[] @relation("SpinnerActiveUser")
+  countdownSessionsStarted CountdownSession[] @relation("CountdownStartedBy")
   tttChampionX        TicTacToeMatch[] @relation("TttChampionX")
   tttChampionO        TicTacToeMatch[] @relation("TttChampionO")
+  hangmanChampionX    HangmanMatch[]   @relation("HangmanChampionX")
+  hangmanChampionO    HangmanMatch[]   @relation("HangmanChampionO")
   surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
   galleryPhotos GalleryPhoto[]
@@ -508,18 +563,53 @@ model SpinnerSpin {
   @@index([sessionId, createdAt])
 }
 
-model TicTacToeChallenge {
-  id                       String            @id @default(cuid())
+model CountdownChallenge {
+  id                       String             @id @default(cuid())
   eventId                  String
-  event                    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event                    Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   title                    String
-  mode                     TicTacToeMode     @default(CHAMPION)
-  config                   Json              @default("{}")
-  allowGeneralParticipants Boolean           @default(false)
-  allowGroupParticipants   Boolean           @default(true)
+  durationSec              Int                @default(300)
+  allowGeneralParticipants Boolean            @default(true)
+  allowGroupParticipants   Boolean            @default(false)
+  sessions                 CountdownSession[]
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+}
+
+model CountdownSession {
+  id                String                @id @default(cuid())
+  challengeId       String
+  challenge         CountdownChallenge    @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  eventId           String
+  event             Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  state             CountdownSessionState @default(RUNNING)
+  segmentDurationMs Int
+  startedAt         DateTime?
+  pausedRemainingMs Int?
+  startedByUserId   String
+  startedBy         User                  @relation("CountdownStartedBy", fields: [startedByUserId], references: [id])
+  createdAt         DateTime              @default(now())
+  endedAt           DateTime?
+
+  @@index([eventId, state])
+  @@index([challengeId, state])
+}
+
+model TicTacToeChallenge {
+  id                       String                    @id @default(cuid())
+  eventId                  String
+  event                    Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title                    String
+  mode                     TicTacToeMode             @default(CHAMPION)
+  competitionFormat        ActivityCompetitionFormat @default(SINGLE_MATCH)
+  targetWins               Int                       @default(1)
+  config                   Json                      @default("{}")
+  allowGeneralParticipants Boolean                   @default(false)
+  allowGroupParticipants   Boolean                   @default(true)
   matches                  TicTacToeMatch[]
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
+  bracket                  ActivityBracket?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 }
 
 model TicTacToeMatch {
@@ -543,6 +633,8 @@ model TicTacToeMatch {
   championO       User?               @relation("TttChampionO", fields: [championOUserId], references: [id])
   winnerTeamId    String?
   winnerTeam      Team?               @relation("TttWinner", fields: [winnerTeamId], references: [id])
+  bracketSlotId   String?
+  bracketSlot     ActivityBracketSlot? @relation(fields: [bracketSlotId], references: [id], onDelete: SetNull)
   isDraw          Boolean             @default(false)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -550,6 +642,114 @@ model TicTacToeMatch {
 
   @@index([eventId, state])
   @@index([challengeId, state])
+  @@index([bracketSlotId])
+}
+
+model HangmanChallenge {
+  id                       String                    @id @default(cuid())
+  eventId                  String
+  event                    Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title                    String
+  mode                     HangmanMode               @default(CHAMPION)
+  competitionFormat        ActivityCompetitionFormat @default(SINGLE_MATCH)
+  targetWins               Int                       @default(1)
+  config                   Json                      @default("{}")
+  maxWrongGuesses          Int                       @default(6)
+  allowGeneralParticipants Boolean                   @default(false)
+  allowGroupParticipants   Boolean                   @default(true)
+  matches                  HangmanMatch[]
+  bracket                  ActivityBracket?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+}
+
+model HangmanMatch {
+  id              String            @id @default(cuid())
+  challengeId     String
+  challenge       HangmanChallenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  eventId         String
+  event           Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamXId         String
+  teamX           Team              @relation("HangmanTeamX", fields: [teamXId], references: [id])
+  teamOId         String
+  teamO           Team              @relation("HangmanTeamO", fields: [teamOId], references: [id])
+  state           HangmanMatchState @default(WAITING)
+  secretWord      String            @default("")
+  guessedLetters  Json              @default("[]")
+  wrongGuessesX   Int               @default(0)
+  wrongGuessesO   Int               @default(0)
+  currentTurn     String            @default("X")
+  turnNumber      Int               @default(0)
+  councilVotes    Json              @default("{}")
+  championXUserId String?
+  championX       User?             @relation("HangmanChampionX", fields: [championXUserId], references: [id])
+  championOUserId String?
+  championO       User?             @relation("HangmanChampionO", fields: [championOUserId], references: [id])
+  winnerTeamId    String?
+  winnerTeam      Team?             @relation("HangmanWinner", fields: [winnerTeamId], references: [id])
+  bracketSlotId   String?
+  bracketSlot     ActivityBracketSlot? @relation(fields: [bracketSlotId], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  finishedAt      DateTime?
+
+  @@index([eventId, state])
+  @@index([challengeId, state])
+  @@index([bracketSlotId])
+}
+
+model ActivityBracket {
+  id                 String                @id @default(cuid())
+  eventId            String
+  event              Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  gameType           String
+  tttChallengeId     String?               @unique
+  tttChallenge       TicTacToeChallenge?   @relation(fields: [tttChallengeId], references: [id], onDelete: Cascade)
+  hangmanChallengeId String?               @unique
+  hangmanChallenge   HangmanChallenge?     @relation(fields: [hangmanChallengeId], references: [id], onDelete: Cascade)
+  state              ActivityBracketState  @default(SETUP)
+  targetWins         Int                   @default(1)
+  currentRound       Int                   @default(0)
+  championTeamId     String?
+  championTeam       Team?                 @relation("BracketChampion", fields: [championTeamId], references: [id])
+  rounds             ActivityBracketRound[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([eventId, state])
+}
+
+model ActivityBracketRound {
+  id          String                    @id @default(cuid())
+  bracketId   String
+  bracket     ActivityBracket           @relation(fields: [bracketId], references: [id], onDelete: Cascade)
+  roundNumber Int
+  state       ActivityBracketRoundState @default(PENDING)
+  slots       ActivityBracketSlot[]
+  createdAt   DateTime                  @default(now())
+
+  @@unique([bracketId, roundNumber])
+}
+
+model ActivityBracketSlot {
+  id           String                   @id @default(cuid())
+  roundId      String
+  round        ActivityBracketRound     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  teamAId      String
+  teamA        Team                     @relation("BracketSlotTeamA", fields: [teamAId], references: [id])
+  teamBId      String?
+  teamB        Team?                    @relation("BracketSlotTeamB", fields: [teamBId], references: [id])
+  teamAWins    Int                      @default(0)
+  teamBWins    Int                      @default(0)
+  winnerTeamId String?
+  winnerTeam   Team?                    @relation("BracketSlotWinner", fields: [winnerTeamId], references: [id])
+  isBye        Boolean                  @default(false)
+  state        ActivityBracketSlotState @default(PENDING)
+  tttMatches   TicTacToeMatch[]
+  hangmanMatches HangmanMatch[]
+  createdAt    DateTime                 @default(now())
+
+  @@index([roundId, state])
 }
 
 model SpinSubmission {

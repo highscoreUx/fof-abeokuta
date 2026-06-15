@@ -21,6 +21,8 @@ import { toastError } from "@/lib/toast";
 import { SurveyConfigurePanel } from "@/components/admin/SurveyConfigurePanel";
 import { SpinnerConfigurePanel } from "@/components/admin/SpinnerConfigurePanel";
 import { TicTacToeConfigurePanel } from "@/components/admin/TicTacToeConfigurePanel";
+import { CountdownConfigurePanel } from "@/components/admin/CountdownConfigurePanel";
+import { HangmanConfigurePanel } from "@/components/admin/HangmanConfigurePanel";
 import type { ActivityConfigureKind, KahootActivityDetail } from "@/types/activities";
 
 export function ActivityConfigureView() {
@@ -64,7 +66,12 @@ export function ActivityConfigureView() {
             options: Array.isArray(q.options) ? (q.options as string[]) : undefined,
           })),
         });
-      } else if (configureKind === "spinner" || configureKind === "tic_tac_toe") {
+      } else if (
+        configureKind === "spinner" ||
+        configureKind === "tic_tac_toe" ||
+        configureKind === "countdown" ||
+        configureKind === "hangman"
+      ) {
         // Detail loaded by configure panel
       } else if (configureKind === "survey") {
         // Survey detail loaded by SurveyConfigurePanel
@@ -99,7 +106,11 @@ export function ActivityConfigureView() {
         ? "Survey"
         : configureKind === "tic_tac_toe"
           ? "Team Tic-Tac-Toe"
-          : "Spinner";
+          : configureKind === "countdown"
+          ? "Countdown timer"
+          : configureKind === "hangman"
+            ? "Team Hangman"
+            : "Spinner";
   const permission =
     configureKind === "kahoot"
       ? "quiz.manage"
@@ -107,7 +118,11 @@ export function ActivityConfigureView() {
         ? "survey.manage"
         : configureKind === "tic_tac_toe"
           ? "tic_tac_toe.manage"
-          : "spin.manage";
+          : configureKind === "countdown"
+            ? "countdown.manage"
+            : configureKind === "hangman"
+              ? "hangman.manage"
+              : "spin.manage";
 
   return (
     <PermissionGuard permission={permission} embedded>
@@ -259,6 +274,14 @@ export function ActivityConfigureView() {
 
         {!loading && !loadFailed && configureKind === "tic_tac_toe" && (
           <TicTacToeConfigurePanel challengeId={id} onReload={load} />
+        )}
+
+        {!loading && !loadFailed && configureKind === "countdown" && (
+          <CountdownConfigurePanel countdownId={id} onReload={load} />
+        )}
+
+        {!loading && !loadFailed && configureKind === "hangman" && (
+          <HangmanConfigurePanel challengeId={id} onReload={load} />
         )}
     </PermissionGuard>
   );

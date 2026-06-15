@@ -23,6 +23,10 @@ export type Permission =
   | "survey.manage"
   | "survey.run"
   | "survey.view_results"
+  | "countdown.manage"
+  | "countdown.run"
+  | "hangman.manage"
+  | "hangman.run"
   | "vote.list"
   | "vote.create"
   | "vote.manage"
@@ -40,6 +44,7 @@ export type Permission =
   | "participant.staff_chat"
   | "participant.quiz"
   | "participant.tic_tac_toe"
+  | "participant.hangman"
   | "participant.survey"
   | "participant.vote"
   | "stage.view"
@@ -64,7 +69,7 @@ export interface PermissionGroup {
 }
 
 /** Bump when catalogue changes to invalidate sessions. */
-export const PERMISSIONS_CATALOG_REVISION = 8;
+export const PERMISSIONS_CATALOG_REVISION = 10;
 
 export const ALL_PERMISSIONS: readonly Permission[] = [
   "platform.admin",
@@ -91,6 +96,10 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "survey.manage",
   "survey.run",
   "survey.view_results",
+  "countdown.manage",
+  "countdown.run",
+  "hangman.manage",
+  "hangman.run",
   "vote.list",
   "vote.create",
   "vote.manage",
@@ -108,6 +117,7 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   "participant.staff_chat",
   "participant.quiz",
   "participant.tic_tac_toe",
+  "participant.hangman",
   "participant.survey",
   "participant.vote",
   "stage.view",
@@ -167,6 +177,10 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "survey.manage", label: "Manage surveys" },
       { permission: "survey.run", label: "Open and close surveys" },
       { permission: "survey.view_results", label: "View survey results" },
+      { permission: "countdown.manage", label: "Manage countdown timers" },
+      { permission: "countdown.run", label: "Run countdown timers" },
+      { permission: "hangman.manage", label: "Manage Hangman activities" },
+      { permission: "hangman.run", label: "Start Hangman matches" },
     ],
   },
   {
@@ -212,6 +226,7 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
       { permission: "participant.staff_chat", label: "Staff group chat" },
       { permission: "participant.quiz", label: "Join live trivia activities" },
       { permission: "participant.tic_tac_toe", label: "Play team tic-tac-toe" },
+      { permission: "participant.hangman", label: "Play team Hangman" },
       { permission: "participant.survey", label: "Complete surveys" },
       { permission: "participant.vote", label: "Cast votes" },
     ],

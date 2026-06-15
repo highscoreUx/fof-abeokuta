@@ -16,6 +16,8 @@ import {
   ACTIVITY_SPINNER,
   ACTIVITY_SURVEY,
   ACTIVITY_TIC_TAC_TOE,
+  ACTIVITY_COUNTDOWN,
+  ACTIVITY_HANGMAN,
   formatInstanceScope,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
@@ -27,6 +29,19 @@ import type {
   EventActivityConfigRow,
 } from "@/types/activities";
 import type { QuizStateSnapshot } from "@/types";
+import type { CountdownStateSnapshot } from "@/lib/countdown/types";
+
+const CountdownStageDisplay = dynamic(
+  () =>
+    import("@/components/countdown/CountdownStageDisplay").then((module) => ({
+      default: module.CountdownStageDisplay,
+    })),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Loading host view…</p>
+    ),
+  },
+);
 
 const QuizStageDisplay = dynamic(
   () =>
@@ -58,7 +73,9 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const needsRealtime =
     hasPermission(permissions, "quiz.run") ||
     hasPermission(permissions, "spin.run") ||
-    hasPermission(permissions, "tic_tac_toe.run");
+    hasPermission(permissions, "tic_tac_toe.run") ||
+    hasPermission(permissions, "countdown.run") ||
+    hasPermission(permissions, "hangman.run");
   const socket = useSocket();
   const [eventActivities, setEventActivities] = useState<EventActivityConfigRow[]>([]);
   const [rows, setRows] = useState<ActivityListItem[]>([]);
@@ -73,6 +90,11 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   const canManageSurvey = hasPermission(permissions, "survey.manage");
   const canRunSurvey = hasPermission(permissions, "survey.run");
   const canManageTtt = hasPermission(permissions, "tic_tac_toe.manage");
+  const canRunCountdown = hasPermission(permissions, "countdown.run");
+  const canManageCountdown = hasPermission(permissions, "countdown.manage");
+  const canManageHangman = hasPermission(permissions, "hangman.manage");
+
+  const [activeCountdown, setActiveCountdown] = useState<CountdownStateSnapshot | null>(null);
 
   const load = useCallback(
     async (silent = false) => {
@@ -104,6 +126,15 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
   }, [slug, load]);
 
   useEffect(() => {
+    if (!socket) return;
+    for (const row of rows) {
+      if (row.kind === "countdown" && row.activeSessionId) {
+        socket.emit("countdown:join", row.activeSessionId);
+      }
+    }
+  }, [socket, rows]);
+
+  useEffect(() => {
     if (!needsRealtime || !socket) return;
     const onQuiz = (snapshot: QuizStateSnapshot) => {
       setActiveQuiz(snapshot);
@@ -111,13 +142,29 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     };
     const onSpinner = () => void refresh();
     const onTtt = () => void refresh();
+    const onCountdown = (snapshot: CountdownStateSnapshot) => {
+      if (snapshot.state === "FINISHED") {
+        setActiveCountdown((prev) =>
+          prev?.sessionId === snapshot.sessionId ? null : prev,
+        );
+        void refresh();
+        return;
+      }
+      setActiveCountdown(snapshot);
+      void refresh();
+    };
+    const onHangman = () => void refresh();
     socket.on("quiz:state", onQuiz);
     socket.on("spinner:state", onSpinner);
     socket.on("ttt:state", onTtt);
+    socket.on("countdown:state", onCountdown);
+    socket.on("hangman:state", onHangman);
     return () => {
       socket.off("quiz:state", onQuiz);
       socket.off("spinner:state", onSpinner);
       socket.off("ttt:state", onTtt);
+      socket.off("countdown:state", onCountdown);
+      socket.off("hangman:state", onHangman);
     };
   }, [needsRealtime, socket, refresh]);
 
@@ -128,6 +175,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     allowGroupParticipants: boolean;
     participationMode?: "CONCURRENT" | "ONE_AT_A_TIME";
     ticTacToeMode?: "CHAMPION" | "COUNCIL";
+    hangmanMode?: "CHAMPION" | "COUNCIL";
+    durationSec?: number;
   }) => {
     if (data.type === ACTIVITY_KAHOOT) {
       await api("/quizzes", {
@@ -158,6 +207,27 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           mode: data.ticTacToeMode ?? "CHAMPION",
         }),
       });
+    } else if (data.type === ACTIVITY_COUNTDOWN) {
+      await api("/countdown-challenges", {
+        method: "POST",
+        body: JSON.stringify({
+          title: data.title,
+          allowGeneralParticipants: data.allowGeneralParticipants,
+          allowGroupParticipants: data.allowGroupParticipants,
+          durationSec: data.durationSec,
+        }),
+      });
+    } else if (data.type === ACTIVITY_HANGMAN) {
+      await api("/hangman-challenges", {
+        method: "POST",
+        body: JSON.stringify({
+          title: data.title,
+          allowGeneralParticipants: data.allowGeneralParticipants,
+          allowGroupParticipants: data.allowGroupParticipants,
+          mode: data.hangmanMode ?? "CHAMPION",
+          words: [],
+        }),
+      });
     } else {
       await api("/spin-challenges", {
         method: "POST",
@@ -176,6 +246,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     if (row.kind === "kahoot") return "Live Trivia";
     if (row.kind === "survey") return "Survey";
     if (row.kind === "tic_tac_toe") return "Team Tic-Tac-Toe";
+    if (row.kind === "hangman") return "Team Hangman";
+    if (row.kind === "countdown") return "Countdown timer";
     return "Spinner";
   };
 
@@ -186,9 +258,14 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
       if (row.status === "CLOSED") return "Closed";
       return "Draft";
     }
+    if (row.kind === "countdown" && row.activeSessionId) {
+      return row.activeSessionState === "PAUSED" ? "Paused" : "Live";
+    }
     if (row.kind === "spinner" && row.activeSessionId) return "Live";
     if (row.kind === "tic_tac_toe" && row.activeMatchState === "ACTIVE") return "Live";
+    if (row.kind === "hangman" && row.activeMatchState === "ACTIVE") return "Live";
     if (row.kind === "tic_tac_toe" && row.activeMatchState === "WAITING") return "Waiting";
+    if (row.kind === "hangman" && row.activeMatchState === "WAITING") return "Waiting";
     return "Ready";
   };
 
@@ -198,6 +275,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
     if (activity.slug === ACTIVITY_SPINNER) return canManageSpin;
     if (activity.slug === ACTIVITY_SURVEY) return canManageSurvey;
     if (activity.slug === ACTIVITY_TIC_TAC_TOE) return canManageTtt;
+    if (activity.slug === ACTIVITY_COUNTDOWN) return canManageCountdown;
+    if (activity.slug === ACTIVITY_HANGMAN) return canManageHangman;
     return false;
   }).length;
 
@@ -279,7 +358,11 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                         ? `${questionCount} question${questionCount === 1 ? "" : "s"}`
                         : row.kind === "tic_tac_toe"
                           ? `${row.mode === "COUNCIL" ? "Council" : "Champion"} mode`
-                          : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}
+                          : row.kind === "hangman"
+                            ? `${row.mode === "COUNCIL" ? "Council" : "Champion"} · ${row.wordCount ?? 0} word${(row.wordCount ?? 0) === 1 ? "" : "s"}`
+                            : row.kind === "countdown"
+                            ? `${Math.floor(row.durationSec / 60)}:${(row.durationSec % 60).toString().padStart(2, "0")} timer`
+                            : `${row.optionsCount ?? 0} wheel option${(row.optionsCount ?? 0) === 1 ? "" : "s"}`}
                       {" · "}
                       {scope}
                     </p>
@@ -289,6 +372,8 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                     {((row.kind === "kahoot" && canManageKahoot) ||
                       (row.kind === "spinner" && canManageSpin) ||
                       (row.kind === "tic_tac_toe" && canManageTtt) ||
+                      (row.kind === "countdown" && canManageCountdown) ||
+                      (row.kind === "hangman" && canManageHangman) ||
                       (row.kind === "survey" && canManageSurvey)) && (
                       <Link
                         href={activityConfigure(row.kind, row.id)}
@@ -322,6 +407,68 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
                         </Button>
                       </>
                     )}
+                    {row.kind === "countdown" && canRunCountdown && !row.activeSessionId && (
+                      <Button onClick={() => socket?.emit("countdown:admin:start", row.id)}>
+                        Start timer
+                      </Button>
+                    )}
+                    {row.kind === "countdown" &&
+                      canRunCountdown &&
+                      row.activeSessionId &&
+                      activeCountdown?.challengeId === row.id &&
+                      activeCountdown.state !== "FINISHED" && (
+                        <>
+                          {activeCountdown.state === "RUNNING" ? (
+                            <Button
+                              variant="secondary"
+                              onClick={() =>
+                                socket?.emit("countdown:admin:pause", activeCountdown.sessionId)
+                              }
+                            >
+                              Pause
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="secondary"
+                              onClick={() =>
+                                socket?.emit("countdown:admin:resume", activeCountdown.sessionId)
+                              }
+                            >
+                              Resume
+                            </Button>
+                          )}
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              socket?.emit("countdown:admin:adjust", {
+                                sessionId: activeCountdown.sessionId,
+                                deltaSec: 30,
+                              })
+                            }
+                          >
+                            +30s
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() =>
+                              socket?.emit("countdown:admin:adjust", {
+                                sessionId: activeCountdown.sessionId,
+                                deltaSec: -30,
+                              })
+                            }
+                          >
+                            −30s
+                          </Button>
+                          <Button
+                            variant="danger"
+                            onClick={() =>
+                              socket?.emit("countdown:admin:reset", activeCountdown.sessionId)
+                            }
+                          >
+                            Reset
+                          </Button>
+                        </>
+                      )}
                     {row.kind === "survey" && canRunSurvey && row.status !== "OPEN" && (
                       <Button
                         onClick={() =>
@@ -363,6 +510,18 @@ export function ActivitiesAdmin({ permissions }: ActivitiesAdminProps) {
           </p>
           <div className="mt-4">
             <QuizStageDisplay />
+          </div>
+        </Card>
+      )}
+
+      {activeCountdown && activeCountdown.state !== "FINISHED" && (
+        <Card>
+          <CardTitle>Host view</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Show this on the main stage so everyone sees the same synced timer.
+          </p>
+          <div className="mt-4">
+            <CountdownStageDisplay variant="default" />
           </div>
         </Card>
       )}

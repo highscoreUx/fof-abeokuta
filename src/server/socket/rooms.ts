@@ -26,6 +26,14 @@ export function spinnerSessionRoom(sessionId: string) {
   return `spinner:${sessionId}`;
 }
 
+export function hangmanMatchRoom(matchId: string) {
+  return `hangman:${matchId}`;
+}
+
+export function countdownSessionRoom(sessionId: string) {
+  return `countdown:${sessionId}`;
+}
+
 export function ticTacToeMatchRoom(matchId: string) {
   return `ttt:${matchId}`;
 }

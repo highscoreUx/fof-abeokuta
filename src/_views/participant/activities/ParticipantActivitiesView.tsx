@@ -10,11 +10,15 @@ import { hasAdminShellAccess } from "@/lib/permissions";
 import { SurveyPlayer } from "@/components/survey/SurveyPlayer";
 import { SpinnerActivitiesPanel } from "@/components/spinner/SpinnerActivitiesPanel";
 import { TicTacToeActivitiesPanel } from "@/components/tic-tac-toe/TicTacToeActivitiesPanel";
+import { HangmanActivitiesPanel } from "@/components/hangman/HangmanActivitiesPanel";
+import { CountdownActivitiesPanel } from "@/components/countdown/CountdownActivitiesPanel";
 import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
   ACTIVITY_SURVEY,
   ACTIVITY_TIC_TAC_TOE,
+  ACTIVITY_COUNTDOWN,
+  ACTIVITY_HANGMAN,
 } from "@/lib/activities/catalog";
 import { userHasEnabledActivity } from "@/lib/activities/client";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -42,7 +46,15 @@ function ParticipantActivitiesContent() {
   const spinnerEnabled = userHasEnabledActivity(user, ACTIVITY_SPINNER);
   const surveyEnabled = userHasEnabledActivity(user, ACTIVITY_SURVEY);
   const tttEnabled = userHasEnabledActivity(user, ACTIVITY_TIC_TAC_TOE);
-  const anyEnabled = kahootEnabled || spinnerEnabled || surveyEnabled || tttEnabled;
+  const countdownEnabled = userHasEnabledActivity(user, ACTIVITY_COUNTDOWN);
+  const hangmanEnabled = userHasEnabledActivity(user, ACTIVITY_HANGMAN);
+  const anyEnabled =
+    kahootEnabled ||
+    spinnerEnabled ||
+    surveyEnabled ||
+    tttEnabled ||
+    countdownEnabled ||
+    hangmanEnabled;
 
   const [tab, setTab] = useState<ActivitiesTab>("active");
   const activitiesRef = useRef<HTMLDivElement>(null);
@@ -63,7 +75,7 @@ function ParticipantActivitiesContent() {
     const observer = new MutationObserver(update);
     observer.observe(container, { childList: true });
     return () => observer.disconnect();
-  }, [anyEnabled, kahootEnabled, spinnerEnabled, surveyEnabled, tttEnabled, tab]);
+  }, [anyEnabled, kahootEnabled, spinnerEnabled, surveyEnabled, tttEnabled, countdownEnabled, hangmanEnabled, tab]);
 
   return (
     <PermissionGuard permission="participant.activities" allowAdminShell>
@@ -82,6 +94,8 @@ function ParticipantActivitiesContent() {
             {tab === "active" ? (
               <>
                 <div ref={activitiesRef} className="space-y-6">
+                  {hangmanEnabled && <HangmanActivitiesPanel />}
+                  {countdownEnabled && <CountdownActivitiesPanel />}
                   {surveyEnabled && <SurveyPlayer />}
                   {tttEnabled && <TicTacToeActivitiesPanel />}
                   {spinnerEnabled && <SpinnerActivitiesPanel />}

@@ -6,6 +6,8 @@ import {
   quizRoom,
   roleRoom,
   spinnerSessionRoom,
+  countdownSessionRoom,
+  hangmanMatchRoom,
   staffRoom,
   teamRoom,
   ticTacToeMatchRoom,
@@ -24,6 +26,20 @@ import {
   performSpinnerSpin,
   startSpinnerSession,
 } from "@/server/games/spinnerEngine";
+import {
+  broadcastCountdownState,
+  adjustCountdownSession,
+  pauseCountdownSession,
+  resetCountdownSession,
+  resumeCountdownSession,
+  startCountdownSession,
+} from "@/server/games/countdownEngine";
+import {
+  broadcastHangmanState,
+  handleHangmanGuess,
+  setHangmanChampion,
+  startHangmanMatch,
+} from "@/server/games/hangmanEngine";
 import {
   broadcastTttState,
   handleTttMove,
@@ -46,6 +62,8 @@ import {
   ACTIVITY_KAHOOT,
   ACTIVITY_SPINNER,
   ACTIVITY_TIC_TAC_TOE,
+  ACTIVITY_COUNTDOWN,
+  ACTIVITY_HANGMAN,
   userCanAccessActivityInstance,
 } from "@/lib/activities/catalog";
 import { hasPermission } from "@/lib/permissions";
@@ -402,6 +420,118 @@ export function registerSocketHandlers(io: SocketIOServer) {
       }
     });
 
+    socket.on("countdown:join", async (sessionId: string) => {
+      if (typeof sessionId !== "string" || !sessionId) return;
+      socket.join(countdownSessionRoom(sessionId));
+      const snapshot = await broadcastCountdownState(io, sessionId, slug);
+      if (snapshot) socket.emit("countdown:state", snapshot);
+    });
+
+    socket.on("countdown:admin:start", async (challengeId: string) => {
+      try {
+        if (!socketCan(auth, "countdown.run")) return;
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_COUNTDOWN);
+        if (!enabled) return;
+
+        const snapshot = await startCountdownSession(io, {
+          challengeId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+          userId: auth.userId,
+        });
+        if (snapshot) socket.join(countdownSessionRoom(snapshot.sessionId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to start countdown",
+        });
+      }
+    });
+
+    socket.on("countdown:admin:pause", async (sessionId: string) => {
+      try {
+        if (!socketCan(auth, "countdown.run")) return;
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_COUNTDOWN);
+        if (!enabled) return;
+
+        const snapshot = await pauseCountdownSession(io, {
+          sessionId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+        });
+        if (snapshot) socket.join(countdownSessionRoom(snapshot.sessionId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to pause countdown",
+        });
+      }
+    });
+
+    socket.on("countdown:admin:resume", async (sessionId: string) => {
+      try {
+        if (!socketCan(auth, "countdown.run")) return;
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_COUNTDOWN);
+        if (!enabled) return;
+
+        const snapshot = await resumeCountdownSession(io, {
+          sessionId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+        });
+        if (snapshot) socket.join(countdownSessionRoom(snapshot.sessionId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to resume countdown",
+        });
+      }
+    });
+
+    socket.on("countdown:admin:reset", async (sessionId: string) => {
+      try {
+        if (!socketCan(auth, "countdown.run")) return;
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_COUNTDOWN);
+        if (!enabled) return;
+
+        await resetCountdownSession(io, {
+          sessionId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+        });
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to reset countdown",
+        });
+      }
+    });
+
+    socket.on(
+      "countdown:admin:adjust",
+      async (data: { sessionId: string; deltaSec: number }) => {
+        try {
+          if (!socketCan(auth, "countdown.run")) return;
+          const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_COUNTDOWN);
+          if (!enabled) return;
+          if (!data?.sessionId || typeof data.deltaSec !== "number") return;
+
+          const snapshot = await adjustCountdownSession(io, {
+            sessionId: data.sessionId,
+            eventId: auth.eventId,
+            eventSlug: slug,
+            deltaSec: data.deltaSec,
+          });
+          if (snapshot) socket.join(countdownSessionRoom(snapshot.sessionId));
+        } catch (error) {
+          socket.emit("sync:toast", {
+            type: "error",
+            message: error instanceof Error ? error.message : "Failed to adjust countdown",
+          });
+        }
+      },
+    );
+
     socket.on("ttt:match:join", async (matchId: string) => {
       if (typeof matchId !== "string" || !matchId) return;
       socket.join(ticTacToeMatchRoom(matchId));
@@ -485,6 +615,92 @@ export function registerSocketHandlers(io: SocketIOServer) {
         socket.emit("sync:toast", {
           type: "error",
           message: error instanceof Error ? error.message : "Invalid move",
+        });
+      }
+    });
+
+    socket.on("hangman:match:join", async (matchId: string) => {
+      if (typeof matchId !== "string" || !matchId) return;
+      socket.join(hangmanMatchRoom(matchId));
+      const snapshot = await broadcastHangmanState(io, matchId, slug);
+      if (snapshot) socket.emit("hangman:state", snapshot);
+    });
+
+    socket.on("hangman:match:start", async (matchId: string) => {
+      try {
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_HANGMAN);
+        if (!enabled) return;
+
+        const match = await prisma.hangmanMatch.findFirst({
+          where: { id: matchId, eventId: auth.eventId },
+          include: { challenge: true },
+        });
+        if (!match) return;
+
+        const canRun =
+          socketCan(auth, "hangman.run") || socketCan(auth, "hangman.manage");
+        if (
+          !canRun &&
+          !userCanAccessActivityInstance(auth, {
+            allowGeneralParticipants: match.challenge.allowGeneralParticipants,
+            allowGroupParticipants: match.challenge.allowGroupParticipants,
+          })
+        ) {
+          return;
+        }
+
+        const snapshot = await startHangmanMatch(io, matchId, auth.eventId, slug, auth.userId);
+        if (snapshot) socket.join(hangmanMatchRoom(matchId));
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Failed to start match",
+        });
+      }
+    });
+
+    socket.on(
+      "hangman:champion:set",
+      async (data: { matchId: string; teamId: string; championUserId: string }) => {
+        try {
+          const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_HANGMAN);
+          if (!enabled) return;
+          if (!data?.matchId || !data.teamId || !data.championUserId) return;
+
+          await setHangmanChampion(io, {
+            matchId: data.matchId,
+            eventId: auth.eventId,
+            eventSlug: slug,
+            teamId: data.teamId,
+            championUserId: data.championUserId,
+          });
+        } catch (error) {
+          socket.emit("sync:toast", {
+            type: "error",
+            message: error instanceof Error ? error.message : "Failed to set champion",
+          });
+        }
+      },
+    );
+
+    socket.on("hangman:guess", async (data: { matchId: string; letter: string }) => {
+      try {
+        const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_HANGMAN);
+        if (!enabled) return;
+        if (!data?.matchId || !data.letter) return;
+
+        await handleHangmanGuess(io, {
+          matchId: data.matchId,
+          eventId: auth.eventId,
+          eventSlug: slug,
+          userId: auth.userId,
+          teamId: auth.teamId ?? null,
+          letter: data.letter,
+        });
+      } catch (error) {
+        socket.emit("sync:toast", {
+          type: "error",
+          message: error instanceof Error ? error.message : "Invalid guess",
         });
       }
     });

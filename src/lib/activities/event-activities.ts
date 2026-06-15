@@ -21,11 +21,14 @@ function defaultEventActivityConfig(slug: string) {
   if (slug === "kahoot") {
     return { enabled: true, allowGeneral: true, allowGroup: false, allowStaff: false };
   }
-  if (slug === "spinner" || slug === "tic_tac_toe") {
+  if (slug === "spinner" || slug === "tic_tac_toe" || slug === "hangman") {
     return { enabled: true, allowGeneral: false, allowGroup: true, allowStaff: false };
   }
   if (slug === "survey") {
     return { enabled: true, allowGeneral: true, allowGroup: true, allowStaff: false };
+  }
+  if (slug === "countdown") {
+    return { enabled: true, allowGeneral: true, allowGroup: false, allowStaff: false };
   }
   return { enabled: true, allowGeneral: true, allowGroup: true, allowStaff: false };
 }

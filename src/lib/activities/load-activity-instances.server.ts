@@ -5,6 +5,8 @@ import {
   ACTIVITY_SPINNER,
   ACTIVITY_SURVEY,
   ACTIVITY_TIC_TAC_TOE,
+  ACTIVITY_COUNTDOWN,
+  ACTIVITY_HANGMAN,
   ACTIVITIES_ADMIN_PERMISSIONS,
   CONFIGURABLE_ACTIVITY_SLUGS,
   userCanAccessActivityInstance,
@@ -18,6 +20,8 @@ import { hasAnyPermission, hasPermission } from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions/catalog";
 import { prisma } from "@/lib/prisma";
 import { mapActiveSpinnerSessionsByChallengeId } from "@/server/games/spinnerEngine";
+import { mapActiveCountdownSessionsByChallengeId } from "@/server/games/countdownEngine";
+import { parseHangmanWords } from "@/lib/hangman/types";
 import type {
   ActivityInstancesPayload,
   ActivityListItem,
@@ -68,15 +72,25 @@ export async function loadActivityInstancesForAdmin(
   const canTtt =
     hasPermission(permissions, "tic_tac_toe.manage") ||
     hasPermission(permissions, "tic_tac_toe.run");
+  const canCountdown =
+    hasPermission(permissions, "countdown.manage") ||
+    hasPermission(permissions, "countdown.run");
+  const canHangman =
+    hasPermission(permissions, "hangman.manage") ||
+    hasPermission(permissions, "hangman.run");
 
-  const [kahootEnabled, spinEnabled, surveyEnabled, tttEnabled] = await Promise.all([
+  const [kahootEnabled, spinEnabled, surveyEnabled, tttEnabled, countdownEnabled, hangmanEnabled] =
+    await Promise.all([
     isActivityEnabledForEvent(eventId, ACTIVITY_KAHOOT),
     isActivityEnabledForEvent(eventId, ACTIVITY_SPINNER),
     isActivityEnabledForEvent(eventId, ACTIVITY_SURVEY),
     isActivityEnabledForEvent(eventId, ACTIVITY_TIC_TAC_TOE),
+    isActivityEnabledForEvent(eventId, ACTIVITY_COUNTDOWN),
+    isActivityEnabledForEvent(eventId, ACTIVITY_HANGMAN),
   ]);
 
-  const [quizzes, spinChallenges, surveys, tttChallenges] = await Promise.all([
+  const [quizzes, spinChallenges, surveys, tttChallenges, countdownChallenges, hangmanChallenges] =
+    await Promise.all([
     canKahoot && kahootEnabled
       ? prisma.quiz.findMany({
           where: { eventId },
@@ -127,12 +141,37 @@ export async function loadActivityInstancesForAdmin(
           orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
+    canCountdown && countdownEnabled
+      ? prisma.countdownChallenge.findMany({
+          where: { eventId },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+    canHangman && hangmanEnabled
+      ? prisma.hangmanChallenge.findMany({
+          where: { eventId },
+          include: {
+            matches: {
+              where: { state: { in: ["WAITING", "ACTIVE"] } },
+              select: { id: true, state: true },
+              take: 1,
+              orderBy: { createdAt: "desc" },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const activeSpinSessions =
     spinChallenges.length > 0
       ? await mapActiveSpinnerSessionsByChallengeId(spinChallenges.map((c) => c.id))
       : new Map<string, string>();
+
+  const activeCountdownSessions =
+    countdownChallenges.length > 0
+      ? await mapActiveCountdownSessionsByChallengeId(countdownChallenges.map((c) => c.id))
+      : new Map<string, { id: string; state: "RUNNING" | "PAUSED" | "FINISHED" }>();
 
   const isKahootManager = hasPermission(permissions, "quiz.manage");
   const isSurveyManager =
@@ -230,6 +269,40 @@ export async function loadActivityInstancesForAdmin(
         allowEditsUntilClose: survey.allowEditsUntilClose,
         questionCount: survey._count.questions,
         responseCount: survey._count.responses,
+      });
+    }
+  }
+
+  if (canCountdown && countdownEnabled) {
+    for (const challenge of countdownChallenges) {
+      if (!teamingEnabled && isTeamOnlyInstance(challenge)) continue;
+      const active = activeCountdownSessions.get(challenge.id);
+      instances.push({
+        kind: "countdown",
+        id: challenge.id,
+        title: challenge.title,
+        durationSec: challenge.durationSec,
+        allowGeneralParticipants: challenge.allowGeneralParticipants,
+        allowGroupParticipants: teamingEnabled ? challenge.allowGroupParticipants : false,
+        activeSessionId: active?.id ?? null,
+        activeSessionState: active?.state ?? null,
+      });
+    }
+  }
+
+  if (canHangman && hangmanEnabled) {
+    for (const challenge of hangmanChallenges) {
+      if (!teamingEnabled && isTeamOnlyInstance(challenge)) continue;
+      instances.push({
+        kind: "hangman",
+        id: challenge.id,
+        title: challenge.title,
+        mode: challenge.mode,
+        allowGeneralParticipants: challenge.allowGeneralParticipants,
+        allowGroupParticipants: teamingEnabled ? challenge.allowGroupParticipants : false,
+        wordCount: parseHangmanWords(challenge.config).length,
+        activeMatchId: challenge.matches[0]?.id ?? null,
+        activeMatchState: challenge.matches[0]?.state ?? null,
       });
     }
   }

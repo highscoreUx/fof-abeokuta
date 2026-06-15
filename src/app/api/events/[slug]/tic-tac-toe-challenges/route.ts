@@ -9,6 +9,7 @@ import {
   validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
+import { getBracketForChallenge } from "@/server/games/activityBracketEngine";
 
 export async function GET(
   request: NextRequest,
@@ -36,12 +37,19 @@ export async function GET(
     orderBy: { createdAt: "desc" },
   });
 
-  const withActive = challenges.map((c) => ({
-    ...c,
-    activeMatchId: c.matches[0]?.id ?? null,
-    activeMatchState: c.matches[0]?.state ?? null,
-    matches: undefined,
-  }));
+  const withActive = await Promise.all(
+    challenges.map(async (c) => {
+      const bracket = await getBracketForChallenge("tic_tac_toe", c.id);
+      return {
+        ...c,
+        competitionFormat: c.competitionFormat,
+        activeMatchId: c.matches[0]?.id ?? null,
+        activeMatchState: c.matches[0]?.state ?? null,
+        bracketState: bracket?.state ?? null,
+        matches: undefined,
+      };
+    }),
+  );
 
   return NextResponse.json({ challenges: withActive });
 }

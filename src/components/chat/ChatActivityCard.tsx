@@ -17,7 +17,11 @@ export function ChatActivityCard({ activity }: ChatActivityCardProps) {
       ? `${homeActivities}?trivia=${activity.instanceId}`
       : activity.kind === "tic_tac_toe"
         ? `${homeActivities}?ttt=${activity.instanceId}&match=${activity.sessionId}`
-        : `${homeActivities}?spinner=${activity.instanceId}&session=${activity.sessionId}`;
+        : activity.kind === "hangman"
+          ? `${homeActivities}?hangman=${activity.instanceId}&match=${activity.sessionId}`
+          : activity.kind === "countdown"
+            ? `${homeActivities}?countdown=${activity.instanceId}&session=${activity.sessionId}`
+            : `${homeActivities}?spinner=${activity.instanceId}&session=${activity.sessionId}`;
 
   return (
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -26,7 +30,11 @@ export function ChatActivityCard({ activity }: ChatActivityCardProps) {
           ? "Live Trivia"
           : activity.kind === "tic_tac_toe"
             ? "Team Tic-Tac-Toe"
-            : "Spinner"}
+            : activity.kind === "hangman"
+              ? "Team Hangman"
+              : activity.kind === "countdown"
+                ? "Countdown timer"
+                : "Spinner"}
         {isLive ? " · Live" : " · Ended"}
       </p>
       <p className="mt-1 font-semibold">{activity.title}</p>
@@ -47,7 +55,7 @@ export function ChatActivityCard({ activity }: ChatActivityCardProps) {
           ) : (
             <Link href={href}>
               <Button size="sm">
-                {activity.kind === "tic_tac_toe"
+                {activity.kind === "tic_tac_toe" || activity.kind === "hangman"
                   ? "Watch"
                   : activity.action === "spin_result"
                     ? "View"

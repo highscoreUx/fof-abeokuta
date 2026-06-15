@@ -3,6 +3,7 @@
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { YouTubeEmbed } from "@/components/stage/YouTubeEmbed";
+import { CountdownStageDisplay } from "@/components/countdown/CountdownStageDisplay";
 import { QuizStageDisplay } from "@/components/quiz/QuizStageDisplay";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +39,7 @@ export function StageView() {
       >
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            <CountdownStageDisplay variant="stage" />
             <QuizStageDisplay variant="stage" />
             <YouTubeEmbed />
           </div>

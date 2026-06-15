@@ -12,6 +12,7 @@ import {
 import { hasCompletionGraceExpired } from "@/lib/activities/completion-grace";
 import type { SpinnerStateSnapshot } from "@/lib/spinner/types";
 import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
+import type { HangmanMatchSnapshot } from "@/lib/hangman/types";
 import type { QuizStateSnapshot } from "@/types";
 
 export type CompletedActivityRecord =
@@ -38,6 +39,14 @@ export type CompletedActivityRecord =
       completedAt: number;
       matchId: string;
       snapshot: TicTacToeMatchSnapshot;
+    }
+  | {
+      key: string;
+      type: "hangman";
+      title: string;
+      completedAt: number;
+      matchId: string;
+      snapshot: HangmanMatchSnapshot;
     }
   | {
       key: string;

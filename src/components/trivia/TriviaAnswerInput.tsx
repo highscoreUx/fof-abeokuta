@@ -84,8 +84,11 @@ export function TriviaAnswerInput({
                   style.bg.replace("bg-", "border-"),
                 )}
               >
+                <div className={cn("flex items-center justify-center gap-2 px-2 py-1 text-white", style.bg)}>
+                  <span className="text-lg font-bold">{style.shape}</span>
+                </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={opt} alt={`Answer ${index + 1}`} className="aspect-video w-full object-cover" />
+                <img src={opt} alt={`Answer ${index + 1}`} className="aspect-video w-full object-contain bg-muted/20" />
               </button>
             );
           })}

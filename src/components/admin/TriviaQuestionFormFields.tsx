@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { MediaUrlInput } from "@/components/admin/MediaUrlInput";
+import { isMediaUrl } from "@/lib/trivia/media";
+import { KAHOOT_OPTIONS } from "@/lib/kahoot-ui";
+import { cn } from "@/lib/utils";
 import type { TriviaQuestionType } from "@/lib/trivia/types";
 import type { QuestionDraft } from "@/lib/quiz-question-form";
 
@@ -146,13 +149,20 @@ export function TriviaQuestionFormFields({
       {questionType === "QUIZ_IMAGE" && (
         <>
           <p className="text-xs text-muted-foreground">
-            Add image answers — paste a URL or upload each image.
+            Write the question as text (e.g. &quot;Which is Acme Corp&apos;s logo?&quot;). Add each
+            logo or image as an answer below — paste a URL or upload.
           </p>
           <div className="space-y-4">
             {draft.options.map((opt, i) => (
               <div key={i} className="rounded-xl border border-border p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">Answer {i + 1}</span>
+                  <span className="text-sm font-medium">
+                    <span className="mr-2">{KAHOOT_OPTIONS[i % KAHOOT_OPTIONS.length]?.shape}</span>
+                    Answer {i + 1}
+                    {draft.correctIndex === i && (
+                      <span className="ml-2 text-xs font-semibold text-success">· Correct</span>
+                    )}
+                  </span>
                   {draft.options.length > 2 && (
                     <Button
                       type="button"
@@ -180,20 +190,43 @@ export function TriviaQuestionFormFields({
             </Button>
           )}
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Correct answer</label>
-            <Select
-              className="w-full"
-              value={String(draft.correctIndex)}
-              onChange={(e) =>
-                onDraftChange({ ...draft, correctIndex: Number(e.target.value) })
-              }
-            >
-              {draft.options.map((_, i) => (
-                <option key={i} value={i}>
-                  Image {i + 1}
-                </option>
-              ))}
-            </Select>
+            <label className="mb-2 block text-xs text-muted-foreground">
+              Correct answer — click the logo/image
+            </label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {draft.options.map((opt, i) => {
+                const style = KAHOOT_OPTIONS[i % KAHOOT_OPTIONS.length];
+                const selected = draft.correctIndex === i;
+                const hasImage = isMediaUrl(opt);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => onDraftChange({ ...draft, correctIndex: i })}
+                    className={cn(
+                      "overflow-hidden rounded-xl border-2 text-left transition",
+                      selected ? "border-success ring-2 ring-success/30" : "border-border hover:border-primary/50",
+                      !hasImage && "flex min-h-[5rem] items-center justify-center bg-muted/50 p-3",
+                    )}
+                  >
+                    {hasImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={opt}
+                        alt={`Answer ${i + 1}`}
+                        className="aspect-video w-full object-contain bg-muted/30"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {style.shape} Answer {i + 1}
+                        <br />
+                        (add image)
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </>
       )}

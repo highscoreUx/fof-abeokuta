@@ -43,8 +43,8 @@ export interface TriviaQuestionRecord {
 }
 
 export const TRIVIA_TYPE_LABELS: Record<TriviaQuestionType, string> = {
-  QUIZ: "Multiple choice",
-  QUIZ_IMAGE: "Multiple choice image",
+  QUIZ: "Multiple choice (text answers)",
+  QUIZ_IMAGE: "Multiple choice (image answers)",
   TRUE_FALSE: "True or false",
   TYPE_ANSWER: "Type answer",
   PUZZLE: "Puzzle",

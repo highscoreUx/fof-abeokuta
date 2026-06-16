@@ -1363,8 +1363,11 @@ export async function inviteSpectatorsToChatGame(params: {
   if (!session || session.eventId !== params.eventId) {
     throw new Error("Game not found.");
   }
-  if (session.hostUserId !== params.userId) {
-    throw new Error("Only the host can invite spectators.");
+  const canInvite = session.participants.some(
+    (participant) => participant.userId === params.userId && participant.role === "player",
+  );
+  if (!canInvite) {
+    throw new Error("Only players can invite spectators.");
   }
 
   const validUsers = await prisma.user.findMany({

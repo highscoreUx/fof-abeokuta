@@ -86,6 +86,10 @@ export function ChatGameFocusView() {
     }).catch(() => undefined);
   }, [api, session, sessionId, user]);
 
+  const isPlayer = Boolean(
+    user && session?.players.some((player) => player.userId === user.id),
+  );
+
   return (
     <PermissionGuard permission="participant.chat" allowAdminShell>
       <AppShell title={session?.title ?? "Game"} nav={shellNav}>
@@ -158,9 +162,7 @@ export function ChatGameFocusView() {
                       : "Waiting for another player to join from the chat card."}
                   </p>
                 </div>
-                {user?.id === session.hostUserId && (
-                  <ChatGameInvitePanel sessionId={session.sessionId} />
-                )}
+                {isPlayer && <ChatGameInvitePanel sessionId={session.sessionId} />}
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-card p-6 text-center">
@@ -168,7 +170,7 @@ export function ChatGameFocusView() {
               </div>
             )}
 
-            {session.status === "live" && user?.id === session.hostUserId && (
+            {session.status === "live" && isPlayer && (
               <ChatGameInvitePanel sessionId={session.sessionId} />
             )}
           </div>

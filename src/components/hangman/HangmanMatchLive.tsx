@@ -31,6 +31,7 @@ export function HangmanMatchLive({
   const { user, isHydrated } = useAuth();
   const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const [state, setState] = useState<HangmanMatchSnapshot | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);
 
@@ -85,6 +86,12 @@ export function HangmanMatchLive({
     joinedMatchId.current = initialMatchId;
     socket.emit("hangman:match:join", initialMatchId);
   }, [socket, initialMatchId]);
+
+  useEffect(() => {
+    if (!state?.socialHangman?.turnDeadlineAt || state.state !== "ACTIVE") return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [state?.socialHangman?.turnDeadlineAt, state?.state]);
 
   const myTeamId = isHydrated ? (user?.teamId ?? null) : null;
   const isSocial = Boolean(state?.isSocial);
@@ -189,6 +196,15 @@ export function HangmanMatchLive({
               </>
             )}
           </p>
+          {isSocial && state.socialHangman?.settings.seriesMode === "race" && (
+            <p className="mt-2 text-sm font-semibold text-white">
+              Score {state.playerX?.firstName ?? "X"} {state.socialHangman.score.x} –{" "}
+              {state.socialHangman.score.o} {state.playerO?.firstName ?? "O"}
+              {state.socialHangman.settings.raceTarget > 1
+                ? ` · first to ${state.socialHangman.settings.raceTarget}`
+                : ""}
+            </p>
+          )}
         </div>
 
         {!inMatch && state.state === "ACTIVE" && (
@@ -209,6 +225,16 @@ export function HangmanMatchLive({
               {state.teamO.letter}: {state.wrongGuessesO}/{state.maxWrongGuesses}
             </span>
           </div>
+
+          {isSocial &&
+            state.socialHangman?.settings.turnTimerEnabled &&
+            state.socialHangman.turnDeadlineAt &&
+            state.state === "ACTIVE" && (
+              <p className="mt-2 text-center text-xs text-white/70">
+                {Math.max(0, Math.ceil((state.socialHangman.turnDeadlineAt - now) / 1000))}s left
+                this turn
+              </p>
+            )}
 
           <div className="mt-6 flex flex-col items-center gap-6 md:flex-row md:justify-center">
             <HangmanFigure wrongCount={turnTeamWrong} maxWrong={state.maxWrongGuesses} />

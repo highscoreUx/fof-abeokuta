@@ -1,4 +1,5 @@
 import type { SocialTttSessionState } from "@/lib/chat-game-ttt-types";
+import type { SocialHangmanSessionState } from "@/lib/chat-game-hangman-types";
 import {
   chatGameTitle,
   isChatGameKind,
@@ -9,7 +10,7 @@ export type { ChatGameKind };
 
 export type ChatGameLobbyStatus = "lobby" | "live" | "ended" | "cancelled";
 
-export type { SocialTttSessionState };
+export type { SocialTttSessionState, SocialHangmanSessionState };
 
 export interface ChatGamePlayerSummary {
   userId: string;
@@ -57,6 +58,8 @@ export interface ChatGameSessionSnapshot {
   serverNow: number;
   /** Present for live social X and O sessions. */
   socialTtt?: SocialTttSessionState;
+  /** Present for live social Hangman sessions. */
+  socialHangman?: SocialHangmanSessionState;
 }
 
 export interface ChatGameRematchPayload {

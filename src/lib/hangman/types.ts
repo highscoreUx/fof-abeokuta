@@ -1,4 +1,5 @@
 import type { BracketMatchContext } from "@/lib/activity-bracket/types";
+import type { SocialHangmanSessionState } from "@/lib/chat-game-hangman-types";
 
 export type HangmanMode = "CHAMPION" | "COUNCIL";
 export type HangmanMark = "X" | "O";
@@ -48,6 +49,7 @@ export interface HangmanMatchSnapshot {
   chatSessionId: string | null;
   revealedWord: string | null;
   bracket?: BracketMatchContext | null;
+  socialHangman?: SocialHangmanSessionState;
   serverNow: number;
 }
 

@@ -14,6 +14,8 @@ import {
 import { eventRoom, hangmanMatchRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
+import { parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
+import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
 
 function parseGuessedLetters(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -100,7 +102,16 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
           account: { select: { username: true, firstName: true, lastName: true } },
         },
       },
-      chatSession: { select: { id: true } },
+      chatSession: {
+        select: {
+          id: true,
+          settings: true,
+          scoreX: true,
+          scoreO: true,
+          turnDeadlineAt: true,
+          kind: true,
+        },
+      },
     },
   });
   if (!match) return null;
@@ -114,6 +125,24 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
 
   const playerX = match.playerX ? playerInfo(match.playerX) : null;
   const playerO = match.playerO ? playerInfo(match.playerO) : null;
+  const socialHangman = match.chatSession
+    ? buildSocialHangmanSessionState({
+        kind: match.chatSession.kind,
+        settings: match.chatSession.settings,
+        scoreX: match.chatSession.scoreX,
+        scoreO: match.chatSession.scoreO,
+        turnDeadlineAt: match.chatSession.turnDeadlineAt,
+        hangmanMatch: {
+          state: match.state,
+          currentTurn: match.currentTurn,
+          playerXUserId: match.playerXUserId,
+          playerOUserId: match.playerOUserId,
+        },
+      })
+    : null;
+  const maxWrongGuesses = match.isSocial
+    ? (socialHangman?.settings.maxWrongGuesses ?? match.challenge.maxWrongGuesses)
+    : match.challenge.maxWrongGuesses;
 
   return {
     matchId: match.id,
@@ -127,7 +156,7 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
     guessedLetters,
     wrongGuessesX: match.wrongGuessesX,
     wrongGuessesO: match.wrongGuessesO,
-    maxWrongGuesses: match.challenge.maxWrongGuesses,
+    maxWrongGuesses,
     currentTurn: match.currentTurn as HangmanMark,
     turnNumber: match.turnNumber,
     teamX:
@@ -158,6 +187,7 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
     chatSessionId: match.chatSession?.id ?? null,
     revealedWord: finished ? match.secretWord : null,
     bracket,
+    socialHangman: socialHangman ?? undefined,
     serverNow: Date.now(),
   };
 }
@@ -237,12 +267,19 @@ export async function startHangmanMatch(
 ) {
   const match = await prisma.hangmanMatch.findFirst({
     where: { id: matchId, eventId },
-    include: { challenge: true, teamX: true, teamO: true },
+    include: {
+      challenge: true,
+      teamX: true,
+      teamO: true,
+      chatSession: { select: { settings: true } },
+    },
   });
   if (!match) throw new Error("Match not found.");
   if (match.state !== "WAITING") throw new Error("Match already started.");
 
-  const words = parseHangmanWords(match.challenge.config);
+  const words = match.isSocial
+    ? parseSocialHangmanSettings(match.chatSession?.settings).words
+    : parseHangmanWords(match.challenge.config);
   const secretWord = pickRandomWord(words);
 
   await prisma.hangmanMatch.update({
@@ -279,7 +316,14 @@ export async function startHangmanMatch(
     });
   }
 
-  return broadcastHangmanState(io, matchId, eventSlug);
+  const snapshot = await broadcastHangmanState(io, matchId, eventSlug);
+
+  if (match.isSocial) {
+    const { onSocialHangmanMatchStarted } = await import("@/server/games/socialHangmanEngine");
+    await onSocialHangmanMatchStarted(io, matchId, eventSlug);
+  }
+
+  return snapshot;
 }
 
 export async function setHangmanChampion(
@@ -339,7 +383,7 @@ async function applyGuess(
 ) {
   const match = await prisma.hangmanMatch.findUnique({
     where: { id: matchId },
-    include: { challenge: true },
+    include: { challenge: true, chatSession: { select: { settings: true } } },
   });
   if (!match || match.state !== "ACTIVE") return null;
 
@@ -350,7 +394,9 @@ async function applyGuess(
   const nextGuessed = [...guessed, normalized];
   const correct = isLetterInWord(normalized, match.secretWord);
   const wordComplete = isWordComplete(match.secretWord, nextGuessed);
-  const maxWrong = match.challenge.maxWrongGuesses;
+  const maxWrong = match.isSocial
+    ? parseSocialHangmanSettings(match.chatSession?.settings).maxWrongGuesses
+    : match.challenge.maxWrongGuesses;
 
   let wrongGuessesX = match.wrongGuessesX;
   let wrongGuessesO = match.wrongGuessesO;
@@ -408,8 +454,13 @@ async function applyGuess(
   const snapshot = await broadcastHangmanState(io, matchId, eventSlug);
 
   if (finished && match.isSocial) {
-    const { completeSocialChatGameFromMatch } = await import("@/server/games/chatGameEngine");
-    await completeSocialChatGameFromMatch(matchId, eventSlug);
+    const winnerMark: "X" | "O" =
+      winnerUserId === match.playerXUserId ? "X" : "O";
+    const { handleSocialHangmanRoundEnd } = await import("@/server/games/socialHangmanEngine");
+    await handleSocialHangmanRoundEnd(io, matchId, eventSlug, { winnerMark });
+  } else if (!finished && match.isSocial) {
+    const { onSocialHangmanGuessApplied } = await import("@/server/games/socialHangmanEngine");
+    await onSocialHangmanGuessApplied(io, matchId, eventSlug);
   }
 
   if (finished && match.bracketSlotId) {

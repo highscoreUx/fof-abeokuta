@@ -10,6 +10,8 @@ import {
   startChatGameSessionByHost,
 } from "@/server/games/chatGameEngine";
 import { updateSocialTttSettings } from "@/server/games/socialTttEngine";
+import { updateSocialHangmanSettings } from "@/server/games/socialHangmanEngine";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
@@ -97,28 +99,70 @@ export async function POST(
         body.settings && typeof body.settings === "object"
           ? (body.settings as Record<string, unknown>)
           : {};
-      const session = await updateSocialTttSettings({
-        sessionId: id,
-        eventId: ctx.event.id,
-        eventSlug: slug,
-        userId: ctx.auth.userId,
-        settings: {
-          seriesMode: settings.seriesMode === "race" ? "race" : "single",
-          raceTarget:
-            typeof settings.raceTarget === "number" ? settings.raceTarget : undefined,
-          turnTimerEnabled:
-            typeof settings.turnTimerEnabled === "boolean"
-              ? settings.turnTimerEnabled
-              : undefined,
-          turnTimerSeconds:
-            typeof settings.turnTimerSeconds === "number"
-              ? settings.turnTimerSeconds
-              : undefined,
-          endOnDraw:
-            typeof settings.endOnDraw === "boolean" ? settings.endOnDraw : undefined,
-        },
+
+      const gameSession = await prisma.chatGameSession.findFirst({
+        where: { id, eventId: ctx.event.id },
+        select: { kind: true },
       });
-      return NextResponse.json({ session });
+      if (!gameSession) return jsonError("Game not found", "NOT_FOUND", 404);
+
+      if (gameSession.kind === "hangman") {
+        const words = Array.isArray(settings.words)
+          ? settings.words.filter((word): word is string => typeof word === "string")
+          : undefined;
+        const session = await updateSocialHangmanSettings({
+          sessionId: id,
+          eventId: ctx.event.id,
+          eventSlug: slug,
+          userId: ctx.auth.userId,
+          settings: {
+            seriesMode: settings.seriesMode === "race" ? "race" : settings.seriesMode === "single" ? "single" : undefined,
+            raceTarget:
+              typeof settings.raceTarget === "number" ? settings.raceTarget : undefined,
+            maxWrongGuesses:
+              typeof settings.maxWrongGuesses === "number"
+                ? settings.maxWrongGuesses
+                : undefined,
+            turnTimerEnabled:
+              typeof settings.turnTimerEnabled === "boolean"
+                ? settings.turnTimerEnabled
+                : undefined,
+            turnTimerSeconds:
+              typeof settings.turnTimerSeconds === "number"
+                ? settings.turnTimerSeconds
+                : undefined,
+            words,
+          },
+        });
+        return NextResponse.json({ session });
+      }
+
+      if (gameSession.kind === "tic_tac_toe") {
+        const session = await updateSocialTttSettings({
+          sessionId: id,
+          eventId: ctx.event.id,
+          eventSlug: slug,
+          userId: ctx.auth.userId,
+          settings: {
+            seriesMode: settings.seriesMode === "race" ? "race" : "single",
+            raceTarget:
+              typeof settings.raceTarget === "number" ? settings.raceTarget : undefined,
+            turnTimerEnabled:
+              typeof settings.turnTimerEnabled === "boolean"
+                ? settings.turnTimerEnabled
+                : undefined,
+            turnTimerSeconds:
+              typeof settings.turnTimerSeconds === "number"
+                ? settings.turnTimerSeconds
+                : undefined,
+            endOnDraw:
+              typeof settings.endOnDraw === "boolean" ? settings.endOnDraw : undefined,
+          },
+        });
+        return NextResponse.json({ session });
+      }
+
+      return jsonError("Settings are not available for this game.", "VALIDATION_ERROR", 400);
     }
 
     return jsonError("Unknown action", "VALIDATION_ERROR", 400);

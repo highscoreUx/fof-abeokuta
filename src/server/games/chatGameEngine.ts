@@ -28,21 +28,13 @@ import {
 import { eventRoom, userRoom } from "@/server/socket/rooms";
 import { tryGetIO } from "@/server/socket/io";
 import { parseSocialTttSettings } from "@/lib/chat-game-ttt-settings";
+import { parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
+import { DEFAULT_SOCIAL_HANGMAN_WORDS } from "@/lib/chat-game-hangman-settings";
 import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
+import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
 
 const SOCIAL_CHALLENGE_TITLE = "__chat_social__";
-const SOCIAL_HANGMAN_WORDS = [
-  "FIGMA",
-  "DESIGN",
-  "PIXEL",
-  "LAYOUT",
-  "FONT",
-  "COLOR",
-  "GRID",
-  "STYLE",
-  "VECTOR",
-  "CANVAS",
-];
+const SOCIAL_HANGMAN_WORDS = [...DEFAULT_SOCIAL_HANGMAN_WORDS];
 const SOCIAL_SPINNER_OPTIONS = [
   "Wireframe",
   "Prototype",
@@ -138,7 +130,15 @@ async function loadSession(sessionId: string) {
           playerOUserId: true,
         },
       },
-      hangmanMatch: { select: { challengeId: true } },
+      hangmanMatch: {
+        select: {
+          challengeId: true,
+          state: true,
+          currentTurn: true,
+          playerXUserId: true,
+          playerOUserId: true,
+        },
+      },
       spinnerSession: { select: { challengeId: true } },
     },
   });
@@ -295,6 +295,15 @@ async function resolveChatGameText(
     }
   }
 
+  if (status === "live" && gameKind === "hangman" && session.scoreX + session.scoreO > 0) {
+    const settings = parseSocialHangmanSettings(session.settings);
+    if (settings.seriesMode === "race") {
+      const xPlayer = players.find((player) => player.slot === "X");
+      const oPlayer = players.find((player) => player.slot === "O");
+      return `Race in progress · ${xPlayer?.firstName ?? "X"} ${session.scoreX} – ${session.scoreO} ${oPlayer?.firstName ?? "O"}`;
+    }
+  }
+
   return buildLobbyText({
     gameKind,
     status,
@@ -397,6 +406,17 @@ export async function buildChatGameSessionSnapshot(
           tttMatch: session.tttMatch,
         })
       : null;
+  const socialHangman =
+    session.kind === "hangman"
+      ? buildSocialHangmanSessionState({
+          kind: session.kind,
+          settings: session.settings,
+          scoreX: session.scoreX,
+          scoreO: session.scoreO,
+          turnDeadlineAt: session.turnDeadlineAt,
+          hangmanMatch: session.hangmanMatch,
+        })
+      : null;
 
   return {
     sessionId: session.id,
@@ -420,7 +440,12 @@ export async function buildChatGameSessionSnapshot(
     text: body.text,
     serverNow: Date.now(),
     ...(socialTtt ? { socialTtt } : {}),
+    ...(socialHangman ? { socialHangman } : {}),
   };
+}
+
+export async function loadChatGameSessionForSnapshot(sessionId: string) {
+  return loadSession(sessionId);
 }
 
 export async function updateSessionMessage(
@@ -1631,6 +1656,10 @@ export async function rematchSocialChatGame(params: {
   if (session.kind === "tic_tac_toe") {
     const { copySocialTttSessionMeta } = await import("@/server/games/socialTttEngine");
     await copySocialTttSessionMeta(params.sessionId, snapshot.sessionId);
+  }
+  if (session.kind === "hangman") {
+    const { copySocialHangmanSessionMeta } = await import("@/server/games/socialHangmanEngine");
+    await copySocialHangmanSessionMeta(params.sessionId, snapshot.sessionId);
   }
 
   const result = await seatRematchPlayers({

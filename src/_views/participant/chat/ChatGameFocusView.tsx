@@ -9,6 +9,7 @@ import { HangmanMatchLive } from "@/components/hangman/HangmanMatchLive";
 import { SpinnerLive } from "@/components/spinner/SpinnerLive";
 import { ChatGameInvitePanel } from "@/components/chat/ChatGameInvitePanel";
 import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettings";
+import { ChatGameHangmanHostSettings } from "@/components/chat/ChatGameHangmanHostSettings";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
@@ -91,13 +92,13 @@ export function ChatGameFocusView() {
     user && session?.players.some((player) => player.userId === user.id),
   );
   const isHost = user?.id === session?.hostUserId;
-  const isTttHeader =
-    session?.kind === "tic_tac_toe" &&
+  const isSocialGameHeader =
+    (session?.kind === "tic_tac_toe" || session?.kind === "hangman") &&
     (session?.status === "lobby" || session?.status === "live");
 
-  const tttPlayerXName =
+  const playerXName =
     session?.players.find((player) => player.slot === "X")?.firstName ?? "X";
-  const tttPlayerOName =
+  const playerOName =
     session?.players.find((player) => player.slot === "O")?.firstName ?? "O";
 
   return (
@@ -105,7 +106,7 @@ export function ChatGameFocusView() {
       <AppShell
         title={session?.title ?? "Game"}
         nav={shellNav}
-        hideMobileTitle={isTttHeader}
+        hideMobileTitle={isSocialGameHeader}
       >
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading game…</p>
@@ -118,17 +119,26 @@ export function ChatGameFocusView() {
           </div>
         ) : (
           <div className="space-y-4">
-            {isTttHeader ? (
+            {isSocialGameHeader ? (
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h1 className="text-xl font-semibold">{session.title}</h1>
                   <div className="flex flex-wrap items-center gap-2">
-                    {isHost && (
+                    {isHost && session.kind === "tic_tac_toe" && (
                       <ChatGameTttHostSettings
                         sessionId={session.sessionId}
                         socialTtt={session.socialTtt}
-                        playerXName={tttPlayerXName}
-                        playerOName={tttPlayerOName}
+                        playerXName={playerXName}
+                        playerOName={playerOName}
+                        lockedFormat={session.status === "live"}
+                      />
+                    )}
+                    {isHost && session.kind === "hangman" && (
+                      <ChatGameHangmanHostSettings
+                        sessionId={session.sessionId}
+                        socialHangman={session.socialHangman}
+                        playerXName={playerXName}
+                        playerOName={playerOName}
                         lockedFormat={session.status === "live"}
                       />
                     )}
@@ -202,7 +212,7 @@ export function ChatGameFocusView() {
                       ? "Waiting for teammates to join. The host can start when at least two players are in."
                       : "Waiting for another player to join from the chat card."}
                   </p>
-                  {session.kind !== "tic_tac_toe" && (
+                  {session.kind !== "tic_tac_toe" && session.kind !== "hangman" && (
                     <div className="mt-4 flex justify-center">
                       <Button
                         variant="outline"

@@ -14,7 +14,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
 import { hasAdminShellAccess } from "@/lib/permissions";
-import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import type { ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 
 export function ChatGameFocusView() {
   const params = useParams<{ sessionId: string }>();
@@ -58,6 +58,22 @@ export function ChatGameFocusView() {
       socket.off("chat:game:state", onState);
     };
   }, [socket, sessionId]);
+
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const onRematch = (payload: ChatGameRematchPayload) => {
+      if (payload.fromSessionId !== sessionId) return;
+      const wasPlayer = payload.session.players.some((player) => player.userId === user.id);
+      if (!wasPlayer) return;
+      router.replace(`${home}/game/${payload.session.sessionId}`);
+    };
+
+    socket.on("chat:game:rematch", onRematch);
+    return () => {
+      socket.off("chat:game:rematch", onRematch);
+    };
+  }, [socket, sessionId, user, home, router]);
 
   useEffect(() => {
     if (!session || !user) return;
@@ -104,7 +120,7 @@ export function ChatGameFocusView() {
                           body: JSON.stringify({ action: "rematch" }),
                         },
                       ).then((data) => {
-                        router.push(`${home}/game/${data.session.sessionId}`);
+                        router.replace(`${home}/game/${data.session.sessionId}`);
                       });
                     }}
                   >

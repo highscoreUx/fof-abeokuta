@@ -48,6 +48,11 @@ export interface ChatGameSessionSnapshot {
   serverNow: number;
 }
 
+export interface ChatGameRematchPayload {
+  fromSessionId: string;
+  session: ChatGameSessionSnapshot;
+}
+
 const CHAT_GAME_KINDS = new Set<ChatGameKind>(["tic_tac_toe", "hangman", "spinner"]);
 
 export function isChatGameKind(value: string): value is ChatGameKind {

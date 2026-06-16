@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
-import type { ChatGameMessageBody, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import type { ChatGameMessageBody, ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import { Button } from "@/components/ui/button";
 import { toastError } from "@/lib/toast";
 
@@ -55,6 +55,22 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
       socket.off("chat:game:state", onState);
     };
   }, [socket, local.sessionId]);
+
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const onRematch = (payload: ChatGameRematchPayload) => {
+      if (payload.fromSessionId !== local.sessionId) return;
+      const wasPlayer = payload.session.players.some((player) => player.userId === user.id);
+      if (!wasPlayer) return;
+      router.replace(`${home}/game/${payload.session.sessionId}`);
+    };
+
+    socket.on("chat:game:rematch", onRematch);
+    return () => {
+      socket.off("chat:game:rematch", onRematch);
+    };
+  }, [socket, local.sessionId, user, home, router]);
 
   const applySession = (session: ChatGameSessionSnapshot) => {
     setLocal({
@@ -111,7 +127,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
 
   const rematch = async () => {
     const session = await postAction("rematch");
-    if (session) router.push(`${home}/game/${session.sessionId}`);
+    if (session) router.replace(`${home}/game/${session.sessionId}`);
   };
 
   const statusLabel =

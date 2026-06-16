@@ -338,6 +338,24 @@ export async function broadcastChatGameSession(
   return snapshot;
 }
 
+export async function broadcastChatGameRematch(
+  io: SocketIOServer,
+  params: {
+    fromSessionId: string;
+    playerUserIds: string[];
+    session: ChatGameSessionSnapshot;
+  },
+) {
+  const payload = {
+    fromSessionId: params.fromSessionId,
+    session: params.session,
+  };
+
+  for (const userId of params.playerUserIds) {
+    io.to(userRoom(userId)).emit("chat:game:rematch", payload);
+  }
+}
+
 export async function createDmTicTacToeSession(params: {
   eventId: string;
   eventSlug: string;
@@ -1427,7 +1445,7 @@ export async function rematchSocialChatGame(params: {
     throw new Error("Cannot rematch this game.");
   }
 
-  return seatRematchPlayers({
+  const result = await seatRematchPlayers({
     sessionId: snapshot.sessionId,
     eventId: params.eventId,
     eventSlug: params.eventSlug,
@@ -1436,6 +1454,17 @@ export async function rematchSocialChatGame(params: {
     kind: session.kind,
     channel: session.channel,
   });
+
+  const io = tryGetIO();
+  if (io) {
+    await broadcastChatGameRematch(io, {
+      fromSessionId: params.sessionId,
+      playerUserIds: players.map((participant) => participant.userId),
+      session: result,
+    });
+  }
+
+  return result;
 }
 
 export async function getChatGameSessionForUser(

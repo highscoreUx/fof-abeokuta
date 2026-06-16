@@ -4,9 +4,9 @@ import { useMemo, useState, useEffect } from "react";
 import { EditPlatformRoleModal } from "@/components/platform/EditPlatformRoleModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { usePlatformRoles } from "@/hooks/usePlatformRoles";
+import { cn } from "@/lib/cn";
 import { hasWildcardAccess } from "@/lib/permissions/catalog";
 import { roleIsDeletable, roleIsEditable } from "@/lib/platform-roles.shared";
 import type { PlatformRoleRow } from "@/lib/platform-roles.types";
@@ -63,20 +63,25 @@ export function PlatformRolesView() {
 
   return (
     <>
-      <Card className="p-0 shadow-none">
-        <div className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className={cn(
+          "-mx-3 sm:mx-0",
+          "sm:rounded-xl sm:border sm:border-border sm:bg-card sm:shadow-[var(--shadow-card)]",
+        )}
+      >
+        <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">Roles</h2>
             <p className="text-sm text-muted-foreground">
               Permission bundles for members and event staff. Members pick up changes on next sign-in.
             </p>
           </div>
-          <Button className="shrink-0" onClick={openCreate}>
+          <Button className="w-full shrink-0 sm:w-auto" onClick={openCreate}>
             Add role
           </Button>
         </div>
 
-        <div className="space-y-4 p-6 pt-4">
+        <div className="space-y-4 px-4 py-4 sm:p-6 sm:pt-4">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -129,7 +134,7 @@ export function PlatformRolesView() {
             </div>
           )}
         </div>
-      </Card>
+      </div>
 
       <EditPlatformRoleModal
         open={editorOpen}

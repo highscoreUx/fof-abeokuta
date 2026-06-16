@@ -8,7 +8,7 @@ export default function PlatformRolesPage() {
   const nav = usePlatformNav();
 
   return (
-    <PlatformAppShell title="Roles" nav={nav}>
+    <PlatformAppShell title="Roles" nav={nav} hideMobileTitle>
       <PlatformRolesView />
     </PlatformAppShell>
   );

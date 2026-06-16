@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AddPlatformMemberModal } from "@/components/platform/AddPlatformMemberModal";
 import { PlatformMembersTable } from "@/components/platform/PlatformMembersTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { cn } from "@/lib/cn";
 import { fgAdminMembersPath } from "@/lib/fg-admin-routes";
 import type { GlobalMembersAudience } from "@/lib/member-access";
 
@@ -46,8 +47,13 @@ export function CommunityMembersView({ onToast }: CommunityMembersViewProps) {
 
   return (
     <>
-      <Card className="p-0 shadow-none">
-        <CardHeader className="space-y-4 border-b border-border p-6">
+      <div
+        className={cn(
+          "-mx-3 sm:mx-0",
+          "sm:rounded-xl sm:border sm:border-border sm:bg-card sm:shadow-[var(--shadow-card)]",
+        )}
+      >
+        <CardHeader className="mb-0 space-y-4 border-b border-border px-4 py-4 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <CardTitle>Members</CardTitle>
@@ -57,14 +63,14 @@ export function CommunityMembersView({ onToast }: CommunityMembersViewProps) {
                   : "Everyone in the community. Participants are members too — not every member is a participant."}
               </CardDescription>
             </div>
-            <Button className="shrink-0" onClick={() => setAddOpen(true)}>
+            <Button className="w-full shrink-0 sm:w-auto" onClick={() => setAddOpen(true)}>
               {isStaff ? "Add staff" : "Add member"}
             </Button>
           </div>
           <SegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
         </CardHeader>
 
-        <div className="p-6 pt-4">
+        <div className="px-4 py-4 sm:p-6 sm:pt-4">
           <PlatformMembersTable
             audience={audience}
             refreshKey={refreshKey}
@@ -72,7 +78,7 @@ export function CommunityMembersView({ onToast }: CommunityMembersViewProps) {
             countLabel={isStaff ? "staff" : "members"}
           />
         </div>
-      </Card>
+      </div>
 
       <AddPlatformMemberModal
         open={addOpen}

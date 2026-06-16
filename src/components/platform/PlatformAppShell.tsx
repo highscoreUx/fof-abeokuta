@@ -20,6 +20,8 @@ interface PlatformAppShellProps {
   children: React.ReactNode;
   title: string;
   nav: NavItem[];
+  /** Hide the duplicate page title below the header on mobile when the page has its own heading. */
+  hideMobileTitle?: boolean;
 }
 
 function resolveActiveHref(pathname: string, nav: NavItem[]) {
@@ -42,7 +44,7 @@ function resolveActiveHref(pathname: string, nav: NavItem[]) {
     })?.href;
 }
 
-export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps) {
+export function PlatformAppShell({ children, title, nav, hideMobileTitle = false }: PlatformAppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const activeHref = resolveActiveHref(pathname, nav);
@@ -139,9 +141,11 @@ export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps
 
           <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
             <div className="mx-auto w-full max-w-6xl">
-              <div className="mb-4 lg:hidden">
-                <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
-              </div>
+              {!hideMobileTitle && (
+                <div className="mb-4 lg:hidden">
+                  <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
+                </div>
+              )}
               {children}
             </div>
           </main>

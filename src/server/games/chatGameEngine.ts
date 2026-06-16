@@ -1367,12 +1367,17 @@ export async function cancelChatGameSession(params: {
   eventSlug: string;
   userId: string;
 }) {
-  const session = await loadSession(params.sessionId);
+  let session = await loadSession(params.sessionId);
   if (!session || session.eventId !== params.eventId) {
     throw new Error("Game not found.");
   }
+
+  session = (await expireStaleLobbyIfNeeded(session, params.eventSlug)) ?? session;
+
   if (session.status !== "LOBBY" && session.status !== "LIVE") {
-    throw new Error("This game has already ended.");
+    const refreshed = await loadSession(session.id);
+    if (refreshed) await updateSessionMessage(params.eventSlug, refreshed);
+    return buildChatGameSessionSnapshot(session.id);
   }
 
   const isHost = session.hostUserId === params.userId;
@@ -1660,7 +1665,6 @@ export async function getChatGameSessionForUser(
 
   if (eventSlug && session.status === "LOBBY") {
     session = (await expireStaleLobbyIfNeeded(session, eventSlug)) ?? session;
-    if (session.status === "CANCELLED") return null;
   }
 
   if (!(await userCanAccessSession(session, userId))) return null;

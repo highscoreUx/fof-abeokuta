@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,24 @@ interface ChatGameCardProps {
   chatGame: ChatGameMessageBody;
 }
 
+function snapshotToMessageBody(snapshot: ChatGameSessionSnapshot): ChatGameMessageBody {
+  return {
+    type: "chat_game",
+    sessionId: snapshot.sessionId,
+    gameKind: snapshot.kind,
+    title: snapshot.title,
+    status: snapshot.status,
+    hostUserId: snapshot.hostUserId,
+    hostFirstName: snapshot.hostFirstName,
+    joinPolicy: snapshot.joinPolicy,
+    maxPlayers: snapshot.maxPlayers,
+    players: snapshot.players,
+    spectatorCount: snapshot.spectatorCount,
+    matchId: snapshot.matchId ?? undefined,
+    text: snapshot.text,
+  };
+}
+
 export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const { api } = useEventApi();
   const { user } = useAuth();
@@ -25,37 +43,40 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const [local, setLocal] = useState(chatGame);
   const sessionId = chatGame.sessionId;
 
+  const applySession = useCallback((session: ChatGameSessionSnapshot) => {
+    setLocal(snapshotToMessageBody(session));
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const data = await api<{ session: ChatGameSessionSnapshot }>(`/chat-games/${sessionId}`);
+      if (data.session) applySession(data.session);
+      return data.session ?? null;
+    } catch {
+      return null;
+    }
+  }, [api, sessionId, applySession]);
+
   useEffect(() => {
     setLocal(chatGame);
-  }, [chatGame]);
+    if (chatGame.status === "lobby" || chatGame.status === "live") {
+      void refreshSession();
+    }
+  }, [chatGame, refreshSession]);
 
   useEffect(() => {
     if (!socket) return;
 
     const onState = (snapshot: ChatGameSessionSnapshot) => {
       if (snapshot.sessionId !== sessionId) return;
-      setLocal({
-        type: "chat_game",
-        sessionId: snapshot.sessionId,
-        gameKind: snapshot.kind,
-        title: snapshot.title,
-        status: snapshot.status,
-        hostUserId: snapshot.hostUserId,
-        hostFirstName: snapshot.hostFirstName,
-        joinPolicy: snapshot.joinPolicy,
-        maxPlayers: snapshot.maxPlayers,
-        players: snapshot.players,
-        spectatorCount: snapshot.spectatorCount,
-        matchId: snapshot.matchId ?? undefined,
-        text: snapshot.text,
-      });
+      applySession(snapshot);
     };
 
     socket.on("chat:game:state", onState);
     return () => {
       socket.off("chat:game:state", onState);
     };
-  }, [socket, sessionId]);
+  }, [socket, sessionId, applySession]);
 
   useEffect(() => {
     if (!socket || !user) return;
@@ -72,24 +93,6 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
       socket.off("chat:game:rematch", onRematch);
     };
   }, [socket, sessionId, user, home, router]);
-
-  const applySession = (session: ChatGameSessionSnapshot) => {
-    setLocal({
-      type: "chat_game",
-      sessionId: session.sessionId,
-      gameKind: session.kind,
-      title: session.title,
-      status: session.status,
-      hostUserId: session.hostUserId,
-      hostFirstName: session.hostFirstName,
-      joinPolicy: session.joinPolicy,
-      maxPlayers: session.maxPlayers,
-      players: session.players,
-      spectatorCount: session.spectatorCount,
-      matchId: session.matchId ?? undefined,
-      text: session.text,
-    });
-  };
 
   const isHost = user?.id === local.hostUserId;
   const isPlayer = local.players.some((player) => player.userId === user?.id);
@@ -119,7 +122,17 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
       if (data.session) applySession(data.session);
       return data.session;
     } catch (error) {
-      toastError(error instanceof Error ? error.message : "Action failed");
+      const message = error instanceof Error ? error.message : "Action failed";
+      const refreshed = await refreshSession();
+      if (
+        refreshed &&
+        refreshed.status !== "lobby" &&
+        refreshed.status !== "live" &&
+        (message.includes("ended") || message.includes("finished") || message.includes("started"))
+      ) {
+        return refreshed;
+      }
+      toastError(message);
       return null;
     } finally {
       setBusy(false);

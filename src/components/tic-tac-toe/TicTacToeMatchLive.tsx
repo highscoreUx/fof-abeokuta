@@ -29,6 +29,7 @@ export function TicTacToeMatchLive({
   const { user, isHydrated } = useAuth();
   const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const [state, setState] = useState<TicTacToeMatchSnapshot | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);
 
@@ -83,6 +84,11 @@ export function TicTacToeMatchLive({
     joinedMatchId.current = initialMatchId;
     socket.emit("ttt:match:join", initialMatchId);
   }, [socket, initialMatchId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const myTeamId = isHydrated ? (user?.teamId ?? null) : null;
   const isSocial = Boolean(state?.isSocial);
@@ -177,6 +183,13 @@ export function TicTacToeMatchLive({
     }
     const turnTeam = state.currentTurn === "X" ? state.teamX : state.teamO;
     if (state.isSocial) {
+      if (state.state === "ACTIVE") {
+        if (inMatch) {
+          return isMyTurn ? "Your turn" : "Opponent's turn";
+        }
+        const turnPlayer = state.currentTurn === "X" ? state.playerX : state.playerO;
+        return turnPlayer ? `${turnPlayer.firstName}'s turn` : `${turnTeam.letter}'s turn`;
+      }
       const turnPlayer = state.currentTurn === "X" ? state.playerX : state.playerO;
       return turnPlayer ? `${turnPlayer.firstName}'s turn` : `${turnTeam.letter}'s turn`;
     }
@@ -200,6 +213,15 @@ export function TicTacToeMatchLive({
               </>
             )}
           </p>
+          {state.isSocial && state.socialTtt?.settings.seriesMode === "race" && (
+            <p className="mt-1 text-sm font-medium text-foreground">
+              Score {state.playerX?.firstName ?? "X"} {state.socialTtt.score.x} –{" "}
+              {state.socialTtt.score.o} {state.playerO?.firstName ?? "O"}
+              {state.socialTtt.settings.raceTarget > 1
+                ? ` · first to ${state.socialTtt.settings.raceTarget}`
+                : ""}
+            </p>
+          )}
         </div>
         {!inMatch && state.state === "ACTIVE" && (
           <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-wide">
@@ -219,6 +241,16 @@ export function TicTacToeMatchLive({
           {state.championO ? ` · ${state.championO.firstName}` : ""}
         </span>
       </div>
+
+      {state.isSocial &&
+        state.socialTtt?.settings.turnTimerEnabled &&
+        state.socialTtt.turnDeadlineAt &&
+        state.state === "ACTIVE" && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            {Math.max(0, Math.ceil((state.socialTtt.turnDeadlineAt - now) / 1000))}s left this
+            turn
+          </p>
+        )}
 
       <div className="mt-6">
         <TicTacToeBoard

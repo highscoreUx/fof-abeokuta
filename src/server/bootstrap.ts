@@ -1,4 +1,4 @@
-import { ACTIVITY_CATALOG } from "@/lib/activities/catalog";
+import { OFFICIAL_ACTIVITY_SLUGS } from "@/lib/activities/manifest";
 import { seedActivityTypes } from "@/lib/activities/event-activities";
 import { createAccount } from "@/lib/accounts";
 import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
@@ -9,7 +9,7 @@ import { canEnqueueEmails } from "@/server/queue/publish";
 const DEFAULT_PLATFORM_EMAIL = "boyesiji@gmail.com";
 
 async function activityTypesReady(): Promise<boolean> {
-  const slugs = ACTIVITY_CATALOG.map((entry) => entry.slug);
+  const slugs = [...OFFICIAL_ACTIVITY_SLUGS];
   const count = await prisma.activityType.count({
     where: { slug: { in: slugs } },
   });

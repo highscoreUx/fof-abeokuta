@@ -422,6 +422,7 @@ model Quiz {
   event                    Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   title                    String
   active                   Boolean        @default(false)
+  config                   Json           @default("{}")
   allowGeneralParticipants Boolean        @default(true)
   allowGroupParticipants   Boolean        @default(false)
   teamId                   String?
@@ -593,6 +594,7 @@ model CountdownChallenge {
   event                    Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   title                    String
   durationSec              Int                @default(300)
+  config                   Json               @default("{}")
   allowGeneralParticipants Boolean            @default(true)
   allowGroupParticipants   Boolean            @default(false)
   sessions                 CountdownSession[]
@@ -834,6 +836,7 @@ model Survey {
   event                    Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   title                    String
   status                   SurveyStatus     @default(DRAFT)
+  config                   Json             @default("{}")
   allowGeneralParticipants Boolean          @default(true)
   allowGroupParticipants   Boolean          @default(false)
   opensAt                  DateTime?
@@ -908,6 +911,10 @@ model ChatGameSession {
   spinnerSessionId String?             @unique
   spinnerSession   SpinnerSession?     @relation(fields: [spinnerSessionId], references: [id])
   invitedSpectatorIds Json             @default("[]")
+  settings            Json             @default("{}")
+  scoreX              Int              @default(0)
+  scoreO              Int              @default(0)
+  turnDeadlineAt      DateTime?
   createdAt      DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
   participants ChatGameParticipant[]

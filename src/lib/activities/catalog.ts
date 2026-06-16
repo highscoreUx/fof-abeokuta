@@ -1,106 +1,30 @@
-import type { Permission } from "@/lib/permissions/catalog";
-
-export const ACTIVITY_KAHOOT = "kahoot" as const;
-export const ACTIVITY_SPINNER = "spinner" as const;
-/** @deprecated use ACTIVITY_SPINNER */
-export const ACTIVITY_SPIN_TO_BUILD = ACTIVITY_SPINNER;
-export const ACTIVITY_SURVEY = "survey" as const;
-export const ACTIVITY_TIC_TAC_TOE = "tic_tac_toe" as const;
-export const ACTIVITY_COUNTDOWN = "countdown" as const;
-export const ACTIVITY_HANGMAN = "hangman" as const;
-
-export type ActivitySlug =
-  | typeof ACTIVITY_KAHOOT
-  | typeof ACTIVITY_SPINNER
-  | typeof ACTIVITY_SURVEY
-  | typeof ACTIVITY_TIC_TAC_TOE
-  | typeof ACTIVITY_COUNTDOWN
-  | typeof ACTIVITY_HANGMAN;
-
-/** Activity types shown on the event admin activities index. */
-export const CONFIGURABLE_ACTIVITY_SLUGS = [
-  ACTIVITY_KAHOOT,
-  ACTIVITY_SPINNER,
-  ACTIVITY_SURVEY,
-  ACTIVITY_TIC_TAC_TOE,
+export {
+  ACTIVITIES_ADMIN_PERMISSIONS,
+  ACTIVITIES_MANIFEST,
+  ACTIVITY_CATALOG,
   ACTIVITY_COUNTDOWN,
   ACTIVITY_HANGMAN,
-  "spin_to_build",
-] as const;
-
-export interface ActivityTypeDefinition {
-  slug: ActivitySlug;
-  name: string;
-  description: string;
-  managePermission: Permission;
-  runPermission: Permission;
-  participantPermission: Permission;
-  sortOrder: number;
-}
-
-export const ACTIVITY_CATALOG: ActivityTypeDefinition[] = [
-  {
-    slug: ACTIVITY_KAHOOT,
-    name: "Live Trivia",
-    description: "Real-time Kahoot-style activity with questions and a live leaderboard.",
-    managePermission: "quiz.manage",
-    runPermission: "quiz.run",
-    participantPermission: "participant.quiz",
-    sortOrder: 1,
-  },
-  {
-    slug: ACTIVITY_SPINNER,
-    name: "Spinner",
-    description: "Spin a wheel to pick a random option. Teammates can spectate live spins.",
-    managePermission: "spin.manage",
-    runPermission: "spin.run",
-    participantPermission: "participant.activities",
-    sortOrder: 2,
-  },
-  {
-    slug: ACTIVITY_SURVEY,
-    name: "Survey",
-    description: "Collect opinions and feedback with polls, scales, word clouds, and more.",
-    managePermission: "survey.manage",
-    runPermission: "survey.run",
-    participantPermission: "participant.survey",
-    sortOrder: 3,
-  },
-  {
-    slug: ACTIVITY_TIC_TAC_TOE,
-    name: "Team Tic-Tac-Toe",
-    description: "Teams compete on a 3×3 grid — champion or council mode with live spectating.",
-    managePermission: "tic_tac_toe.manage",
-    runPermission: "tic_tac_toe.run",
-    participantPermission: "participant.tic_tac_toe",
-    sortOrder: 4,
-  },
-  {
-    slug: ACTIVITY_COUNTDOWN,
-    name: "Countdown timer",
-    description: "Start a synced countdown everyone can see on Activities and the main stage.",
-    managePermission: "countdown.manage",
-    runPermission: "countdown.run",
-    participantPermission: "participant.activities",
-    sortOrder: 5,
-  },
-  {
-    slug: ACTIVITY_HANGMAN,
-    name: "Team Hangman",
-    description: "Teams take turns guessing letters — champion or council mode with live spectating.",
-    managePermission: "hangman.manage",
-    runPermission: "hangman.run",
-    participantPermission: "participant.hangman",
-    sortOrder: 6,
-  },
-];
-
-export function getActivityDefinition(slug: string): ActivityTypeDefinition | undefined {
-  return ACTIVITY_CATALOG.find((entry) => entry.slug === slug);
-}
+  ACTIVITY_KAHOOT,
+  ACTIVITY_MANIFEST_ENTRIES,
+  ACTIVITY_SPINNER,
+  ACTIVITY_SPIN_TO_BUILD,
+  ACTIVITY_SURVEY,
+  ACTIVITY_TIC_TAC_TOE,
+  CONFIGURABLE_ACTIVITY_SLUGS,
+  defaultEventActivityConfig,
+  getActivityDefinition,
+  isGeneralOnlyActivity,
+  slugCandidates,
+  resolveActivitySlug,
+  type ActivityChannel,
+  type ActivityCreateFormScopeMode,
+  type ActivityManifestEntry,
+  type ActivitySlug,
+  type ActivityTypeDefinition,
+} from "@/lib/activities/manifest";
 
 export interface EnabledActivitySnapshot {
-  slug: ActivitySlug;
+  slug: import("@/lib/activities/manifest").ActivitySlug;
   allowGeneral: boolean;
   allowGroup: boolean;
   allowStaff: boolean;
@@ -149,18 +73,3 @@ export function formatInstanceScope(scope: ActivityInstanceScope): string {
   if (scope.allowGroupParticipants) parts.push("Team scoped");
   return parts.join(" · ") || "No scope";
 }
-
-export const ACTIVITIES_ADMIN_PERMISSIONS: Permission[] = [
-  "quiz.manage",
-  "spin.manage",
-  "tic_tac_toe.manage",
-  "survey.manage",
-  "countdown.manage",
-  "hangman.manage",
-  "quiz.run",
-  "spin.run",
-  "tic_tac_toe.run",
-  "survey.run",
-  "countdown.run",
-  "hangman.run",
-];

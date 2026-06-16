@@ -1,5 +1,6 @@
 import type { Server as SocketIOServer } from "socket.io";
 import { assertChatSocialGameAllowed } from "@/lib/chat-game-settings";
+import { getChatGameDefaults } from "@/lib/activities/manifest";
 import {
   parseChatGameMessageBody,
   serializeChatGameMessage,
@@ -26,6 +27,8 @@ import {
 } from "@/server/games/spinnerEngine";
 import { eventRoom, userRoom } from "@/server/socket/rooms";
 import { tryGetIO } from "@/server/socket/io";
+import { parseSocialTttSettings } from "@/lib/chat-game-ttt-settings";
+import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
 
 const SOCIAL_CHALLENGE_TITLE = "__chat_social__";
 const SOCIAL_HANGMAN_WORDS = [
@@ -126,7 +129,15 @@ async function loadSession(sessionId: string) {
       host: userWithAccount,
       participants: { include: { user: userWithAccount } },
       team: { select: { id: true, letter: true } },
-      tttMatch: { select: { challengeId: true } },
+      tttMatch: {
+        select: {
+          challengeId: true,
+          state: true,
+          currentTurn: true,
+          playerXUserId: true,
+          playerOUserId: true,
+        },
+      },
       hangmanMatch: { select: { challengeId: true } },
       spinnerSession: { select: { challengeId: true } },
     },
@@ -275,6 +286,15 @@ async function resolveChatGameText(
     if (summary) return summary;
   }
 
+  if (status === "live" && gameKind === "tic_tac_toe" && session.scoreX + session.scoreO > 0) {
+    const settings = parseSocialTttSettings(session.settings);
+    if (settings.seriesMode === "race") {
+      const xPlayer = players.find((player) => player.slot === "X");
+      const oPlayer = players.find((player) => player.slot === "O");
+      return `Race in progress · ${xPlayer?.firstName ?? "X"} ${session.scoreX} – ${session.scoreO} ${oPlayer?.firstName ?? "O"}`;
+    }
+  }
+
   return buildLobbyText({
     gameKind,
     status,
@@ -366,6 +386,18 @@ export async function buildChatGameSessionSnapshot(
     session.spinnerSession?.challengeId ??
     null;
   const matchId = session.tttMatchId ?? session.hangmanMatchId ?? session.spinnerSessionId;
+  const socialTtt =
+    session.kind === "tic_tac_toe"
+      ? buildSocialTttSessionState({
+          kind: session.kind,
+          settings: session.settings,
+          scoreX: session.scoreX,
+          scoreO: session.scoreO,
+          turnDeadlineAt: session.turnDeadlineAt,
+          tttMatch: session.tttMatch,
+        })
+      : null;
+
   return {
     sessionId: session.id,
     eventId: session.eventId,
@@ -387,10 +419,11 @@ export async function buildChatGameSessionSnapshot(
     title: body.title,
     text: body.text,
     serverNow: Date.now(),
+    ...(socialTtt ? { socialTtt } : {}),
   };
 }
 
-async function updateSessionMessage(
+export async function updateSessionMessage(
   eventSlug: string,
   session: NonNullable<Awaited<ReturnType<typeof loadSession>>>,
 ) {
@@ -482,6 +515,8 @@ export async function createDmTicTacToeSession(params: {
   );
   if (activeLobby) throw new Error("You already have an active game with this person.");
 
+  const dmDefaults = getChatGameDefaults("tic_tac_toe", { channel: "DM" });
+
   const session = await prisma.chatGameSession.create({
     data: {
       eventId: params.eventId,
@@ -490,8 +525,8 @@ export async function createDmTicTacToeSession(params: {
       hostUserId: params.hostUserId,
       channel: "DM",
       dmPeerUserId: params.peerUserId,
-      joinPolicy: "invite_only",
-      maxPlayers: 2,
+      joinPolicy: dmDefaults.joinPolicy,
+      maxPlayers: dmDefaults.maxPlayers,
       status: "LOBBY",
       participants: {
         create: {
@@ -557,6 +592,8 @@ export async function createTeamTicTacToeSession(params: {
   });
   if (activeLobby) throw new Error("This team already has an active game.");
 
+  const teamDefaults = getChatGameDefaults("tic_tac_toe", { channel: "TEAM", openLobby: true });
+
   const session = await prisma.chatGameSession.create({
     data: {
       eventId: params.eventId,
@@ -565,8 +602,8 @@ export async function createTeamTicTacToeSession(params: {
       hostUserId: params.hostUserId,
       channel: "TEAM",
       teamId: params.teamId,
-      joinPolicy: "open",
-      maxPlayers: 2,
+      joinPolicy: teamDefaults.joinPolicy,
+      maxPlayers: teamDefaults.maxPlayers,
       status: "LOBBY",
       participants: {
         create: {
@@ -886,6 +923,8 @@ export async function createDmHangmanSession(params: {
   );
   if (activeLobby) throw new Error("You already have an active game with this person.");
 
+  const dmDefaults = getChatGameDefaults("hangman", { channel: "DM" });
+
   const session = await prisma.chatGameSession.create({
     data: {
       eventId: params.eventId,
@@ -894,8 +933,8 @@ export async function createDmHangmanSession(params: {
       hostUserId: params.hostUserId,
       channel: "DM",
       dmPeerUserId: params.peerUserId,
-      joinPolicy: "invite_only",
-      maxPlayers: 2,
+      joinPolicy: dmDefaults.joinPolicy,
+      maxPlayers: dmDefaults.maxPlayers,
       status: "LOBBY",
       participants: {
         create: {
@@ -961,6 +1000,8 @@ export async function createTeamHangmanSession(params: {
   });
   if (activeLobby) throw new Error("This team already has an active game.");
 
+  const teamDefaults = getChatGameDefaults("hangman", { channel: "TEAM", openLobby: true });
+
   const session = await prisma.chatGameSession.create({
     data: {
       eventId: params.eventId,
@@ -969,8 +1010,8 @@ export async function createTeamHangmanSession(params: {
       hostUserId: params.hostUserId,
       channel: "TEAM",
       teamId: params.teamId,
-      joinPolicy: "open",
-      maxPlayers: 2,
+      joinPolicy: teamDefaults.joinPolicy,
+      maxPlayers: teamDefaults.maxPlayers,
       status: "LOBBY",
       participants: {
         create: {
@@ -1084,6 +1125,8 @@ export async function createDmSpinnerSession(params: {
   );
   if (activeLobby) throw new Error("You already have an active game with this person.");
 
+  const dmDefaults = getChatGameDefaults("spinner", { channel: "DM" });
+
   const session = await prisma.chatGameSession.create({
     data: {
       eventId: params.eventId,
@@ -1092,8 +1135,8 @@ export async function createDmSpinnerSession(params: {
       hostUserId: params.hostUserId,
       channel: "DM",
       dmPeerUserId: params.peerUserId,
-      joinPolicy: "invite_only",
-      maxPlayers: 2,
+      joinPolicy: dmDefaults.joinPolicy,
+      maxPlayers: dmDefaults.maxPlayers,
       status: "LOBBY",
       participants: {
         create: {
@@ -1159,6 +1202,8 @@ export async function createTeamSpinnerSession(params: {
   });
   if (activeLobby) throw new Error("This team already has an active game.");
 
+  const teamDefaults = getChatGameDefaults("spinner", { channel: "TEAM", openLobby: true });
+
   const session = await prisma.chatGameSession.create({
     data: {
       eventId: params.eventId,
@@ -1167,8 +1212,8 @@ export async function createTeamSpinnerSession(params: {
       hostUserId: params.hostUserId,
       channel: "TEAM",
       teamId: params.teamId,
-      joinPolicy: "open",
-      maxPlayers: 6,
+      joinPolicy: teamDefaults.joinPolicy,
+      maxPlayers: teamDefaults.maxPlayers,
       status: "LOBBY",
       participants: {
         create: {
@@ -1530,52 +1575,57 @@ export async function rematchSocialChatGame(params: {
   if (session.channel === "DM") {
     const peerUserId = resolveDmPeerForRematch(session, params.userId);
     if (session.kind === "hangman") {
-      snapshot = await createDmHangmanSession({
+      snapshot = (await createDmHangmanSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         peerUserId,
-      });
+      }))!;
     } else if (session.kind === "spinner") {
-      snapshot = await createDmSpinnerSession({
+      snapshot = (await createDmSpinnerSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         peerUserId,
-      });
+      }))!;
     } else {
-      snapshot = await createDmTicTacToeSession({
+      snapshot = (await createDmTicTacToeSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         peerUserId,
-      });
+      }))!;
     }
   } else if (session.channel === "TEAM" && session.teamId) {
     if (session.kind === "hangman") {
-      snapshot = await createTeamHangmanSession({
+      snapshot = (await createTeamHangmanSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         teamId: session.teamId,
-      });
+      }))!;
     } else if (session.kind === "spinner") {
-      snapshot = await createTeamSpinnerSession({
+      snapshot = (await createTeamSpinnerSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         teamId: session.teamId,
-      });
+      }))!;
     } else {
-      snapshot = await createTeamTicTacToeSession({
+      snapshot = (await createTeamTicTacToeSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         teamId: session.teamId,
-      });
+      }))!;
     }
   } else {
     throw new Error("Cannot rematch this game.");
+  }
+
+  if (session.kind === "tic_tac_toe") {
+    const { copySocialTttSessionMeta } = await import("@/server/games/socialTttEngine");
+    await copySocialTttSessionMeta(params.sessionId, snapshot.sessionId);
   }
 
   const result = await seatRematchPlayers({

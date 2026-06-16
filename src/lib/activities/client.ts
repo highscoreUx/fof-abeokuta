@@ -1,16 +1,16 @@
 import type { AuthUser } from "@/types";
 import type { ActivitySlug } from "@/lib/activities/catalog";
+import { resolveActivitySlug, slugCandidates } from "@/lib/activities/manifest";
 
 export function userHasEnabledActivity(
   user: Pick<AuthUser, "enabledActivities"> | null | undefined,
   slug: ActivitySlug,
 ): boolean {
+  const canonical = resolveActivitySlug(slug);
+  const candidates = new Set(slugCandidates(canonical));
+
   return Boolean(
-    user?.enabledActivities?.some(
-      (entry) =>
-        entry.slug === slug ||
-        (slug === "spinner" && (entry.slug as string) === "spin_to_build"),
-    ),
+    user?.enabledActivities?.some((entry) => candidates.has(entry.slug)),
   );
 }
 

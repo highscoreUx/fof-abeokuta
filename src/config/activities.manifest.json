@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "activities": [
+    {
+      "slug": "kahoot",
+      "aliases": [],
+      "name": "Live Trivia",
+      "socialDisplayName": null,
+      "description": "Real-time Kahoot-style activity with questions and a live leaderboard.",
+      "engine": "quiz",
+      "channels": ["official"],
+      "configurable": true,
+      "sortOrder": 1,
+      "permissions": {
+        "manage": "quiz.manage",
+        "run": "quiz.run",
+        "participant": "participant.quiz"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": true,
+        "allowGroup": false,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "general_only"
+      }
+    },
+    {
+      "slug": "spinner",
+      "aliases": ["spin_to_build"],
+      "name": "Spinner",
+      "socialDisplayName": "Spinner",
+      "description": "Spin a wheel to pick a random option. Teammates can spectate live spins.",
+      "engine": "spinner",
+      "channels": ["official", "social"],
+      "configurable": true,
+      "sortOrder": 2,
+      "permissions": {
+        "manage": "spin.manage",
+        "run": "spin.run",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 2,
+        "teamMaxPlayers": 6,
+        "joinPolicy": "invite_only"
+      }
+    },
+    {
+      "slug": "survey",
+      "aliases": [],
+      "name": "Survey",
+      "socialDisplayName": null,
+      "description": "Collect opinions and feedback with polls, scales, word clouds, and more.",
+      "engine": "survey",
+      "channels": ["official"],
+      "configurable": true,
+      "sortOrder": 3,
+      "permissions": {
+        "manage": "survey.manage",
+        "run": "survey.run",
+        "participant": "participant.survey"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": true,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      }
+    },
+    {
+      "slug": "tic_tac_toe",
+      "aliases": [],
+      "name": "Team Tic-Tac-Toe",
+      "socialDisplayName": "X and O",
+      "description": "Teams compete on a 3×3 grid — champion or council mode with live spectating.",
+      "engine": "tic_tac_toe",
+      "channels": ["official", "social"],
+      "configurable": true,
+      "sortOrder": 4,
+      "permissions": {
+        "manage": "tic_tac_toe.manage",
+        "run": "tic_tac_toe.run",
+        "participant": "participant.tic_tac_toe"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 2,
+        "joinPolicy": "invite_only"
+      }
+    },
+    {
+      "slug": "countdown",
+      "aliases": [],
+      "name": "Countdown timer",
+      "socialDisplayName": null,
+      "description": "Start a synced countdown everyone can see on Activities and the main stage.",
+      "engine": "countdown",
+      "channels": ["official"],
+      "configurable": true,
+      "sortOrder": 5,
+      "permissions": {
+        "manage": "countdown.manage",
+        "run": "countdown.run",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": true,
+        "allowGroup": false,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "general_only"
+      }
+    },
+    {
+      "slug": "hangman",
+      "aliases": [],
+      "name": "Team Hangman",
+      "socialDisplayName": "Hangman",
+      "description": "Teams take turns guessing letters — champion or council mode with live spectating.",
+      "engine": "hangman",
+      "channels": ["official", "social"],
+      "configurable": true,
+      "sortOrder": 6,
+      "permissions": {
+        "manage": "hangman.manage",
+        "run": "hangman.run",
+        "participant": "participant.hangman"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 2,
+        "joinPolicy": "invite_only"
+      }
+    }
+  ]
+}

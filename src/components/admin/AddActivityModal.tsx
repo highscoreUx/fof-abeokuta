@@ -12,6 +12,7 @@ import {
   ACTIVITY_TIC_TAC_TOE,
   ACTIVITY_COUNTDOWN,
   ACTIVITY_HANGMAN,
+  isGeneralOnlyActivity,
   type ActivitySlug,
 } from "@/lib/activities/catalog";
 import { parseDurationInput } from "@/lib/countdown/format";
@@ -97,7 +98,7 @@ export function AddActivityModal({
 
   useEffect(() => {
     if (!selectedConfig) return;
-    if (type === ACTIVITY_KAHOOT || type === ACTIVITY_COUNTDOWN) {
+    if (isGeneralOnlyActivity(type)) {
       setAllowGeneral(true);
       setAllowGroup(false);
       return;
@@ -134,8 +135,8 @@ export function AddActivityModal({
       await onCreate({
         type,
         title: title.trim(),
-        allowGeneralParticipants: type === ACTIVITY_KAHOOT || type === ACTIVITY_COUNTDOWN ? true : allowGeneral,
-        allowGroupParticipants: type === ACTIVITY_KAHOOT || type === ACTIVITY_COUNTDOWN ? false : allowGroup,
+        allowGeneralParticipants: isGeneralOnlyActivity(type) ? true : allowGeneral,
+        allowGroupParticipants: isGeneralOnlyActivity(type) ? false : allowGroup,
         participationMode: type === ACTIVITY_SPINNER ? participationMode : undefined,
         ticTacToeMode: type === ACTIVITY_TIC_TAC_TOE ? ticTacToeMode : undefined,
         hangmanMode: type === ACTIVITY_HANGMAN ? hangmanMode : undefined,
@@ -203,16 +204,18 @@ export function AddActivityModal({
           )}
         </div>
 
-        {type === ACTIVITY_KAHOOT ? (
+        {isGeneralOnlyActivity(type) ? (
+          type === ACTIVITY_KAHOOT ? (
           <p className="text-sm text-muted-foreground">
             Live Trivia is always whole-event scope. When started, it is announced in general and
             team chats so everyone can join or spectate.
           </p>
-        ) : type === ACTIVITY_COUNTDOWN ? (
+        ) : (
           <p className="text-sm text-muted-foreground">
             Countdown timers are whole-event scope. When started, everyone sees the same synced timer
             on Activities and the main stage.
           </p>
+        )
         ) : (
           <div className="space-y-2">
             <p className="text-sm font-medium">Who can participate?</p>

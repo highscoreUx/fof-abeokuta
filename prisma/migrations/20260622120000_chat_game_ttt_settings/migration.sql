@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "ChatGameSession" ADD COLUMN "settings" JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE "ChatGameSession" ADD COLUMN "scoreX" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "ChatGameSession" ADD COLUMN "scoreO" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "ChatGameSession" ADD COLUMN "turnDeadlineAt" TIMESTAMP(3);

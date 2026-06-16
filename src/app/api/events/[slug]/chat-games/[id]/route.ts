@@ -9,6 +9,7 @@ import {
   rematchSocialChatGame,
   startChatGameSessionByHost,
 } from "@/server/games/chatGameEngine";
+import { updateSocialTttSettings } from "@/server/games/socialTttEngine";
 
 export async function GET(
   request: NextRequest,
@@ -87,6 +88,35 @@ export async function POST(
         eventId: ctx.event.id,
         eventSlug: slug,
         userId: ctx.auth.userId,
+      });
+      return NextResponse.json({ session });
+    }
+
+    if (action === "update_settings") {
+      const settings =
+        body.settings && typeof body.settings === "object"
+          ? (body.settings as Record<string, unknown>)
+          : {};
+      const session = await updateSocialTttSettings({
+        sessionId: id,
+        eventId: ctx.event.id,
+        eventSlug: slug,
+        userId: ctx.auth.userId,
+        settings: {
+          seriesMode: settings.seriesMode === "race" ? "race" : "single",
+          raceTarget:
+            typeof settings.raceTarget === "number" ? settings.raceTarget : undefined,
+          turnTimerEnabled:
+            typeof settings.turnTimerEnabled === "boolean"
+              ? settings.turnTimerEnabled
+              : undefined,
+          turnTimerSeconds:
+            typeof settings.turnTimerSeconds === "number"
+              ? settings.turnTimerSeconds
+              : undefined,
+          endOnDraw:
+            typeof settings.endOnDraw === "boolean" ? settings.endOnDraw : undefined,
+        },
       });
       return NextResponse.json({ session });
     }

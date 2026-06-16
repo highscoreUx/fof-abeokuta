@@ -3,7 +3,9 @@ import { CACHE_TTL, cacheGetOrSet } from "@/lib/cache/index";
 import { invalidateEventCaches } from "@/lib/cache/invalidate";
 import { isTeamingEnabled } from "@/lib/team-settings";
 import {
-  ACTIVITY_CATALOG,
+  ACTIVITY_MANIFEST_ENTRIES,
+  defaultEventActivityConfig,
+  slugCandidates,
   type ActivityInstanceScope,
   type EnabledActivitySnapshot,
   validateInstanceScopeAgainstEvent,
@@ -17,24 +19,8 @@ export interface CachedEventActivityRow {
   allowStaff: boolean;
 }
 
-function defaultEventActivityConfig(slug: string) {
-  if (slug === "kahoot") {
-    return { enabled: true, allowGeneral: true, allowGroup: false, allowStaff: false };
-  }
-  if (slug === "spinner" || slug === "tic_tac_toe" || slug === "hangman") {
-    return { enabled: true, allowGeneral: false, allowGroup: true, allowStaff: false };
-  }
-  if (slug === "survey") {
-    return { enabled: true, allowGeneral: true, allowGroup: true, allowStaff: false };
-  }
-  if (slug === "countdown") {
-    return { enabled: true, allowGeneral: true, allowGroup: false, allowStaff: false };
-  }
-  return { enabled: true, allowGeneral: true, allowGroup: true, allowStaff: false };
-}
-
 export async function seedActivityTypes() {
-  for (const entry of ACTIVITY_CATALOG) {
+  for (const entry of ACTIVITY_MANIFEST_ENTRIES) {
     await prisma.activityType.upsert({
       where: { slug: entry.slug },
       update: {
@@ -148,15 +134,6 @@ export async function loadEnabledActivitiesSnapshot(
         },
       ];
     });
-}
-
-const ACTIVITY_SLUG_ALIASES: Record<string, string[]> = {
-  spinner: ["spinner", "spin_to_build"],
-  spin_to_build: ["spinner", "spin_to_build"],
-};
-
-function slugCandidates(activitySlug: string): string[] {
-  return ACTIVITY_SLUG_ALIASES[activitySlug] ?? [activitySlug];
 }
 
 export async function getEventActivityBySlug(eventId: string, activitySlug: string) {

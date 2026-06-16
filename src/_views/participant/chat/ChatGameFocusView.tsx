@@ -8,6 +8,7 @@ import { TicTacToeMatchLive } from "@/components/tic-tac-toe/TicTacToeMatchLive"
 import { HangmanMatchLive } from "@/components/hangman/HangmanMatchLive";
 import { SpinnerLive } from "@/components/spinner/SpinnerLive";
 import { ChatGameInvitePanel } from "@/components/chat/ChatGameInvitePanel";
+import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettings";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
@@ -89,6 +90,7 @@ export function ChatGameFocusView() {
   const isPlayer = Boolean(
     user && session?.players.some((player) => player.userId === user.id),
   );
+  const isHost = user?.id === session?.hostUserId;
 
   return (
     <PermissionGuard permission="participant.chat" allowAdminShell>
@@ -162,6 +164,18 @@ export function ChatGameFocusView() {
                       : "Waiting for another player to join from the chat card."}
                   </p>
                 </div>
+                {session.kind === "tic_tac_toe" && isHost && (
+                  <ChatGameTttHostSettings
+                    sessionId={session.sessionId}
+                    socialTtt={session.socialTtt}
+                    playerXName={
+                      session.players.find((player) => player.slot === "X")?.firstName ?? "X"
+                    }
+                    playerOName={
+                      session.players.find((player) => player.slot === "O")?.firstName ?? "O"
+                    }
+                  />
+                )}
                 {isPlayer && <ChatGameInvitePanel sessionId={session.sessionId} />}
               </div>
             ) : (

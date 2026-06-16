@@ -21,6 +21,8 @@ export interface TicTacToeChampionInfo {
   lastName: string;
 }
 
+import type { SocialTttSessionState } from "@/lib/chat-game-ttt-types";
+
 export interface TicTacToeMatchSnapshot {
   matchId: string;
   challengeId: string;
@@ -45,6 +47,7 @@ export interface TicTacToeMatchSnapshot {
   playerO?: TicTacToeChampionInfo | null;
   winnerUserId?: string | null;
   chatSessionId?: string | null;
+  socialTtt?: SocialTttSessionState;
   serverNow: number;
 }
 

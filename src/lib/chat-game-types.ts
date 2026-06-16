@@ -1,6 +1,15 @@
-export type ChatGameKind = "tic_tac_toe" | "hangman" | "spinner";
+import type { SocialTttSessionState } from "@/lib/chat-game-ttt-types";
+import {
+  chatGameTitle,
+  isChatGameKind,
+  type ChatGameKind,
+} from "@/lib/activities/manifest";
+
+export type { ChatGameKind };
 
 export type ChatGameLobbyStatus = "lobby" | "live" | "ended" | "cancelled";
+
+export type { SocialTttSessionState };
 
 export interface ChatGamePlayerSummary {
   userId: string;
@@ -46,6 +55,8 @@ export interface ChatGameSessionSnapshot {
   title: string;
   text: string;
   serverNow: number;
+  /** Present for live social X and O sessions. */
+  socialTtt?: SocialTttSessionState;
 }
 
 export interface ChatGameRematchPayload {
@@ -53,17 +64,7 @@ export interface ChatGameRematchPayload {
   session: ChatGameSessionSnapshot;
 }
 
-const CHAT_GAME_KINDS = new Set<ChatGameKind>(["tic_tac_toe", "hangman", "spinner"]);
-
-export function isChatGameKind(value: string): value is ChatGameKind {
-  return CHAT_GAME_KINDS.has(value as ChatGameKind);
-}
-
-export function chatGameTitle(kind: ChatGameKind): string {
-  if (kind === "hangman") return "Hangman";
-  if (kind === "spinner") return "Spinner";
-  return "X and O";
-}
+export { chatGameTitle, isChatGameKind };
 
 export function serializeChatGameMessage(body: ChatGameMessageBody): string {
   return JSON.stringify(body);

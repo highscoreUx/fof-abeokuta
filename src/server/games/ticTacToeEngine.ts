@@ -13,6 +13,7 @@ import {
 import { eventRoom, teamRoom, ticTacToeMatchRoom, userRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
+import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
 
 function parseBoard(raw: unknown): TicTacToeCell[] {
   if (!Array.isArray(raw) || raw.length !== 9) return [...EMPTY_BOARD];
@@ -96,7 +97,16 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
           account: { select: { username: true, firstName: true, lastName: true } },
         },
       },
-      chatSession: { select: { id: true } },
+      chatSession: {
+        select: {
+          id: true,
+          kind: true,
+          settings: true,
+          scoreX: true,
+          scoreO: true,
+          turnDeadlineAt: true,
+        },
+      },
     },
   });
   if (!match) return null;
@@ -123,6 +133,22 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
 
   const displayTitle =
     match.challenge.title === "__chat_social__" ? "X and O" : match.challenge.title;
+
+  const socialTtt = match.chatSession
+    ? buildSocialTttSessionState({
+        kind: match.chatSession.kind,
+        settings: match.chatSession.settings,
+        scoreX: match.chatSession.scoreX,
+        scoreO: match.chatSession.scoreO,
+        turnDeadlineAt: match.chatSession.turnDeadlineAt,
+        tttMatch: {
+          state: match.state,
+          currentTurn: match.currentTurn,
+          playerXUserId: match.playerXUserId,
+          playerOUserId: match.playerOUserId,
+        },
+      })
+    : null;
 
   return {
     matchId: match.id,
@@ -151,6 +177,7 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
     playerO,
     winnerUserId: match.winnerUserId,
     chatSessionId: match.chatSession?.id ?? null,
+    socialTtt: socialTtt ?? undefined,
     serverNow: Date.now(),
   };
 }
@@ -248,6 +275,11 @@ export async function startTttMatch(
     });
   }
 
+  if (match.isSocial) {
+    const { onSocialTttMatchStarted } = await import("@/server/games/socialTttEngine");
+    await onSocialTttMatchStarted(io, matchId, eventSlug);
+  }
+
   return broadcastTttState(io, matchId, eventSlug);
 }
 
@@ -319,6 +351,28 @@ async function applyMove(
 
   const finished = Boolean(winner || draw);
 
+  if (match.isSocial && finished) {
+    await prisma.ticTacToeMatch.update({
+      where: { id: matchId },
+      data: {
+        board,
+        currentTurn: match.currentTurn,
+        turnNumber: match.turnNumber + 1,
+        councilVotes: {},
+        winnerTeamId,
+        winnerUserId: draw ? null : winnerUserId,
+        isDraw: draw,
+      },
+    });
+
+    const { handleSocialTttRoundEnd } = await import("@/server/games/socialTttEngine");
+    await handleSocialTttRoundEnd(io, matchId, eventSlug, {
+      winnerMark: winner,
+      isDraw: draw,
+    });
+    return broadcastTttState(io, matchId, eventSlug);
+  }
+
   await prisma.ticTacToeMatch.update({
     where: { id: matchId },
     data: {
@@ -336,9 +390,9 @@ async function applyMove(
 
   const snapshot = await broadcastTttState(io, matchId, eventSlug);
 
-  if (finished && match.isSocial) {
-    const { completeSocialChatGameFromMatch } = await import("@/server/games/chatGameEngine");
-    await completeSocialChatGameFromMatch(matchId, eventSlug);
+  if (!finished && match.isSocial) {
+    const { onSocialTttMoveApplied } = await import("@/server/games/socialTttEngine");
+    await onSocialTttMoveApplied(io, matchId, eventSlug);
   }
 
   if (finished && match.bracketSlotId) {

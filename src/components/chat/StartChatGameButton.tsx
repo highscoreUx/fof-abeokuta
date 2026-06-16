@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import type { ChatGameKind } from "@/lib/chat-game-types";
+import { chatGameOptions } from "@/lib/activities/manifest";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { toastError, toastSuccess } from "@/lib/toast";
@@ -18,11 +19,7 @@ interface StartChatGameButtonProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export const CHAT_GAME_OPTIONS: Array<{ kind: ChatGameKind; label: string }> = [
-  { kind: "tic_tac_toe", label: "X and O" },
-  { kind: "hangman", label: "Hangman" },
-  { kind: "spinner", label: "Spinner" },
-];
+export const CHAT_GAME_OPTIONS = chatGameOptions();
 
 export function useChatGameStarter({
   channel,

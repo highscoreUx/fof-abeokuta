@@ -4,6 +4,7 @@ import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import "dotenv/config";
 import { recoverQuizTimers } from "./src/server/games/quizEngine";
+import { recoverSocialTttTurnTimers } from "./src/server/games/socialTttEngine";
 import { ensurePlatformBootstrap } from "./src/server/bootstrap";
 import { startEmailQueueConsumer } from "./src/server/email-worker";
 import { startGalleryQueueConsumer } from "./src/server/gallery-worker";
@@ -47,6 +48,12 @@ app.prepare().then(async () => {
     await recoverQuizTimers(io);
   } catch (error) {
     console.warn("[startup] Quiz timer recovery skipped:", error);
+  }
+
+  try {
+    await recoverSocialTttTurnTimers(io);
+  } catch (error) {
+    console.warn("[startup] Social TTT timer recovery skipped:", error);
   }
 
   try {

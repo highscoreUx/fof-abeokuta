@@ -47,7 +47,6 @@ export function useEventNav() {
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
         navIf("user.check_in", `${prefix}/staff/check-in`, "Check In", permissions),
-        navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
   );
@@ -56,7 +55,6 @@ export function useEventNav() {
     () =>
       [
         navIf("score.submit", `${prefix}/judge/scoring`, "Scoring", permissions),
-        navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
   );
@@ -65,7 +63,6 @@ export function useEventNav() {
     () =>
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
-        navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
   );

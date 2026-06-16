@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
-import { StartChatGameButton } from "@/components/chat/StartChatGameButton";
 import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
 import { ChatSystemMessage } from "@/components/chat/ChatSystemMessage";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
@@ -256,6 +255,16 @@ export function ChatPanel({
           : `Message Team ${room.letter ?? ""}...`;
 
   const allowPrivateAction = !isPrivate && !isStaff && Boolean(onMessagePrivately);
+  const gamePicker =
+    isPrivate && peerId && dmGamesEnabled
+      ? { channel: "DM" as const, peerUserId: peerId }
+      : !isPrivate &&
+          !isStaff &&
+          !isGeneral &&
+          teamGamesEnabled &&
+          user?.teamId === room.id
+        ? { channel: "TEAM" as const, teamId: room.id }
+        : undefined;
   const typers = useChatTyping(room.id, isActive, draft);
 
   return (
@@ -296,16 +305,6 @@ export function ChatPanel({
               <p className="truncate text-sm text-muted-foreground">Direct message</p>
             )}
           </div>
-          {isPrivate && peerId && dmGamesEnabled && (
-            <StartChatGameButton channel="DM" peerUserId={peerId} />
-          )}
-          {!isPrivate &&
-            !isStaff &&
-            !isGeneral &&
-            teamGamesEnabled &&
-            user?.teamId === room.id && (
-              <StartChatGameButton channel="TEAM" teamId={room.id} />
-            )}
         </div>
       </div>
 
@@ -360,6 +359,7 @@ export function ChatPanel({
           placeholder={placeholder}
           disabled={sending}
           allowPolls={!isPrivate}
+          gamePicker={gamePicker}
           replyTo={replyTo}
           onDraftChange={(value) => setDraft(room.id, value)}
           onClearReply={() => setReplyTo(room.id, null)}

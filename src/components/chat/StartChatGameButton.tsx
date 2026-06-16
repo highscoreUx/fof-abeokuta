@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import type { ChatGameKind } from "@/lib/chat-game-types";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { toastError, toastSuccess } from "@/lib/toast";
 
 interface StartChatGameButtonProps {
@@ -11,83 +12,126 @@ interface StartChatGameButtonProps {
   peerUserId?: string;
   teamId?: string;
   disabled?: boolean;
+  iconOnly?: boolean;
+  menuPlacement?: "top" | "bottom";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const GAME_OPTIONS: Array<{ kind: ChatGameKind; label: string }> = [
+export const CHAT_GAME_OPTIONS: Array<{ kind: ChatGameKind; label: string }> = [
   { kind: "tic_tac_toe", label: "X and O" },
   { kind: "hangman", label: "Hangman" },
   { kind: "spinner", label: "Spinner" },
 ];
+
+export function useChatGameStarter({
+  channel,
+  peerUserId,
+  teamId,
+}: Pick<StartChatGameButtonProps, "channel" | "peerUserId" | "teamId">) {
+  const { api } = useEventApi();
+  const [busy, setBusy] = useState(false);
+
+  const start = useCallback(
+    async (kind: ChatGameKind) => {
+      setBusy(true);
+      try {
+        await api("/chat-games", {
+          method: "POST",
+          body: JSON.stringify({
+            kind,
+            channel,
+            peerUserId: channel === "DM" ? peerUserId : undefined,
+            teamId: channel === "TEAM" ? teamId : undefined,
+          }),
+        });
+        toastSuccess("Game posted to chat");
+        return true;
+      } catch (error) {
+        toastError(error instanceof Error ? error.message : "Could not start game");
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [api, channel, peerUserId, teamId],
+  );
+
+  return { start, busy };
+}
+
+export function ChatGameMenu({
+  className,
+  onSelect,
+}: {
+  className?: string;
+  onSelect: (kind: ChatGameKind) => void;
+}) {
+  return (
+    <div className={cn("min-w-[10rem] rounded-lg border border-border bg-card p-1 shadow-lg", className)}>
+      {CHAT_GAME_OPTIONS.map((option) => (
+        <button
+          key={option.kind}
+          type="button"
+          className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+          onClick={() => onSelect(option.kind)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function StartChatGameButton({
   channel,
   peerUserId,
   teamId,
   disabled = false,
+  iconOnly = false,
+  menuPlacement = "bottom",
+  open: controlledOpen,
+  onOpenChange,
 }: StartChatGameButtonProps) {
-  const { api } = useEventApi();
-  const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const { start, busy } = useChatGameStarter({ channel, peerUserId, teamId });
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  const open = controlledOpen ?? uncontrolledOpen;
 
-    const onPointerDown = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [open]);
-
-  const start = async (kind: ChatGameKind) => {
-    setOpen(false);
-    setBusy(true);
-    try {
-      await api("/chat-games", {
-        method: "POST",
-        body: JSON.stringify({
-          kind,
-          channel,
-          peerUserId: channel === "DM" ? peerUserId : undefined,
-          teamId: channel === "TEAM" ? teamId : undefined,
-        }),
-      });
-      toastSuccess("Game posted to chat");
-    } catch (error) {
-      toastError(error instanceof Error ? error.message : "Could not start game");
-    } finally {
-      setBusy(false);
+  const setOpen = (value: boolean) => {
+    if (controlledOpen === undefined) {
+      setUncontrolledOpen(value);
     }
+    onOpenChange?.(value);
+  };
+
+  const handleSelect = async (kind: ChatGameKind) => {
+    setOpen(false);
+    await start(kind);
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative shrink-0">
       <Button
         type="button"
         size="sm"
-        variant="secondary"
+        variant={open ? "secondary" : "ghost"}
+        className={cn("shrink-0", iconOnly ? "px-2 sm:px-2.5" : undefined)}
         disabled={disabled || busy}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen(!open)}
+        aria-label="Play a game"
+        aria-expanded={open}
       >
-        {busy ? "Starting…" : "Play a game"}
+        {iconOnly ? "🎮" : busy ? "Starting…" : "Play a game"}
       </Button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 min-w-[10rem] rounded-lg border border-border bg-card p-1 shadow-lg">
-          {GAME_OPTIONS.map((option) => (
-            <button
-              key={option.kind}
-              type="button"
-              className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-              onClick={() => void start(option.kind)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <ChatGameMenu
+          className={cn(
+            "absolute right-0 z-30",
+            menuPlacement === "top" ? "bottom-full mb-1" : "top-full mt-1",
+          )}
+          onSelect={(kind) => void handleSelect(kind)}
+        />
       )}
     </div>
   );

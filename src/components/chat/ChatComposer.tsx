@@ -17,6 +17,7 @@ import {
 } from "@/lib/chat-poll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CHAT_GAME_OPTIONS, useChatGameStarter } from "@/components/chat/StartChatGameButton";
 import { cn } from "@/lib/cn";
 
 type PickerTab = "emoji" | "gif" | "sticker";
@@ -26,6 +27,11 @@ interface ChatComposerProps {
   placeholder: string;
   disabled?: boolean;
   allowPolls?: boolean;
+  gamePicker?: {
+    channel: "DM" | "TEAM";
+    peerUserId?: string;
+    teamId?: string;
+  };
   replyTo?: ChatReplyRef | null;
   onDraftChange: (value: string) => void;
   onClearReply?: () => void;
@@ -38,6 +44,7 @@ export function ChatComposer({
   placeholder,
   disabled = false,
   allowPolls = true,
+  gamePicker,
   replyTo = null,
   onDraftChange,
   onClearReply,
@@ -45,6 +52,7 @@ export function ChatComposer({
   onSendContent,
 }: ChatComposerProps) {
   const [picker, setPicker] = useState<PickerTab | null>(null);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
   const [showPollBuilder, setShowPollBuilder] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
@@ -53,6 +61,9 @@ export function ChatComposer({
   const [expiresInMinutes, setExpiresInMinutes] = useState("5");
   const [emojiCategory, setEmojiCategory] = useState<string>(CHAT_EMOJI_CATEGORIES[0].id);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { start: startChatGame, busy: startingChatGame } = useChatGameStarter(
+    gamePicker ?? { channel: "DM" },
+  );
 
   useEffect(() => {
     if (!allowPolls) {
@@ -61,17 +72,18 @@ export function ChatComposer({
   }, [allowPolls]);
 
   useEffect(() => {
-    if (!picker) return;
+    if (!picker && !gameMenuOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
         setPicker(null);
+        setGameMenuOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [picker]);
+  }, [picker, gameMenuOpen]);
 
   const sendText = async () => {
     const text = draft.trim();
@@ -114,7 +126,26 @@ export function ChatComposer({
 
   const openPollBuilder = () => {
     setPicker(null);
+    setGameMenuOpen(false);
     setShowPollBuilder((open) => !open);
+  };
+
+  const toggleMediaPicker = () => {
+    setShowPollBuilder(false);
+    setGameMenuOpen(false);
+    setPicker((current) => (current ? null : "emoji"));
+  };
+
+  const toggleGameMenu = () => {
+    setShowPollBuilder(false);
+    setPicker(null);
+    setGameMenuOpen((open) => !open);
+  };
+
+  const selectChatGame = async (kind: (typeof CHAT_GAME_OPTIONS)[number]["kind"]) => {
+    if (!gamePicker || disabled || startingChatGame) return;
+    setGameMenuOpen(false);
+    await startChatGame(kind);
   };
 
   const updatePollOption = (index: number, value: string) => {
@@ -404,46 +435,50 @@ export function ChatComposer({
         </div>
       )}
 
-      <div className="flex items-center gap-0.5 overflow-x-auto sm:gap-1">
+      {gameMenuOpen && gamePicker && (
+        <div className="absolute bottom-full left-0 z-20 mb-2">
+          <div className="min-w-[10rem] rounded-lg border border-border bg-card p-1 shadow-lg">
+            {CHAT_GAME_OPTIONS.map((option) => (
+              <button
+                key={option.kind}
+                type="button"
+                disabled={disabled || startingChatGame}
+                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+                onClick={() => void selectChatGame(option.kind)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-0.5 sm:gap-1">
         <Button
           type="button"
-          variant={picker === "emoji" ? "secondary" : "ghost"}
+          variant={picker ? "secondary" : "ghost"}
           size="sm"
           className="shrink-0 px-2 sm:px-2.5"
-          onClick={() => {
-            setShowPollBuilder(false);
-            setPicker((current) => (current === "emoji" ? null : "emoji"));
-          }}
-          aria-label="Emoji"
+          onClick={toggleMediaPicker}
+          aria-label="Emoji, GIF, and stickers"
+          aria-expanded={Boolean(picker)}
         >
           😊
         </Button>
-        <Button
-          type="button"
-          variant={picker === "gif" ? "secondary" : "ghost"}
-          size="sm"
-          className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
-          onClick={() => {
-            setShowPollBuilder(false);
-            setPicker((current) => (current === "gif" ? null : "gif"));
-          }}
-          aria-label="GIF"
-        >
-          GIF
-        </Button>
-        <Button
-          type="button"
-          variant={picker === "sticker" ? "secondary" : "ghost"}
-          size="sm"
-          className="shrink-0 px-2 text-xs font-semibold sm:px-2.5"
-          onClick={() => {
-            setShowPollBuilder(false);
-            setPicker((current) => (current === "sticker" ? null : "sticker"));
-          }}
-          aria-label="Stickers"
-        >
-          🎨
-        </Button>
+        {gamePicker && (
+          <Button
+            type="button"
+            variant={gameMenuOpen ? "secondary" : "ghost"}
+            size="sm"
+            className="shrink-0 px-2 sm:px-2.5"
+            disabled={disabled || startingChatGame}
+            onClick={toggleGameMenu}
+            aria-label="Play a game"
+            aria-expanded={gameMenuOpen}
+          >
+            🎮
+          </Button>
+        )}
         {allowPolls && (
           <Button
             type="button"

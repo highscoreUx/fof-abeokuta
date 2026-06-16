@@ -88,6 +88,8 @@ export function broadcastDirectMessage(
 
   io.in(userRoom(senderId)).emit("dm:message", message);
   io.in(userRoom(recipientId)).emit("dm:message", message);
+  io.in(userRoom(senderId)).emit("poll:update", message);
+  io.in(userRoom(recipientId)).emit("poll:update", message);
 }
 
 export function broadcastStaffMessage(eventSlug: string, message: SerializedChatMessage) {

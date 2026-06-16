@@ -23,6 +23,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const { home } = useEventNav();
   const [busy, setBusy] = useState(false);
   const [local, setLocal] = useState(chatGame);
+  const sessionId = chatGame.sessionId;
 
   useEffect(() => {
     setLocal(chatGame);
@@ -32,7 +33,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     if (!socket) return;
 
     const onState = (snapshot: ChatGameSessionSnapshot) => {
-      if (snapshot.sessionId !== local.sessionId) return;
+      if (snapshot.sessionId !== sessionId) return;
       setLocal({
         type: "chat_game",
         sessionId: snapshot.sessionId,
@@ -54,13 +55,13 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     return () => {
       socket.off("chat:game:state", onState);
     };
-  }, [socket, local.sessionId]);
+  }, [socket, sessionId]);
 
   useEffect(() => {
     if (!socket || !user) return;
 
     const onRematch = (payload: ChatGameRematchPayload) => {
-      if (payload.fromSessionId !== local.sessionId) return;
+      if (payload.fromSessionId !== sessionId) return;
       const wasPlayer = payload.session.players.some((player) => player.userId === user.id);
       if (!wasPlayer) return;
       router.replace(`${home}/game/${payload.session.sessionId}`);
@@ -70,7 +71,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     return () => {
       socket.off("chat:game:rematch", onRematch);
     };
-  }, [socket, local.sessionId, user, home, router]);
+  }, [socket, sessionId, user, home, router]);
 
   const applySession = (session: ChatGameSessionSnapshot) => {
     setLocal({

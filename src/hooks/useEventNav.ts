@@ -65,7 +65,6 @@ export function useEventNav() {
     () =>
       [
         navIf("participant.home", `${prefix}/home`, "Home", permissions),
-        navIf("participant.activities", `${prefix}/home/activities`, "Activities", permissions),
         navIf("stage.view", `${prefix}/stage`, "Main Stage", permissions),
       ].filter(Boolean) as NavItem[],
     [permissions, prefix],
@@ -86,12 +85,14 @@ export function useEventNav() {
     settings: `${prefix}/admin/settings`,
     stage: `${prefix}/stage`,
     home: `${prefix}/home`,
-    homeActivities: `${prefix}/home/activities`,
+    homePlay: `${prefix}/home/play`,
+    homeActivities: `${prefix}/home/play`,
     gallery: `${prefix}/home?tab=gallery`,
     /** @deprecated use home */
     participant: `${prefix}/home`,
     /** @deprecated use homeActivities */
-    participantActivities: `${prefix}/home/activities`,
+    /** @deprecated use homePlay */
+    participantActivities: `${prefix}/home/play`,
     staffCheckIn: `${prefix}/staff/check-in`,
     judgeScoring: `${prefix}/judge/scoring`,
     login: loginPath(),

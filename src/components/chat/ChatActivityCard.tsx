@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEventNav } from "@/hooks/useEventNav";
 import type { ActivityChatBody } from "@/lib/activity-chat-types";
+import { officialActivityPlayHref } from "@/lib/activity-play-routes";
 import { Button } from "@/components/ui/button";
 
 interface ChatActivityCardProps {
@@ -10,18 +11,10 @@ interface ChatActivityCardProps {
 }
 
 export function ChatActivityCard({ activity }: ChatActivityCardProps) {
-  const { homeActivities } = useEventNav();
+  const { home } = useEventNav();
   const isLive = activity.status === "live";
-  const href =
-    activity.kind === "kahoot"
-      ? `${homeActivities}?trivia=${activity.instanceId}`
-      : activity.kind === "tic_tac_toe"
-        ? `${homeActivities}?ttt=${activity.instanceId}&match=${activity.sessionId}`
-        : activity.kind === "hangman"
-          ? `${homeActivities}?hangman=${activity.instanceId}&match=${activity.sessionId}`
-          : activity.kind === "countdown"
-            ? `${homeActivities}?countdown=${activity.instanceId}&session=${activity.sessionId}`
-            : `${homeActivities}?spinner=${activity.instanceId}&session=${activity.sessionId}`;
+  const href = officialActivityPlayHref(home, activity);
+  const spectateHref = officialActivityPlayHref(home, activity, { spectate: true });
 
   return (
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -46,7 +39,7 @@ export function ChatActivityCard({ activity }: ChatActivityCardProps) {
               <Link href={href}>
                 <Button size="sm">Join</Button>
               </Link>
-              <Link href={`${href}&mode=spectate`}>
+              <Link href={spectateHref}>
                 <Button size="sm" variant="secondary">
                   Spectate
                 </Button>

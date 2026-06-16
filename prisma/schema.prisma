@@ -87,6 +87,18 @@ enum ActivityBracketSlotState {
   COMPLETE
 }
 
+enum ChatGameChannel {
+  DM
+  TEAM
+}
+
+enum ChatGameSessionStatus {
+  LOBBY
+  LIVE
+  ENDED
+  CANCELLED
+}
+
 enum CountdownSessionState {
   RUNNING
   PAUSED
@@ -197,6 +209,7 @@ model Event {
   appSettings     AppSetting[]
   auditLogs       AuditLog[]
   photoLibrary    EventPhotoLibrary?
+  chatGameSessions ChatGameSession[]
 }
 
 model ActivityType {
@@ -295,6 +308,7 @@ model Team {
   bracketSlotTeamB    ActivityBracketSlot[] @relation("BracketSlotTeamB")
   bracketChampionships ActivityBracket[] @relation("BracketChampion")
   galleryPhotos       GalleryPhoto[]
+  chatGameSessions    ChatGameSession[]
 
   @@unique([eventId, letter])
 }
@@ -335,6 +349,14 @@ model User {
   surveyResponses SurveyResponse[]
   auditLogs     AuditLog[]
   galleryPhotos GalleryPhoto[]
+  chatGamesHosted     ChatGameSession[]    @relation("ChatGameHost")
+  chatGameParticipants ChatGameParticipant[]
+  tttPlayerX          TicTacToeMatch[]     @relation("TttPlayerX")
+  tttPlayerO          TicTacToeMatch[]     @relation("TttPlayerO")
+  tttWinnerUser       TicTacToeMatch[]     @relation("TttWinnerUser")
+  hangmanPlayerX      HangmanMatch[]       @relation("HangmanPlayerX")
+  hangmanPlayerO      HangmanMatch[]       @relation("HangmanPlayerO")
+  hangmanWinnerUser   HangmanMatch[]       @relation("HangmanWinnerUser")
 
   @@unique([accountId, eventId])
   @@unique([eventId, ticketNumber])
@@ -535,6 +557,7 @@ model SpinnerSession {
   challenge       SpinChallenge       @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   eventId         String
   event           Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  isSocial        Boolean             @default(false)
   teamId          String?
   team            Team?               @relation(fields: [teamId], references: [id])
   state           SpinnerSessionState @default(ACTIVE)
@@ -543,6 +566,7 @@ model SpinnerSession {
   startedByUserId String
   startedBy       User                @relation("SpinnerStartedBy", fields: [startedByUserId], references: [id])
   spins           SpinnerSpin[]
+  chatSession     ChatGameSession?
   createdAt       DateTime            @default(now())
   endedAt         DateTime?
 
@@ -618,10 +642,17 @@ model TicTacToeMatch {
   challenge       TicTacToeChallenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   eventId         String
   event           Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teamXId         String
-  teamX           Team                @relation("TttTeamX", fields: [teamXId], references: [id])
-  teamOId         String
-  teamO           Team                @relation("TttTeamO", fields: [teamOId], references: [id])
+  isSocial        Boolean             @default(false)
+  teamXId         String?
+  teamX           Team?               @relation("TttTeamX", fields: [teamXId], references: [id])
+  teamOId         String?
+  teamO           Team?               @relation("TttTeamO", fields: [teamOId], references: [id])
+  playerXUserId   String?
+  playerX         User?               @relation("TttPlayerX", fields: [playerXUserId], references: [id])
+  playerOUserId   String?
+  playerO         User?               @relation("TttPlayerO", fields: [playerOUserId], references: [id])
+  winnerUserId    String?
+  winnerUser      User?               @relation("TttWinnerUser", fields: [winnerUserId], references: [id])
   state           TicTacToeMatchState @default(WAITING)
   board           Json
   currentTurn     String              @default("X")
@@ -635,6 +666,7 @@ model TicTacToeMatch {
   winnerTeam      Team?               @relation("TttWinner", fields: [winnerTeamId], references: [id])
   bracketSlotId   String?
   bracketSlot     ActivityBracketSlot? @relation(fields: [bracketSlotId], references: [id], onDelete: SetNull)
+  chatSession     ChatGameSession?
   isDraw          Boolean             @default(false)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -669,10 +701,17 @@ model HangmanMatch {
   challenge       HangmanChallenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   eventId         String
   event           Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teamXId         String
-  teamX           Team              @relation("HangmanTeamX", fields: [teamXId], references: [id])
-  teamOId         String
-  teamO           Team              @relation("HangmanTeamO", fields: [teamOId], references: [id])
+  isSocial        Boolean           @default(false)
+  teamXId         String?
+  teamX           Team?             @relation("HangmanTeamX", fields: [teamXId], references: [id])
+  teamOId         String?
+  teamO           Team?             @relation("HangmanTeamO", fields: [teamOId], references: [id])
+  playerXUserId   String?
+  playerX         User?             @relation("HangmanPlayerX", fields: [playerXUserId], references: [id])
+  playerOUserId   String?
+  playerO         User?             @relation("HangmanPlayerO", fields: [playerOUserId], references: [id])
+  winnerUserId    String?
+  winnerUser      User?             @relation("HangmanWinnerUser", fields: [winnerUserId], references: [id])
   state           HangmanMatchState @default(WAITING)
   secretWord      String            @default("")
   guessedLetters  Json              @default("[]")
@@ -689,6 +728,7 @@ model HangmanMatch {
   winnerTeam      Team?             @relation("HangmanWinner", fields: [winnerTeamId], references: [id])
   bracketSlotId   String?
   bracketSlot     ActivityBracketSlot? @relation(fields: [bracketSlotId], references: [id], onDelete: SetNull)
+  chatSession     ChatGameSession?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   finishedAt      DateTime?
@@ -843,4 +883,47 @@ model SurveyAnswer {
   updatedAt  DateTime       @updatedAt
 
   @@unique([responseId, questionId])
+}
+
+model ChatGameSession {
+  id           String                @id @default(cuid())
+  eventId      String
+  event        Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  kind         String
+  source       String                @default("social")
+  hostUserId   String
+  host         User                  @relation("ChatGameHost", fields: [hostUserId], references: [id])
+  channel      ChatGameChannel
+  teamId       String?
+  team         Team?                 @relation(fields: [teamId], references: [id])
+  dmPeerUserId String?
+  messageId    String?
+  joinPolicy   String                @default("invite_only")
+  maxPlayers   Int                   @default(2)
+  status       ChatGameSessionStatus @default(LOBBY)
+  tttMatchId     String?               @unique
+  tttMatch       TicTacToeMatch?       @relation(fields: [tttMatchId], references: [id])
+  hangmanMatchId String?               @unique
+  hangmanMatch   HangmanMatch?         @relation(fields: [hangmanMatchId], references: [id])
+  spinnerSessionId String?             @unique
+  spinnerSession   SpinnerSession?     @relation(fields: [spinnerSessionId], references: [id])
+  invitedSpectatorIds Json             @default("[]")
+  createdAt      DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  participants ChatGameParticipant[]
+
+  @@index([eventId, status])
+}
+
+model ChatGameParticipant {
+  id         String          @id @default(cuid())
+  sessionId  String
+  session    ChatGameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  role       String
+  playerSlot String?
+  joinedAt   DateTime        @default(now())
+
+  @@unique([sessionId, userId])
 }

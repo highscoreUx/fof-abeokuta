@@ -29,5 +29,9 @@ export interface SpinnerStateSnapshot {
   startedByUserId: string;
   lastSpin: SpinnerSpinRecord | null;
   spinHistory: SpinnerSpinRecord[];
+  isSocial: boolean;
+  chatSessionId: string | null;
+  playerUserIds: string[];
+  spectatorUserIds: string[];
   serverNow: number;
 }

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { StartChatGameButton } from "@/components/chat/StartChatGameButton";
 import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
 import { ChatSystemMessage } from "@/components/chat/ChatSystemMessage";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
@@ -50,6 +51,8 @@ export function ChatPanel({
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [dmGamesEnabled, setDmGamesEnabled] = useState(false);
+  const [teamGamesEnabled, setTeamGamesEnabled] = useState(false);
 
   const messages = useChatStore((s) => s.messagesByRoom[room.id] ?? EMPTY_CHAT_MESSAGES);
   const draft = useChatStore((s) => s.draftsByRoom[room.id] ?? "");
@@ -88,6 +91,20 @@ export function ChatPanel({
         markMessagesLoaded(room.id);
       });
   }, [api, messagePath, room.id, messagesLoaded, setMessages, markMessagesLoaded]);
+
+  useEffect(() => {
+    api<{ settings: { enabled: boolean; dmEnabled: boolean; teamEnabled: boolean } }>(
+      "/chat-games/settings",
+    )
+      .then((data) => {
+        setDmGamesEnabled(data.settings.enabled && data.settings.dmEnabled);
+        setTeamGamesEnabled(data.settings.enabled && data.settings.teamEnabled);
+      })
+      .catch(() => {
+        setDmGamesEnabled(false);
+        setTeamGamesEnabled(false);
+      });
+  }, [api]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -279,6 +296,16 @@ export function ChatPanel({
               <p className="truncate text-sm text-muted-foreground">Direct message</p>
             )}
           </div>
+          {isPrivate && peerId && dmGamesEnabled && (
+            <StartChatGameButton channel="DM" peerUserId={peerId} />
+          )}
+          {!isPrivate &&
+            !isStaff &&
+            !isGeneral &&
+            teamGamesEnabled &&
+            user?.teamId === room.id && (
+              <StartChatGameButton channel="TEAM" teamId={room.id} />
+            )}
         </div>
       </div>
 

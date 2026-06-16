@@ -10,7 +10,7 @@ import {
   type TicTacToeMatchSnapshot,
   type TicTacToeMode,
 } from "@/lib/tic-tac-toe/types";
-import { eventRoom, teamRoom, ticTacToeMatchRoom } from "@/server/socket/rooms";
+import { eventRoom, teamRoom, ticTacToeMatchRoom, userRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
 
@@ -40,6 +40,31 @@ function teamInfo(team: { id: string; letter: string; name: string; color: strin
   return { id: team.id, letter: team.letter, name: team.name, color: team.color };
 }
 
+function userAsChampion(user: {
+  id: string;
+  account: { username: string; firstName: string; lastName: string };
+}) {
+  return {
+    userId: user.id,
+    username: user.account.username,
+    firstName: user.account.firstName,
+    lastName: user.account.lastName,
+  };
+}
+
+function socialPseudoTeam(
+  user: { id: string; account: { firstName: string; lastName: string } },
+  mark: TicTacToeMark,
+) {
+  const initial = user.account.firstName.trim().charAt(0).toUpperCase() || mark;
+  return {
+    id: user.id,
+    letter: initial,
+    name: `${user.account.firstName} ${user.account.lastName}`.trim(),
+    color: mark === "X" ? "#f97316" : "#3b82f6",
+  };
+}
+
 export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchSnapshot | null> {
   const match = await prisma.ticTacToeMatch.findUnique({
     where: { id: matchId },
@@ -47,6 +72,18 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
       challenge: true,
       teamX: true,
       teamO: true,
+      playerX: {
+        select: {
+          id: true,
+          account: { select: { username: true, firstName: true, lastName: true } },
+        },
+      },
+      playerO: {
+        select: {
+          id: true,
+          account: { select: { username: true, firstName: true, lastName: true } },
+        },
+      },
       championX: {
         select: {
           id: true,
@@ -59,56 +96,77 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
           account: { select: { username: true, firstName: true, lastName: true } },
         },
       },
+      chatSession: { select: { id: true } },
     },
   });
   if (!match) return null;
 
   const councilVotes = parseCouncilVotes(match.councilVotes);
-  const bracket = await loadBracketMatchContext(match.bracketSlotId);
+  const bracket = match.isSocial ? null : await loadBracketMatchContext(match.bracketSlotId);
+
+  const playerX = match.playerX ? userAsChampion(match.playerX) : null;
+  const playerO = match.playerO ? userAsChampion(match.playerO) : null;
+
+  const teamX =
+    match.teamX && !match.isSocial
+      ? teamInfo(match.teamX)
+      : match.playerX
+        ? socialPseudoTeam(match.playerX, "X")
+        : { id: "", letter: "X", name: "Player X", color: "#f97316" };
+
+  const teamO =
+    match.teamO && !match.isSocial
+      ? teamInfo(match.teamO)
+      : match.playerO
+        ? socialPseudoTeam(match.playerO, "O")
+        : { id: "", letter: "O", name: "Player O", color: "#3b82f6" };
+
+  const displayTitle =
+    match.challenge.title === "__chat_social__" ? "X and O" : match.challenge.title;
 
   return {
     matchId: match.id,
     challengeId: match.challengeId,
-    challengeTitle: match.challenge.title,
+    challengeTitle: displayTitle,
     mode: match.challenge.mode as TicTacToeMode,
     state: match.state as TicTacToeMatchSnapshot["state"],
     board: parseBoard(match.board),
     currentTurn: match.currentTurn as TicTacToeMark,
     turnNumber: match.turnNumber,
-    teamX: teamInfo(match.teamX),
-    teamO: teamInfo(match.teamO),
+    teamX,
+    teamO,
     championX: match.championX
-      ? {
-          userId: match.championX.id,
-          username: match.championX.account.username,
-          firstName: match.championX.account.firstName,
-          lastName: match.championX.account.lastName,
-        }
-      : null,
+      ? userAsChampion(match.championX)
+      : playerX,
     championO: match.championO
-      ? {
-          userId: match.championO.id,
-          username: match.championO.account.username,
-          firstName: match.championO.account.firstName,
-          lastName: match.championO.account.lastName,
-        }
-      : null,
+      ? userAsChampion(match.championO)
+      : playerO,
     councilVotes,
     councilVoteCounts: voteCounts(councilVotes),
     winnerTeamId: match.winnerTeamId,
     isDraw: match.isDraw,
     bracket,
+    isSocial: match.isSocial,
+    playerX,
+    playerO,
+    winnerUserId: match.winnerUserId,
+    chatSessionId: match.chatSession?.id ?? null,
     serverNow: Date.now(),
   };
 }
 
 async function emitTttState(io: SocketIOServer, eventSlug: string, snapshot: TicTacToeMatchSnapshot) {
-  const rooms = [
-    ticTacToeMatchRoom(snapshot.matchId),
-    teamRoom(eventSlug, snapshot.teamX.letter),
-    teamRoom(eventSlug, snapshot.teamO.letter),
-    eventRoom(eventSlug),
-  ];
+  const rooms = new Set<string>([ticTacToeMatchRoom(snapshot.matchId)]);
+
+  if (snapshot.isSocial) {
+    if (snapshot.playerX?.userId) rooms.add(userRoom(snapshot.playerX.userId));
+    if (snapshot.playerO?.userId) rooms.add(userRoom(snapshot.playerO.userId));
+  } else {
+    rooms.add(teamRoom(eventSlug, snapshot.teamX.letter));
+    rooms.add(teamRoom(eventSlug, snapshot.teamO.letter));
+    rooms.add(eventRoom(eventSlug));
+  }
+
   for (const room of rooms) {
     io.to(room).emit("ttt:state", snapshot);
   }
@@ -170,23 +228,25 @@ export async function startTttMatch(
     data: { state: "ACTIVE", councilVotes: {} },
   });
 
-  await postActivityChatMessage({
-    eventId,
-    eventSlug,
-    authorUserId: hostUserId,
-    body: {
-      type: "activity",
-      kind: "tic_tac_toe",
-      sessionId: matchId,
-      instanceId: match.challengeId,
-      title: match.challenge.title,
-      status: "live",
-      action: "started",
-      text: `Team ${match.teamX.letter} vs Team ${match.teamO.letter} — match is live.`,
-      metadata: { matchId, teamXId: match.teamXId, teamOId: match.teamOId },
-    },
-    broadcastToAllChats: true,
-  });
+  if (!match.isSocial) {
+    await postActivityChatMessage({
+      eventId,
+      eventSlug,
+      authorUserId: hostUserId,
+      body: {
+        type: "activity",
+        kind: "tic_tac_toe",
+        sessionId: matchId,
+        instanceId: match.challengeId,
+        title: match.challenge.title,
+        status: "live",
+        action: "started",
+        text: `Team ${match.teamX?.letter ?? "X"} vs Team ${match.teamO?.letter ?? "O"} — match is live.`,
+        metadata: { matchId, teamXId: match.teamXId, teamOId: match.teamOId },
+      },
+      broadcastToAllChats: true,
+    });
+  }
 
   return broadcastTttState(io, matchId, eventSlug);
 }
@@ -247,8 +307,15 @@ async function applyMove(
   const nextTurn: TicTacToeMark = match.currentTurn === "X" ? "O" : "X";
 
   let winnerTeamId: string | null = null;
-  if (winner === "X") winnerTeamId = match.teamXId;
-  if (winner === "O") winnerTeamId = match.teamOId;
+  let winnerUserId: string | null = null;
+  if (winner === "X") {
+    winnerTeamId = match.teamXId;
+    winnerUserId = match.playerXUserId;
+  }
+  if (winner === "O") {
+    winnerTeamId = match.teamOId;
+    winnerUserId = match.playerOUserId;
+  }
 
   const finished = Boolean(winner || draw);
 
@@ -261,12 +328,18 @@ async function applyMove(
       councilVotes: {},
       state: finished ? "FINISHED" : "ACTIVE",
       winnerTeamId,
+      winnerUserId: finished && !draw ? winnerUserId : null,
       isDraw: draw,
       finishedAt: finished ? new Date() : null,
     },
   });
 
   const snapshot = await broadcastTttState(io, matchId, eventSlug);
+
+  if (finished && match.isSocial) {
+    const { completeSocialChatGameFromMatch } = await import("@/server/games/chatGameEngine");
+    await completeSocialChatGameFromMatch(matchId, eventSlug);
+  }
 
   if (finished && match.bracketSlotId) {
     await handleBracketGameResult(io, {
@@ -302,7 +375,20 @@ export async function handleTttMove(
   if (match.state !== "ACTIVE") throw new Error("Match is not active.");
   if (params.cellIndex < 0 || params.cellIndex > 8) throw new Error("Invalid cell.");
 
-  const turnTeamId = currentTurnTeamId(match);
+  if (match.isSocial) {
+    const turnUserId =
+      match.currentTurn === "X" ? match.playerXUserId : match.playerOUserId;
+    if (!turnUserId || params.userId !== turnUserId) {
+      throw new Error("It is not your turn.");
+    }
+    return applyMove(io, params.matchId, params.eventSlug, params.cellIndex);
+  }
+
+  const turnTeamId = currentTurnTeamId({
+    teamXId: match.teamXId!,
+    teamOId: match.teamOId!,
+    currentTurn: match.currentTurn,
+  });
   if (!params.teamId || params.teamId !== turnTeamId) {
     throw new Error("It is not your team's turn.");
   }

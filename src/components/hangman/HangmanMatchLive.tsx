@@ -10,7 +10,7 @@ import { HangmanFigure } from "@/components/hangman/HangmanFigure";
 import { HangmanKeyboard } from "@/components/hangman/HangmanKeyboard";
 import { HangmanWordDisplay } from "@/components/hangman/HangmanWordDisplay";
 import { HangmanFinishedResults } from "@/components/hangman/HangmanFinishedResults";
-import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import type { HangmanMatchSnapshot } from "@/lib/hangman/types";
 
@@ -18,16 +18,18 @@ interface HangmanMatchLiveProps {
   challengeId: string;
   initialMatchId?: string | null;
   compact?: boolean;
+  socialSessionId?: string;
 }
 
 export function HangmanMatchLive({
   challengeId,
   initialMatchId,
   compact = false,
+  socialSessionId,
 }: HangmanMatchLiveProps) {
   const socket = useSocket();
   const { user, isHydrated } = useAuth();
-  const { registerCompleted } = useParticipantActivitiesRegistry();
+  const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const [state, setState] = useState<HangmanMatchSnapshot | null>(null);
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);
@@ -38,7 +40,7 @@ export function HangmanMatchLive({
   );
 
   useEffect(() => {
-    if (!isFinished || !state || !completedAt) return;
+    if (socialSessionId || !isFinished || !state || !completedAt) return;
     if (registeredMatchId.current === state.matchId) return;
 
     registeredMatchId.current = state.matchId;
@@ -50,7 +52,7 @@ export function HangmanMatchLive({
       matchId: state.matchId,
       snapshot: state,
     });
-  }, [isFinished, state, completedAt, registerCompleted]);
+  }, [socialSessionId, isFinished, state, completedAt, registerCompleted]);
 
   useEffect(() => {
     if (!state || state.state === "FINISHED") return;
@@ -85,21 +87,37 @@ export function HangmanMatchLive({
   }, [socket, initialMatchId]);
 
   const myTeamId = isHydrated ? (user?.teamId ?? null) : null;
-  const isTeamX = Boolean(myTeamId && state?.teamX.id === myTeamId);
-  const isTeamO = Boolean(myTeamId && state?.teamO.id === myTeamId);
+  const isSocial = Boolean(state?.isSocial);
+  const isPlayerX = isSocial
+    ? Boolean(user?.id && state?.playerX?.userId === user.id)
+    : Boolean(myTeamId && state?.teamX.id === myTeamId);
+  const isPlayerO = isSocial
+    ? Boolean(user?.id && state?.playerO?.userId === user.id)
+    : Boolean(myTeamId && state?.teamO.id === myTeamId);
+  const isTeamX = isPlayerX;
+  const isTeamO = isPlayerO;
   const inMatch = isTeamX || isTeamO;
+  const turnPlayerId = isSocial
+    ? state?.currentTurn === "X"
+      ? state.playerX?.userId
+      : state?.playerO?.userId
+    : null;
   const turnTeamId = state?.currentTurn === "X" ? state.teamX.id : state?.teamO.id;
-  const isMyTurn = Boolean(inMatch && myTeamId === turnTeamId && state?.state === "ACTIVE");
+  const isMyTurn = isSocial
+    ? Boolean(inMatch && user?.id === turnPlayerId && state?.state === "ACTIVE")
+    : Boolean(inMatch && myTeamId === turnTeamId && state?.state === "ACTIVE");
 
   const myChampion = isTeamX ? state?.championX : isTeamO ? state?.championO : null;
   const needsChampion =
+    !isSocial &&
     state?.mode === "CHAMPION" &&
     inMatch &&
     state.state !== "FINISHED" &&
     !myChampion;
 
-  const canGuessChampion =
-    state?.mode === "CHAMPION" && isMyTurn && myChampion?.userId === user?.id;
+  const canGuessChampion = isSocial
+    ? Boolean(isMyTurn)
+    : state?.mode === "CHAMPION" && isMyTurn && myChampion?.userId === user?.id;
 
   const canVoteCouncil = state?.mode === "COUNCIL" && isMyTurn;
 
@@ -144,7 +162,9 @@ export function HangmanMatchLive({
   const statusText =
     state.state === "WAITING"
       ? "Waiting to start"
-      : `Team ${turnTeam.letter}'s turn`;
+      : isSocial
+        ? `${turnTeam.name}'s turn`
+        : `Team ${turnTeam.letter}'s turn`;
 
   return (
     <HangmanBackground className={compact ? "p-4 sm:p-6" : "p-6 sm:p-10"}>
@@ -159,9 +179,15 @@ export function HangmanMatchLive({
             className="mt-2 text-xs font-semibold uppercase tracking-wide text-[#5DA9EF]"
           />
           <p className="mt-2 text-sm text-white/80">
-            Team {state.teamX.letter} vs Team {state.teamO.letter}
-            {" · "}
-            {state.mode === "CHAMPION" ? "Champion" : "Council"}
+            {isSocial
+              ? `${state.teamX.name} vs ${state.teamO.name}`
+              : `Team ${state.teamX.letter} vs Team ${state.teamO.letter}`}
+            {!isSocial && (
+              <>
+                {" · "}
+                {state.mode === "CHAMPION" ? "Champion" : "Council"}
+              </>
+            )}
           </p>
         </div>
 
@@ -218,7 +244,7 @@ export function HangmanMatchLive({
         </div>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {state.state === "WAITING" && initialMatchId && (
+          {state.state === "WAITING" && initialMatchId && !isSocial && (
             <Button onClick={startMatch}>Start match</Button>
           )}
           {needsChampion && (

@@ -1,5 +1,3 @@
-import "server-only";
-
 import { prisma } from "@/lib/prisma";
 import type { BracketMatchContext } from "@/lib/activity-bracket/types";
 

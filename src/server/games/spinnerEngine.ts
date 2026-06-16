@@ -2,7 +2,7 @@ import type { Server as SocketIOServer } from "socket.io";
 import { prisma } from "@/lib/prisma";
 import { postActivityChatMessage } from "@/lib/activity-chat-server";
 import type { SpinnerConfig, SpinnerStateSnapshot } from "@/lib/spinner/types";
-import { eventRoom, spinnerSessionRoom, teamRoom } from "@/server/socket/rooms";
+import { eventRoom, spinnerSessionRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 
 function parseSpinnerConfig(config: unknown): SpinnerConfig {
   const raw = (config ?? {}) as Partial<SpinnerConfig>;
@@ -41,6 +41,12 @@ export async function buildSpinnerSnapshot(sessionId: string): Promise<SpinnerSt
         orderBy: { createdAt: "asc" },
         include: { user: { include: { account: { select: { username: true } } } } },
       },
+      chatSession: {
+        select: {
+          id: true,
+          participants: { select: { userId: true, role: true } },
+        },
+      },
     },
   });
   if (!session) return null;
@@ -49,10 +55,23 @@ export async function buildSpinnerSnapshot(sessionId: string): Promise<SpinnerSt
   const spinHistory = session.spins.map(toSpinRecord);
   const lastSpin = spinHistory.length > 0 ? spinHistory[spinHistory.length - 1] : null;
 
+  const title =
+    session.challenge.title === "__chat_social__" ? "Spinner" : session.challenge.title;
+  const playerUserIds = session.isSocial
+    ? session.chatSession?.participants
+        .filter((participant) => participant.role === "player")
+        .map((participant) => participant.userId) ?? []
+    : [];
+  const spectatorUserIds = session.isSocial
+    ? session.chatSession?.participants
+        .filter((participant) => participant.role === "spectator")
+        .map((participant) => participant.userId) ?? []
+    : [];
+
   return {
     sessionId: session.id,
     challengeId: session.challengeId,
-    title: session.challenge.title,
+    title,
     options: config.options,
     participationMode: session.challenge.participationMode,
     allowGeneralParticipants: session.challenge.allowGeneralParticipants,
@@ -65,16 +84,26 @@ export async function buildSpinnerSnapshot(sessionId: string): Promise<SpinnerSt
     startedByUserId: session.startedByUserId,
     lastSpin,
     spinHistory,
+    isSocial: session.isSocial,
+    chatSessionId: session.chatSession?.id ?? null,
+    playerUserIds,
+    spectatorUserIds,
     serverNow: Date.now(),
   };
 }
 
 async function emitSpinnerState(io: SocketIOServer, eventSlug: string, snapshot: SpinnerStateSnapshot) {
-  const rooms = [spinnerSessionRoom(snapshot.sessionId)];
-  if (snapshot.teamLetter) {
-    rooms.push(teamRoom(eventSlug, snapshot.teamLetter));
+  const rooms = new Set<string>([spinnerSessionRoom(snapshot.sessionId)]);
+
+  if (snapshot.isSocial) {
+    for (const userId of [...snapshot.playerUserIds, ...snapshot.spectatorUserIds]) {
+      rooms.add(userRoom(userId));
+    }
+  } else if (snapshot.teamLetter) {
+    rooms.add(teamRoom(eventSlug, snapshot.teamLetter));
+    rooms.add(eventRoom(eventSlug));
   } else {
-    rooms.push(eventRoom(eventSlug));
+    rooms.add(eventRoom(eventSlug));
   }
 
   for (const room of rooms) {
@@ -186,6 +215,34 @@ export async function startSpinnerSession(
   return broadcastSpinnerState(io, session.id, params.eventSlug);
 }
 
+export async function createSocialSpinnerSessionRecord(params: {
+  challengeId: string;
+  eventId: string;
+  eventSlug: string;
+  hostUserId: string;
+  teamId: string | null;
+}) {
+  const challenge = await prisma.spinChallenge.findFirst({
+    where: { id: params.challengeId, eventId: params.eventId },
+  });
+  if (!challenge) throw new Error("Spinner activity not found");
+
+  const config = parseSpinnerConfig(challenge.config);
+  if (config.options.length < 2) {
+    throw new Error("Spinner is not configured.");
+  }
+
+  return prisma.spinnerSession.create({
+    data: {
+      challengeId: challenge.id,
+      eventId: params.eventId,
+      isSocial: true,
+      teamId: params.teamId,
+      startedByUserId: params.hostUserId,
+    },
+  });
+}
+
 export async function performSpinnerSpin(
   io: SocketIOServer,
   params: {
@@ -198,21 +255,32 @@ export async function performSpinnerSpin(
 ) {
   const session = await prisma.spinnerSession.findFirst({
     where: { id: params.sessionId, eventId: params.eventId, state: "ACTIVE" },
-    include: { challenge: true, team: true },
+    include: {
+      challenge: true,
+      team: true,
+      chatSession: {
+        include: { participants: true },
+      },
+    },
   });
   if (!session) throw new Error("Spinner session not found");
 
   const config = parseSpinnerConfig(session.challenge.config);
   if (config.options.length < 2) throw new Error("No wheel options configured");
 
-  if (session.challenge.participationMode === "ONE_AT_A_TIME") {
+  if (session.isSocial) {
+    const isPlayer = session.chatSession?.participants.some(
+      (participant) => participant.userId === params.userId && participant.role === "player",
+    );
+    if (!isPlayer) throw new Error("Only players in this game can spin.");
+  } else if (session.challenge.participationMode === "ONE_AT_A_TIME") {
     const activeId = session.activeUserId ?? session.startedByUserId;
     if (params.userId !== activeId) {
       throw new Error("Wait for your turn to spin.");
     }
   }
 
-  if (session.teamId && params.teamId !== session.teamId) {
+  if (!session.isSocial && session.teamId && params.teamId !== session.teamId) {
     throw new Error("This spinner is for another team.");
   }
 
@@ -234,27 +302,29 @@ export async function performSpinnerSpin(
     include: { account: { select: { username: true } } },
   });
 
-  await postActivityChatMessage({
-    eventId: params.eventId,
-    eventSlug: params.eventSlug,
-    authorUserId: params.userId,
-    teamId: session.teamId ?? undefined,
-    body: {
-      type: "activity",
-      kind: "spinner",
-      sessionId: session.id,
-      instanceId: session.challengeId,
-      title: session.challenge.title,
-      status: "live",
-      action: "spin_result",
-      text: `${user.account.username} spun: ${selectedOption}`,
-      metadata: {
-        selectedIndex,
-        selectedOption,
-        spinId: spin.id,
+  if (!session.isSocial) {
+    await postActivityChatMessage({
+      eventId: params.eventId,
+      eventSlug: params.eventSlug,
+      authorUserId: params.userId,
+      teamId: session.teamId ?? undefined,
+      body: {
+        type: "activity",
+        kind: "spinner",
+        sessionId: session.id,
+        instanceId: session.challengeId,
+        title: session.challenge.title,
+        status: "live",
+        action: "spin_result",
+        text: `${user.account.username} spun: ${selectedOption}`,
+        metadata: {
+          selectedIndex,
+          selectedOption,
+          spinId: spin.id,
+        },
       },
-    },
-  });
+    });
+  }
 
   return broadcastSpinnerState(io, session.id, params.eventSlug);
 }
@@ -279,22 +349,27 @@ export async function endSpinnerSession(
     data: { state: "COMPLETED", endedAt: new Date() },
   });
 
-  await postActivityChatMessage({
-    eventId: params.eventId,
-    eventSlug: params.eventSlug,
-    authorUserId: params.userId,
-    teamId: session.teamId ?? undefined,
-    body: {
-      type: "activity",
-      kind: "spinner",
-      sessionId: session.id,
-      instanceId: session.challengeId,
-      title: session.challenge.title,
-      status: "ended",
-      action: "ended",
-      text: `${session.challenge.title} has ended.`,
-    },
-  });
+  if (!session.isSocial) {
+    await postActivityChatMessage({
+      eventId: params.eventId,
+      eventSlug: params.eventSlug,
+      authorUserId: params.userId,
+      teamId: session.teamId ?? undefined,
+      body: {
+        type: "activity",
+        kind: "spinner",
+        sessionId: session.id,
+        instanceId: session.challengeId,
+        title: session.challenge.title,
+        status: "ended",
+        action: "ended",
+        text: `${session.challenge.title} has ended.`,
+      },
+    });
+  } else {
+    const { completeSocialChatGameFromSpinner } = await import("@/server/games/chatGameEngine");
+    await completeSocialChatGameFromSpinner(session.id, params.eventSlug);
+  }
 
   return broadcastSpinnerState(io, session.id, params.eventSlug);
 }

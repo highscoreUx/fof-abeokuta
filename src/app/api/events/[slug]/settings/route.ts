@@ -3,6 +3,10 @@ import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parseAgendaTemplate } from "@/lib/agenda-templates";
 import { parseTeamChatEnabled, setTeamChatEnabled, TEAM_CHAT_ENABLED_KEY } from "@/lib/chat-settings";
+import {
+  getChatSocialGamesSettings,
+  setChatSocialGamesSettings,
+} from "@/lib/chat-game-settings";
 import { parseTeamingEnabled, TEAMING_ENABLED_KEY } from "@/lib/team-settings";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -19,12 +23,18 @@ export async function GET(
   const sponsors = await prisma.sponsor.findMany({ where: { eventId: ctx.event.id } });
   const map = Object.fromEntries(settings.map((s) => [s.key, s.value]));
 
+  const teamingEnabled = parseTeamingEnabled(map[TEAMING_ENABLED_KEY]);
+  const chatSocialGames = await getChatSocialGamesSettings(ctx.event.id);
+
   return NextResponse.json({
     youtubeVideoId: map.youtube_video_id ?? "",
     streamLive: map.stream_live === "true",
     agendaTemplate: parseAgendaTemplate(map.agenda_template),
-    teamingEnabled: parseTeamingEnabled(map[TEAMING_ENABLED_KEY]),
+    teamingEnabled,
     teamChatEnabled: parseTeamChatEnabled(map[TEAM_CHAT_ENABLED_KEY]),
+    chatSocialGamesEnabled: chatSocialGames.enabled,
+    chatSocialGamesDmEnabled: chatSocialGames.dmEnabled,
+    chatSocialGamesTeamEnabled: chatSocialGames.teamEnabled,
     sponsors,
   });
 }
@@ -43,7 +53,11 @@ export async function PATCH(
     body.youtubeVideoId !== undefined ||
     body.streamLive !== undefined ||
     body.agendaTemplate !== undefined;
-  const hasChatFields = body.teamChatEnabled !== undefined;
+  const hasChatFields =
+    body.teamChatEnabled !== undefined ||
+    body.chatSocialGamesEnabled !== undefined ||
+    body.chatSocialGamesDmEnabled !== undefined ||
+    body.chatSocialGamesTeamEnabled !== undefined;
 
   if (hasBroadcastingFields && !hasPermission(ctx.auth.permissions, "settings.broadcasting")) {
     return jsonError("Forbidden", "FORBIDDEN", 403);
@@ -80,6 +94,31 @@ export async function PATCH(
 
   if (body.teamChatEnabled !== undefined) {
     await setTeamChatEnabled(ctx.event.id, Boolean(body.teamChatEnabled), slug);
+  }
+
+  if (
+    body.chatSocialGamesEnabled !== undefined ||
+    body.chatSocialGamesDmEnabled !== undefined ||
+    body.chatSocialGamesTeamEnabled !== undefined
+  ) {
+    await setChatSocialGamesSettings(
+      ctx.event.id,
+      {
+        enabled:
+          body.chatSocialGamesEnabled !== undefined
+            ? Boolean(body.chatSocialGamesEnabled)
+            : undefined,
+        dmEnabled:
+          body.chatSocialGamesDmEnabled !== undefined
+            ? Boolean(body.chatSocialGamesDmEnabled)
+            : undefined,
+        teamEnabled:
+          body.chatSocialGamesTeamEnabled !== undefined
+            ? Boolean(body.chatSocialGamesTeamEnabled)
+            : undefined,
+      },
+      slug,
+    );
   }
 
   return NextResponse.json({ success: true });

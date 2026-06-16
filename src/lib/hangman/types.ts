@@ -41,6 +41,11 @@ export interface HangmanMatchSnapshot {
   councilVotes: Record<string, string>;
   councilVoteCounts: Record<string, number>;
   winnerTeamId: string | null;
+  winnerUserId: string | null;
+  isSocial: boolean;
+  playerX: HangmanChampionInfo | null;
+  playerO: HangmanChampionInfo | null;
+  chatSessionId: string | null;
   revealedWord: string | null;
   bracket?: BracketMatchContext | null;
   serverNow: number;

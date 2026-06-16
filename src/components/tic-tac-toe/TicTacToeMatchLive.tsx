@@ -8,7 +8,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { BracketMatchSeriesLabel } from "@/components/activity-bracket/BracketMatchSeriesLabel";
 import { TicTacToeBoard } from "@/components/tic-tac-toe/TicTacToeBoard";
 import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
-import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
 
@@ -16,16 +16,18 @@ interface TicTacToeMatchLiveProps {
   challengeId: string;
   initialMatchId?: string | null;
   compact?: boolean;
+  socialSessionId?: string;
 }
 
 export function TicTacToeMatchLive({
   challengeId,
   initialMatchId,
   compact = false,
+  socialSessionId,
 }: TicTacToeMatchLiveProps) {
   const socket = useSocket();
   const { user, isHydrated } = useAuth();
-  const { registerCompleted } = useParticipantActivitiesRegistry();
+  const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const [state, setState] = useState<TicTacToeMatchSnapshot | null>(null);
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);
@@ -36,7 +38,7 @@ export function TicTacToeMatchLive({
   );
 
   useEffect(() => {
-    if (!isFinished || !state || !completedAt) return;
+    if (socialSessionId || !isFinished || !state || !completedAt) return;
     if (registeredMatchId.current === state.matchId) return;
 
     registeredMatchId.current = state.matchId;
@@ -48,7 +50,7 @@ export function TicTacToeMatchLive({
       matchId: state.matchId,
       snapshot: state,
     });
-  }, [isFinished, state, completedAt, registerCompleted]);
+  }, [socialSessionId, isFinished, state, completedAt, registerCompleted]);
 
   useEffect(() => {
     if (!state || state.state === "FINISHED") return;
@@ -83,23 +85,37 @@ export function TicTacToeMatchLive({
   }, [socket, initialMatchId]);
 
   const myTeamId = isHydrated ? (user?.teamId ?? null) : null;
-  const isTeamX = Boolean(myTeamId && state?.teamX.id === myTeamId);
-  const isTeamO = Boolean(myTeamId && state?.teamO.id === myTeamId);
+  const isSocial = Boolean(state?.isSocial);
+  const isPlayerX = isSocial
+    ? Boolean(user?.id && state?.playerX?.userId === user.id)
+    : Boolean(myTeamId && state?.teamX.id === myTeamId);
+  const isPlayerO = isSocial
+    ? Boolean(user?.id && state?.playerO?.userId === user.id)
+    : Boolean(myTeamId && state?.teamO.id === myTeamId);
+  const isTeamX = isPlayerX;
+  const isTeamO = isPlayerO;
   const inMatch = isTeamX || isTeamO;
+  const turnPlayerId = isSocial
+    ? state?.currentTurn === "X"
+      ? state.playerX?.userId
+      : state?.playerO?.userId
+    : null;
   const turnTeamId = state?.currentTurn === "X" ? state.teamX.id : state?.teamO.id;
-  const isMyTurn = Boolean(inMatch && myTeamId === turnTeamId && state?.state === "ACTIVE");
+  const isMyTurn = isSocial
+    ? Boolean(inMatch && user?.id === turnPlayerId && state?.state === "ACTIVE")
+    : Boolean(inMatch && myTeamId === turnTeamId && state?.state === "ACTIVE");
 
   const myChampion = isTeamX ? state?.championX : isTeamO ? state?.championO : null;
   const needsChampion =
+    !isSocial &&
     state?.mode === "CHAMPION" &&
     inMatch &&
     state.state !== "FINISHED" &&
     !myChampion;
 
-  const canMoveChampion =
-    state?.mode === "CHAMPION" &&
-    isMyTurn &&
-    myChampion?.userId === user?.id;
+  const canMoveChampion = isSocial
+    ? Boolean(isMyTurn)
+    : state?.mode === "CHAMPION" && isMyTurn && myChampion?.userId === user?.id;
 
   const canVoteCouncil = state?.mode === "COUNCIL" && isMyTurn;
 
@@ -145,10 +161,19 @@ export function TicTacToeMatchLive({
     if (state.state === "WAITING") return "Waiting to start";
     if (state.state === "FINISHED") {
       if (state.isDraw) return "Draw";
+      if (state.isSocial && state.winnerUserId) {
+        const winner =
+          state.winnerUserId === state.playerX?.userId ? state.playerX : state.playerO;
+        return winner ? `${winner.firstName} wins` : "Finished";
+      }
       const winner = state.winnerTeamId === state.teamX.id ? state.teamX : state.teamO;
       return `Team ${winner.letter} wins`;
     }
     const turnTeam = state.currentTurn === "X" ? state.teamX : state.teamO;
+    if (state.isSocial) {
+      const turnPlayer = state.currentTurn === "X" ? state.playerX : state.playerO;
+      return turnPlayer ? `${turnPlayer.firstName}'s turn` : `${turnTeam.letter}'s turn`;
+    }
     return `Team ${turnTeam.letter}'s turn`;
   };
 
@@ -159,9 +184,15 @@ export function TicTacToeMatchLive({
           <CardTitle>{state.challengeTitle}</CardTitle>
           <BracketMatchSeriesLabel bracket={state.bracket} />
           <p className="mt-1 text-sm text-muted-foreground">
-            Team {state.teamX.letter} (X) vs Team {state.teamO.letter} (O)
-            {" · "}
-            {state.mode === "CHAMPION" ? "Champion" : "Council"}
+            {state.isSocial
+              ? `${state.playerX?.firstName ?? state.teamX.letter} (X) vs ${state.playerO?.firstName ?? state.teamO.letter} (O)`
+              : `Team ${state.teamX.letter} (X) vs Team ${state.teamO.letter} (O)`}
+            {!state.isSocial && (
+              <>
+                {" · "}
+                {state.mode === "CHAMPION" ? "Champion" : "Council"}
+              </>
+            )}
           </p>
         </div>
         {!inMatch && state.state === "ACTIVE" && (
@@ -211,7 +242,7 @@ export function TicTacToeMatchLive({
       )}
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {state.state === "WAITING" && initialMatchId && (
+        {state.state === "WAITING" && initialMatchId && !isSocial && (
           <Button onClick={startMatch}>Start match</Button>
         )}
         {needsChampion && (

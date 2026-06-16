@@ -6,5 +6,5 @@ export default async function ParticipantActivitiesPage({
   params: Promise<{ eventSlug: string }>;
 }) {
   const { eventSlug } = await params;
-  redirect(`/${eventSlug}/home/activities`);
+  redirect(`/${eventSlug}/home?tab=chat`);
 }

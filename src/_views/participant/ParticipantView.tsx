@@ -38,7 +38,7 @@ export function ParticipantView() {
   const [template, setTemplate] = useState<AgendaTemplateId>(DEFAULT_AGENDA_TEMPLATE);
   const [event, setEvent] = useState<AgendaEventMeta | undefined>();
   const [agendaLoading, setAgendaLoading] = useState(true);
-  const [tab, setTab] = useState<HomeTab>("agenda");
+  const [tab, setTab] = useState<HomeTab>(canViewChat ? "chat" : "agenda");
   const [openAddAgenda, setOpenAddAgenda] = useState<(() => void) | null>(null);
   const [galleryFilter, setGalleryFilter] = useState<GalleryFilter>("all");
   const [galleryTeam, setGalleryTeam] = useState<string | undefined>();

@@ -39,6 +39,12 @@ export interface TicTacToeMatchSnapshot {
   winnerTeamId: string | null;
   isDraw: boolean;
   bracket?: BracketMatchContext | null;
+  /** Social chat game — players are individuals, not teams. */
+  isSocial?: boolean;
+  playerX?: TicTacToeChampionInfo | null;
+  playerO?: TicTacToeChampionInfo | null;
+  winnerUserId?: string | null;
+  chatSessionId?: string | null;
   serverNow: number;
 }
 

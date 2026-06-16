@@ -11,7 +11,7 @@ import {
   type HangmanMatchSnapshot,
   type HangmanMode,
 } from "@/lib/hangman/types";
-import { eventRoom, hangmanMatchRoom, teamRoom } from "@/server/socket/rooms";
+import { eventRoom, hangmanMatchRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
 
@@ -44,6 +44,31 @@ function teamInfo(team: { id: string; letter: string; name: string; color: strin
   return { id: team.id, letter: team.letter, name: team.name, color: team.color };
 }
 
+function playerInfo(user: {
+  id: string;
+  account: { username: string; firstName: string; lastName: string };
+}) {
+  return {
+    userId: user.id,
+    username: user.account.username,
+    firstName: user.account.firstName,
+    lastName: user.account.lastName,
+  };
+}
+
+function socialPseudoTeam(
+  user: { id: string; account: { firstName: string; lastName: string } },
+  mark: HangmanMark,
+) {
+  const initial = user.account.firstName.trim().charAt(0).toUpperCase() || mark;
+  return {
+    id: user.id,
+    letter: initial,
+    name: `${user.account.firstName} ${user.account.lastName}`.trim(),
+    color: mark === "X" ? "#f97316" : "#3b82f6",
+  };
+}
+
 export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatchSnapshot | null> {
   const match = await prisma.hangmanMatch.findUnique({
     where: { id: matchId },
@@ -51,6 +76,18 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
       challenge: true,
       teamX: true,
       teamO: true,
+      playerX: {
+        select: {
+          id: true,
+          account: { select: { username: true, firstName: true, lastName: true } },
+        },
+      },
+      playerO: {
+        select: {
+          id: true,
+          account: { select: { username: true, firstName: true, lastName: true } },
+        },
+      },
       championX: {
         select: {
           id: true,
@@ -63,6 +100,7 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
           account: { select: { username: true, firstName: true, lastName: true } },
         },
       },
+      chatSession: { select: { id: true } },
     },
   });
   if (!match) return null;
@@ -70,12 +108,17 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
   const guessedLetters = parseGuessedLetters(match.guessedLetters);
   const councilVotes = parseCouncilVotes(match.councilVotes);
   const finished = match.state === "FINISHED";
-  const bracket = await loadBracketMatchContext(match.bracketSlotId);
+  const bracket = match.isSocial ? null : await loadBracketMatchContext(match.bracketSlotId);
+  const title =
+    match.challenge.title === "__chat_social__" ? "Hangman" : match.challenge.title;
+
+  const playerX = match.playerX ? playerInfo(match.playerX) : null;
+  const playerO = match.playerO ? playerInfo(match.playerO) : null;
 
   return {
     matchId: match.id,
     challengeId: match.challengeId,
-    challengeTitle: match.challenge.title,
+    challengeTitle: title,
     mode: match.challenge.mode as HangmanMode,
     state: match.state as HangmanMatchSnapshot["state"],
     wordMask: finished
@@ -87,27 +130,32 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
     maxWrongGuesses: match.challenge.maxWrongGuesses,
     currentTurn: match.currentTurn as HangmanMark,
     turnNumber: match.turnNumber,
-    teamX: teamInfo(match.teamX),
-    teamO: teamInfo(match.teamO),
+    teamX:
+      match.teamX && !match.isSocial
+        ? teamInfo(match.teamX)
+        : playerX
+          ? socialPseudoTeam(match.playerX!, "X")
+          : { id: "", letter: "X", name: "Player X", color: "#f97316" },
+    teamO:
+      match.teamO && !match.isSocial
+        ? teamInfo(match.teamO)
+        : playerO
+          ? socialPseudoTeam(match.playerO!, "O")
+          : { id: "", letter: "O", name: "Player O", color: "#3b82f6" },
     championX: match.championX
-      ? {
-          userId: match.championX.id,
-          username: match.championX.account.username,
-          firstName: match.championX.account.firstName,
-          lastName: match.championX.account.lastName,
-        }
+      ? playerInfo(match.championX)
       : null,
     championO: match.championO
-      ? {
-          userId: match.championO.id,
-          username: match.championO.account.username,
-          firstName: match.championO.account.firstName,
-          lastName: match.championO.account.lastName,
-        }
+      ? playerInfo(match.championO)
       : null,
     councilVotes,
     councilVoteCounts: voteCounts(councilVotes),
     winnerTeamId: match.winnerTeamId,
+    winnerUserId: match.winnerUserId,
+    isSocial: match.isSocial,
+    playerX,
+    playerO,
+    chatSessionId: match.chatSession?.id ?? null,
     revealedWord: finished ? match.secretWord : null,
     bracket,
     serverNow: Date.now(),
@@ -119,12 +167,17 @@ async function emitHangmanState(
   eventSlug: string,
   snapshot: HangmanMatchSnapshot,
 ) {
-  const rooms = [
-    hangmanMatchRoom(snapshot.matchId),
-    teamRoom(eventSlug, snapshot.teamX.letter),
-    teamRoom(eventSlug, snapshot.teamO.letter),
-    eventRoom(eventSlug),
-  ];
+  const rooms = new Set<string>([hangmanMatchRoom(snapshot.matchId)]);
+
+  if (snapshot.isSocial) {
+    if (snapshot.playerX?.userId) rooms.add(userRoom(snapshot.playerX.userId));
+    if (snapshot.playerO?.userId) rooms.add(userRoom(snapshot.playerO.userId));
+  } else {
+    rooms.add(teamRoom(eventSlug, snapshot.teamX.letter));
+    rooms.add(teamRoom(eventSlug, snapshot.teamO.letter));
+    rooms.add(eventRoom(eventSlug));
+  }
+
   for (const room of rooms) {
     io.to(room).emit("hangman:state", snapshot);
   }
@@ -206,23 +259,25 @@ export async function startHangmanMatch(
     },
   });
 
-  await postActivityChatMessage({
-    eventId,
-    eventSlug,
-    authorUserId: hostUserId,
-    body: {
-      type: "activity",
-      kind: "hangman",
-      sessionId: matchId,
-      instanceId: match.challengeId,
-      title: match.challenge.title,
-      status: "live",
-      action: "started",
-      text: `Team ${match.teamX.letter} vs Team ${match.teamO.letter} — Hangman is live.`,
-      metadata: { matchId, teamXId: match.teamXId, teamOId: match.teamOId },
-    },
-    broadcastToAllChats: true,
-  });
+  if (!match.isSocial) {
+    await postActivityChatMessage({
+      eventId,
+      eventSlug,
+      authorUserId: hostUserId,
+      body: {
+        type: "activity",
+        kind: "hangman",
+        sessionId: matchId,
+        instanceId: match.challengeId,
+        title: match.challenge.title,
+        status: "live",
+        action: "started",
+        text: `Team ${match.teamX?.letter ?? "X"} vs Team ${match.teamO?.letter ?? "O"} — Hangman is live.`,
+        metadata: { matchId, teamXId: match.teamXId, teamOId: match.teamOId },
+      },
+      broadcastToAllChats: true,
+    });
+  }
 
   return broadcastHangmanState(io, matchId, eventSlug);
 }
@@ -243,6 +298,8 @@ export async function setHangmanChampion(
   if (!match) throw new Error("Match not found.");
   if (match.state === "FINISHED") throw new Error("Match is finished.");
 
+  if (match.isSocial) throw new Error("Social matches do not use champions.");
+
   const isX = match.teamXId === params.teamId;
   const isO = match.teamOId === params.teamId;
   if (!isX && !isO) throw new Error("Your team is not in this match.");
@@ -262,7 +319,11 @@ export async function setHangmanChampion(
   return broadcastHangmanState(io, params.matchId, params.eventSlug);
 }
 
-function currentTurnTeamId(match: { teamXId: string; teamOId: string; currentTurn: string }) {
+function currentTurnTeamId(match: {
+  teamXId: string | null;
+  teamOId: string | null;
+  currentTurn: string;
+}) {
   return match.currentTurn === "X" ? match.teamXId : match.teamOId;
 }
 
@@ -295,13 +356,19 @@ async function applyGuess(
   let wrongGuessesO = match.wrongGuessesO;
   let nextTurn: HangmanMark = match.currentTurn as HangmanMark;
   let winnerTeamId: string | null = null;
+  let winnerUserId: string | null = null;
   let finished = false;
 
   if (wordComplete) {
-    winnerTeamId = currentTurnTeamId(match);
+    if (match.isSocial) {
+      winnerUserId =
+        match.currentTurn === "X" ? match.playerXUserId : match.playerOUserId;
+    } else {
+      winnerTeamId = currentTurnTeamId(match);
+    }
     finished = true;
   } else if (correct) {
-    // Same team continues on correct guess.
+    // Same side continues on correct guess.
   } else {
     if (match.currentTurn === "X") wrongGuessesX += 1;
     else wrongGuessesO += 1;
@@ -310,7 +377,12 @@ async function applyGuess(
       match.currentTurn === "X" ? wrongGuessesX >= maxWrong : wrongGuessesO >= maxWrong;
 
     if (turnTeamOut) {
-      winnerTeamId = match.currentTurn === "X" ? match.teamOId : match.teamXId;
+      if (match.isSocial) {
+        winnerUserId =
+          match.currentTurn === "X" ? match.playerOUserId : match.playerXUserId;
+      } else {
+        winnerTeamId = match.currentTurn === "X" ? match.teamOId : match.teamXId;
+      }
       finished = true;
     } else {
       nextTurn = otherMark(match.currentTurn as HangmanMark);
@@ -328,11 +400,17 @@ async function applyGuess(
       councilVotes: {},
       state: finished ? "FINISHED" : "ACTIVE",
       winnerTeamId,
+      winnerUserId: finished ? winnerUserId : null,
       finishedAt: finished ? new Date() : null,
     },
   });
 
   const snapshot = await broadcastHangmanState(io, matchId, eventSlug);
+
+  if (finished && match.isSocial) {
+    const { completeSocialChatGameFromMatch } = await import("@/server/games/chatGameEngine");
+    await completeSocialChatGameFromMatch(matchId, eventSlug);
+  }
 
   if (finished && match.bracketSlotId) {
     await handleBracketGameResult(io, {
@@ -370,6 +448,15 @@ export async function handleHangmanGuess(
   const normalized = params.letter.trim().toUpperCase();
   if (normalized.length !== 1 || normalized < "A" || normalized > "Z") {
     throw new Error("Pick a letter A–Z.");
+  }
+
+  if (match.isSocial) {
+    const turnUserId =
+      match.currentTurn === "X" ? match.playerXUserId : match.playerOUserId;
+    if (!turnUserId || params.userId !== turnUserId) {
+      throw new Error("It is not your turn.");
+    }
+    return applyGuess(io, params.matchId, params.eventSlug, normalized);
   }
 
   const turnTeamId = currentTurnTeamId(match);

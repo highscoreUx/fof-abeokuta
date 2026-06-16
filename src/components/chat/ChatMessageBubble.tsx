@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { ChatActivityCard } from "@/components/chat/ChatActivityCard";
+import { ChatGameCard } from "@/components/chat/ChatGameCard";
 import { ChatPollMessage } from "@/components/chat/ChatPollMessage";
 import { parseChatContent } from "@/lib/chat-content";
 import {
@@ -226,6 +227,7 @@ export function ChatMessageBubble({
   const isText = content.type === "text";
   const isPoll = content.type === "poll" && !hidePolls;
   const isActivity = content.type === "activity";
+  const isChatGame = content.type === "chat_game";
   const hasReply = isText && Boolean(content.replyTo);
   const canReply = Boolean(onReply);
   const canMessagePrivately = Boolean(onMessagePrivately);
@@ -348,7 +350,7 @@ export function ChatMessageBubble({
           className={cn(
             "relative max-w-full shadow-sm transition-transform duration-75",
             hasReply ? "inline-block w-max" : "inline-block",
-            (isPoll || isActivity) && "w-full min-w-[14rem]",
+            (isPoll || isActivity || isChatGame) && "w-full min-w-[14rem]",
             isOwn ? "bg-surface text-foreground" : "bg-card text-foreground",
             isGrouped
               ? "rounded-lg"
@@ -391,6 +393,13 @@ export function ChatMessageBubble({
                 isOwn={isOwn}
                 isPending={isPending}
               />
+            ) : isChatGame ? (
+              <div>
+                <ChatGameCard chatGame={content.chatGame} />
+                <div className="mt-1 flex justify-end">
+                  <MessageMeta time={time} isOwn={isOwn} isPending={isPending} />
+                </div>
+              </div>
             ) : isActivity ? (
               <div>
                 <ChatActivityCard activity={content.activity} />

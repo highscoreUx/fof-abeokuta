@@ -1,5 +1,15 @@
-import { ParticipantActivitiesView } from "@/_views/participant/activities/ParticipantActivitiesView";
+import { redirect } from "next/navigation";
 
-export default function HomeActivitiesPage() {
-  return <ParticipantActivitiesView />;
+export default async function HomeActivitiesRedirect({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") query.set(key, value);
+  }
+  const suffix = query.toString();
+  redirect(suffix ? `/home/play?${suffix}` : "/home?tab=chat");
 }

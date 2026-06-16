@@ -7,6 +7,7 @@ import {
   type ChatPollData,
 } from "@/lib/chat-poll";
 import { parseActivityChatBody, type ActivityChatBody } from "@/lib/activity-chat-types";
+import { parseChatGameMessageBody, type ChatGameMessageBody } from "@/lib/chat-game-types";
 
 export type { ChatPollData, ChatReplyRef };
 export type ChatContent =
@@ -14,7 +15,8 @@ export type ChatContent =
   | { type: "gif"; url: string; alt?: string }
   | { type: "sticker"; id: string; url: string; label?: string }
   | { type: "poll"; poll: ChatPollData }
-  | { type: "activity"; activity: ActivityChatBody };
+  | { type: "activity"; activity: ActivityChatBody }
+  | { type: "chat_game"; chatGame: ChatGameMessageBody };
 
 const ALLOWED_GIF_HOSTS = ["media.giphy.com", "media.tenor.com", "i.giphy.com"];
 
@@ -45,6 +47,7 @@ export function serializeChatContent(content: ChatContent): string {
   }
   if (content.type === "poll") return serializePoll(content.poll);
   if (content.type === "activity") return JSON.stringify(content.activity);
+  if (content.type === "chat_game") return JSON.stringify(content.chatGame);
   return JSON.stringify(content);
 }
 
@@ -73,6 +76,8 @@ export function parseChatContent(body: string): ChatContent {
       if (poll) return { type: "poll", poll };
       const activity = parseActivityChatBody(trimmed);
       if (activity) return { type: "activity", activity };
+      const chatGame = parseChatGameMessageBody(trimmed);
+      if (chatGame) return { type: "chat_game", chatGame };
       if (parsed.type === "text" && typeof parsed.text === "string") {
         return {
           type: "text",
@@ -137,6 +142,12 @@ export function normalizeChatPayload(input: unknown): string | null {
       const activity =
         record.activity && typeof record.activity === "object" ? record.activity : record;
       const parsed = parseActivityChatBody(JSON.stringify(activity));
+      return parsed ? JSON.stringify(parsed) : null;
+    }
+    if (record.type === "chat_game") {
+      const chatGame =
+        record.chatGame && typeof record.chatGame === "object" ? record.chatGame : record;
+      const parsed = parseChatGameMessageBody(JSON.stringify(chatGame));
       return parsed ? JSON.stringify(parsed) : null;
     }
   }

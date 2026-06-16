@@ -39,7 +39,9 @@ export function ChatMessageContent({ body, className }: ChatMessageContentProps)
     );
   }
 
-  if (content.type === "poll" || content.type === "activity") return null;
+  if (content.type === "poll" || content.type === "activity" || content.type === "chat_game") {
+    return null;
+  }
 
   return (
     <p className={cn("whitespace-pre-wrap break-words", className ?? "text-foreground")}>

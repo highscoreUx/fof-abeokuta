@@ -8,7 +8,7 @@ import { useEventNav } from "@/hooks/useEventNav";
 import { userCanAccessActivityInstance } from "@/lib/activities/catalog";
 import { SpinnerWheel } from "@/components/spinner/SpinnerWheel";
 import { SpinnerGraceResults } from "@/components/spinner/SpinnerFinishedResults";
-import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
+import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -18,12 +18,18 @@ interface SpinnerLiveProps {
   challengeId: string;
   initialSessionId?: string | null;
   compact?: boolean;
+  socialSessionId?: string;
 }
 
-export function SpinnerLive({ challengeId, initialSessionId, compact = false }: SpinnerLiveProps) {
+export function SpinnerLive({
+  challengeId,
+  initialSessionId,
+  compact = false,
+  socialSessionId,
+}: SpinnerLiveProps) {
   const socket = useSocket();
   const { user } = useAuth();
-  const { registerCompleted } = useParticipantActivitiesRegistry();
+  const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const { homeActivities } = useEventNav();
   const [state, setState] = useState<SpinnerStateSnapshot | null>(null);
   const [wheelSpinning, setWheelSpinning] = useState(false);
@@ -35,7 +41,7 @@ export function SpinnerLive({ challengeId, initialSessionId, compact = false }: 
     useActivityCompletionGrace(Boolean(isCompleted));
 
   useEffect(() => {
-    if (!isCompleted || !state || !completedAt) return;
+    if (socialSessionId || !isCompleted || !state || !completedAt) return;
     if (registeredSessionId.current === state.sessionId) return;
 
     registeredSessionId.current = state.sessionId;
@@ -47,7 +53,7 @@ export function SpinnerLive({ challengeId, initialSessionId, compact = false }: 
       sessionId: state.sessionId,
       snapshot: state,
     });
-  }, [isCompleted, state, completedAt, registerCompleted]);
+  }, [socialSessionId, isCompleted, state, completedAt, registerCompleted]);
 
   useEffect(() => {
     if (!state || state.state === "COMPLETED") return;
@@ -81,19 +87,29 @@ export function SpinnerLive({ challengeId, initialSessionId, compact = false }: 
   const canAccess =
     state &&
     user &&
-    userCanAccessActivityInstance(user, {
-      allowGeneralParticipants: state.allowGeneralParticipants,
-      allowGroupParticipants: state.allowGroupParticipants,
-    });
+    (state.isSocial
+      ? state.playerUserIds.includes(user.id) ||
+        Boolean(socialSessionId && !state.playerUserIds.includes(user.id))
+      : userCanAccessActivityInstance(user, {
+          allowGeneralParticipants: state.allowGeneralParticipants,
+          allowGroupParticipants: state.allowGroupParticipants,
+        }));
 
-  const isActivePlayer =
-    state?.participationMode === "CONCURRENT" ||
-    (state?.participationMode === "ONE_AT_A_TIME" &&
-      user &&
-      (state.activeUserId ?? state.startedByUserId) === user.id);
+  const isSocialPlayer = Boolean(
+    state?.isSocial && user && state.playerUserIds.includes(user.id),
+  );
 
-  const canSpin = Boolean(state?.state === "ACTIVE" && canAccess && isActivePlayer);
-  const isSpectator = Boolean(state?.state === "ACTIVE" && canAccess && !isActivePlayer);
+  const isActivePlayer = state?.isSocial
+    ? isSocialPlayer
+    : state?.participationMode === "CONCURRENT" ||
+      (state?.participationMode === "ONE_AT_A_TIME" &&
+        user &&
+        (state.activeUserId ?? state.startedByUserId) === user.id);
+
+  const canSpin = Boolean(state?.state === "ACTIVE" && isActivePlayer);
+  const isSpectator = Boolean(
+    state?.state === "ACTIVE" && canAccess && !isActivePlayer,
+  );
 
   const startSession = () => {
     socket?.emit("spinner:session:start", challengeId);

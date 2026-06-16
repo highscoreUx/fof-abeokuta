@@ -15,8 +15,13 @@ export function HangmanFinishedResults({
   snapshot,
   graceRemainingMs,
 }: HangmanFinishedResultsProps) {
-  const winner =
-    snapshot.winnerTeamId === snapshot.teamX.id
+  const winner = snapshot.isSocial
+    ? snapshot.winnerUserId === snapshot.playerX?.userId
+      ? snapshot.teamX
+      : snapshot.winnerUserId === snapshot.playerO?.userId
+        ? snapshot.teamO
+        : null
+    : snapshot.winnerTeamId === snapshot.teamX.id
       ? snapshot.teamX
       : snapshot.winnerTeamId === snapshot.teamO.id
         ? snapshot.teamO
@@ -29,7 +34,7 @@ export function HangmanFinishedResults({
         <h3 className="mt-2 text-2xl font-black">{snapshot.challengeTitle}</h3>
         {winner && (
           <p className="mt-2 text-lg font-semibold" style={{ color: winner.color }}>
-            Team {winner.letter} wins!
+            {snapshot.isSocial ? `${winner.name} wins!` : `Team ${winner.letter} wins!`}
           </p>
         )}
         {snapshot.revealedWord && (

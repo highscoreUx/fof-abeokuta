@@ -162,3 +162,16 @@ export function useParticipantActivitiesRegistry() {
   }
   return ctx;
 }
+
+const EMPTY_REGISTRY: ParticipantActivitiesRegistryValue = {
+  records: [],
+  registerCompleted: () => {},
+  completedRecords: [],
+  graceRecords: [],
+};
+
+/** Safe when rendered outside the activities tab (e.g. chat game focus). */
+export function useOptionalParticipantActivitiesRegistry(): ParticipantActivitiesRegistryValue {
+  const ctx = useContext(ParticipantActivitiesRegistryContext);
+  return ctx ?? EMPTY_REGISTRY;
+}

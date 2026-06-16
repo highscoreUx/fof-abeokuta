@@ -7,6 +7,13 @@ import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
 
 function resultText(snapshot: TicTacToeMatchSnapshot) {
   if (snapshot.isDraw) return "Draw";
+  if (snapshot.isSocial && snapshot.winnerUserId) {
+    const winner =
+      snapshot.winnerUserId === snapshot.playerX?.userId
+        ? snapshot.playerX
+        : snapshot.playerO;
+    return winner ? `${winner.firstName} wins` : "Finished";
+  }
   const winner =
     snapshot.winnerTeamId === snapshot.teamX.id ? snapshot.teamX : snapshot.teamO;
   return `Team ${winner.letter} wins`;

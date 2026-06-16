@@ -17,7 +17,8 @@ import {
 } from "@/lib/chat-poll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CHAT_GAME_OPTIONS, useChatGameStarter } from "@/components/chat/StartChatGameButton";
+import { ChatGameMenu, useChatGameStarter } from "@/components/chat/StartChatGameButton";
+import { chatGameOptions } from "@/lib/activities/manifest";
 import { cn } from "@/lib/cn";
 
 type PickerTab = "emoji" | "gif" | "sticker";
@@ -142,7 +143,7 @@ export function ChatComposer({
     setGameMenuOpen((open) => !open);
   };
 
-  const selectChatGame = async (kind: (typeof CHAT_GAME_OPTIONS)[number]["kind"]) => {
+  const selectChatGame = async (kind: ReturnType<typeof chatGameOptions>[number]["kind"]) => {
     if (!gamePicker || disabled || startingChatGame) return;
     setGameMenuOpen(false);
     await startChatGame(kind);
@@ -435,21 +436,12 @@ export function ChatComposer({
         </div>
       )}
 
-      {gameMenuOpen && gamePicker && (
+      {gameMenuOpen && gamePicker && chatGameOptions(gamePicker.channel).length > 0 && (
         <div className="absolute bottom-full left-0 z-20 mb-2">
-          <div className="min-w-[10rem] rounded-lg border border-border bg-card p-1 shadow-lg">
-            {CHAT_GAME_OPTIONS.map((option) => (
-              <button
-                key={option.kind}
-                type="button"
-                disabled={disabled || startingChatGame}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
-                onClick={() => void selectChatGame(option.kind)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <ChatGameMenu
+            channel={gamePicker.channel}
+            onSelect={(kind) => void selectChatGame(kind)}
+          />
         </div>
       )}
 
@@ -465,7 +457,7 @@ export function ChatComposer({
         >
           😊
         </Button>
-        {gamePicker && (
+        {gamePicker && chatGameOptions(gamePicker.channel).length > 0 && (
           <Button
             type="button"
             variant={gameMenuOpen ? "secondary" : "ghost"}

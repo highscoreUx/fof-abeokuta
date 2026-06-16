@@ -19,8 +19,6 @@ interface StartChatGameButtonProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export const CHAT_GAME_OPTIONS = chatGameOptions();
-
 export function useChatGameStarter({
   channel,
   peerUserId,
@@ -59,14 +57,20 @@ export function useChatGameStarter({
 
 export function ChatGameMenu({
   className,
+  channel,
   onSelect,
 }: {
   className?: string;
+  channel: "DM" | "TEAM";
   onSelect: (kind: ChatGameKind) => void;
 }) {
+  const options = chatGameOptions(channel);
+
+  if (options.length === 0) return null;
+
   return (
     <div className={cn("min-w-[10rem] rounded-lg border border-border bg-card p-1 shadow-lg", className)}>
-      {CHAT_GAME_OPTIONS.map((option) => (
+      {options.map((option) => (
         <button
           key={option.kind}
           type="button"
@@ -92,6 +96,7 @@ export function StartChatGameButton({
 }: StartChatGameButtonProps) {
   const { start, busy } = useChatGameStarter({ channel, peerUserId, teamId });
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const hasGameOptions = chatGameOptions(channel).length > 0;
 
   const open = controlledOpen ?? uncontrolledOpen;
 
@@ -106,6 +111,8 @@ export function StartChatGameButton({
     setOpen(false);
     await start(kind);
   };
+
+  if (!hasGameOptions) return null;
 
   return (
     <div className="relative shrink-0">
@@ -123,6 +130,7 @@ export function StartChatGameButton({
       </Button>
       {open && (
         <ChatGameMenu
+          channel={channel}
           className={cn(
             "absolute right-0 z-30",
             menuPlacement === "top" ? "bottom-full mb-1" : "top-full mt-1",

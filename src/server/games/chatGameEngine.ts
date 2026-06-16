@@ -1,6 +1,6 @@
 import type { Server as SocketIOServer } from "socket.io";
 import { assertChatSocialGameAllowed } from "@/lib/chat-game-settings";
-import { getChatGameDefaults } from "@/lib/activities/manifest";
+import { getChatGameDefaults, isChatGameAllowedForChannel } from "@/lib/activities/manifest";
 import {
   parseChatGameMessageBody,
   serializeChatGameMessage,
@@ -1134,6 +1134,9 @@ export async function createDmSpinnerSession(params: {
   hostUserId: string;
   peerUserId: string;
 }) {
+  if (!isChatGameAllowedForChannel("spinner", "DM")) {
+    throw new Error("Spinner is only available in team chat.");
+  }
   await assertChatSocialGameAllowed(params.eventId, "DM");
   if (params.hostUserId === params.peerUserId) {
     throw new Error("Pick someone else to play with.");
@@ -1614,12 +1617,7 @@ export async function rematchSocialChatGame(params: {
         peerUserId,
       }))!;
     } else if (session.kind === "spinner") {
-      snapshot = (await createDmSpinnerSession({
-        eventId: params.eventId,
-        eventSlug: params.eventSlug,
-        hostUserId: params.userId,
-        peerUserId,
-      }))!;
+      throw new Error("Spinner is only available in team chat.");
     } else {
       snapshot = (await createDmTicTacToeSession({
         eventId: params.eventId,

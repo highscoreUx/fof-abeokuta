@@ -36,6 +36,7 @@ const activityManifestEntrySchema = z.object({
       maxPlayers: z.number().int().positive(),
       teamMaxPlayers: z.number().int().positive().optional(),
       joinPolicy: z.enum(["invite_only", "open"]),
+      channels: z.array(z.enum(["DM", "TEAM"])).default(["DM", "TEAM"]),
     })
     .optional(),
 });
@@ -120,14 +121,29 @@ export function isChatGameKind(value: string): value is ChatGameKind {
   return chatGameKindSet.has(value);
 }
 
+export type ChatGameChannel = "DM" | "TEAM";
+
+export function getChatGameChannels(kind: ChatGameKind): ChatGameChannel[] {
+  const channels = getActivityManifestEntry(kind)?.chatGame?.channels;
+  return channels?.length ? [...channels] : ["DM", "TEAM"];
+}
+
+export function isChatGameAllowedForChannel(kind: ChatGameKind, channel: ChatGameChannel): boolean {
+  return getChatGameChannels(kind).includes(channel);
+}
+
 export function chatGameTitle(kind: ChatGameKind): string {
   const entry = getActivityManifestEntry(kind);
   if (!entry) return kind;
   return entry.socialDisplayName ?? entry.name;
 }
 
-export function chatGameOptions(): Array<{ kind: ChatGameKind; label: string }> {
-  return CHAT_GAME_MANIFEST_ENTRIES.map((entry) => ({
+export function chatGameOptions(
+  channel?: ChatGameChannel,
+): Array<{ kind: ChatGameKind; label: string }> {
+  return CHAT_GAME_MANIFEST_ENTRIES.filter(
+    (entry) => !channel || isChatGameAllowedForChannel(entry.slug as ChatGameKind, channel),
+  ).map((entry) => ({
     kind: entry.slug as ChatGameKind,
     label: entry.socialDisplayName ?? entry.name,
   }));

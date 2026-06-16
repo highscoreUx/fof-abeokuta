@@ -53,7 +53,8 @@
       "chatGame": {
         "maxPlayers": 2,
         "teamMaxPlayers": 6,
-        "joinPolicy": "invite_only"
+        "joinPolicy": "invite_only",
+        "channels": ["TEAM"]
       }
     },
     {

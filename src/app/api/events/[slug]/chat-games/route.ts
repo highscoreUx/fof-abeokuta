@@ -3,9 +3,9 @@ import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { hasPermission } from "@/lib/permissions";
 import { isChatGameKind } from "@/lib/chat-game-types";
+import { isChatGameAllowedForChannel } from "@/lib/activities/manifest";
 import {
   createDmHangmanSession,
-  createDmSpinnerSession,
   createDmTicTacToeSession,
   createTeamHangmanSession,
   createTeamSpinnerSession,
@@ -32,6 +32,14 @@ export async function POST(
     return jsonError("Unsupported game type.", "VALIDATION_ERROR", 400);
   }
 
+  if (channel === "DM" && !isChatGameAllowedForChannel(kind, "DM")) {
+    return jsonError("This game is only available in team chat.", "VALIDATION_ERROR", 400);
+  }
+
+  if (channel === "TEAM" && !isChatGameAllowedForChannel(kind, "TEAM")) {
+    return jsonError("This game is not available in team chat.", "VALIDATION_ERROR", 400);
+  }
+
   try {
     if (channel === "DM") {
       const peerUserId = typeof body.peerUserId === "string" ? body.peerUserId : "";
@@ -40,9 +48,7 @@ export async function POST(
       const create =
         kind === "hangman"
           ? createDmHangmanSession
-          : kind === "spinner"
-            ? createDmSpinnerSession
-            : createDmTicTacToeSession;
+          : createDmTicTacToeSession;
 
       const session = await create({
         eventId: ctx.event.id,

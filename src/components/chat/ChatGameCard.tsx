@@ -162,7 +162,16 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
           </Button>
         )}
         {canJoin && (
-          <Button size="sm" disabled={busy} onClick={() => void postAction("join")}>
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => {
+              void (async () => {
+                const session = await postAction("join");
+                if (session) router.push(`${home}/game/${session.sessionId}`);
+              })();
+            }}
+          >
             Join game
           </Button>
         )}

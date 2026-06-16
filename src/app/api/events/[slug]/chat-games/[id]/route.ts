@@ -107,9 +107,13 @@ export async function POST(
       if (!gameSession) return jsonError("Game not found", "NOT_FOUND", 404);
 
       if (gameSession.kind === "hangman") {
-        const words = Array.isArray(settings.words)
-          ? settings.words.filter((word): word is string => typeof word === "string")
-          : undefined;
+        const topicMode =
+          settings.topicMode === "topic"
+            ? "topic"
+            : settings.topicMode === "random"
+              ? "random"
+              : undefined;
+        const topicId = typeof settings.topicId === "string" ? settings.topicId : undefined;
         const session = await updateSocialHangmanSettings({
           sessionId: id,
           eventId: ctx.event.id,
@@ -131,7 +135,8 @@ export async function POST(
               typeof settings.turnTimerSeconds === "number"
                 ? settings.turnTimerSeconds
                 : undefined,
-            words,
+            topicMode,
+            topicId: topicId === null ? null : topicId,
           },
         });
         return NextResponse.json({ session });

@@ -13,6 +13,7 @@ import { HangmanFinishedResults } from "@/components/hangman/HangmanFinishedResu
 import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import type { HangmanMatchSnapshot } from "@/lib/hangman/types";
+import { getSocialHangmanTopicLabel } from "@/lib/chat-game-hangman-settings";
 
 interface HangmanMatchLiveProps {
   challengeId: string;
@@ -203,6 +204,11 @@ export function HangmanMatchLive({
               {state.socialHangman.settings.raceTarget > 1
                 ? ` · first to ${state.socialHangman.settings.raceTarget}`
                 : ""}
+            </p>
+          )}
+          {isSocial && state.socialHangman && (
+            <p className="mt-1 text-xs text-white/60">
+              Topic: {getSocialHangmanTopicLabel(state.socialHangman.settings)}
             </p>
           )}
         </div>

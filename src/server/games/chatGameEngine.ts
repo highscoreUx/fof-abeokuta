@@ -28,13 +28,13 @@ import {
 import { eventRoom, userRoom } from "@/server/socket/rooms";
 import { tryGetIO } from "@/server/socket/io";
 import { parseSocialTttSettings } from "@/lib/chat-game-ttt-settings";
-import { parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
-import { DEFAULT_SOCIAL_HANGMAN_WORDS } from "@/lib/chat-game-hangman-settings";
+import { DEFAULT_SOCIAL_HANGMAN_SETTINGS, parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
 import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
 import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
 
 const SOCIAL_CHALLENGE_TITLE = "__chat_social__";
-const SOCIAL_HANGMAN_WORDS = [...DEFAULT_SOCIAL_HANGMAN_WORDS];
+// Placeholder for the shared social challenge row; words come from the static word bank.
+const SOCIAL_HANGMAN_WORDS = ["FIGMA"];
 const SOCIAL_SPINNER_OPTIONS = [
   "Wireframe",
   "Prototype",
@@ -961,6 +961,7 @@ export async function createDmHangmanSession(params: {
       joinPolicy: dmDefaults.joinPolicy,
       maxPlayers: dmDefaults.maxPlayers,
       status: "LOBBY",
+      settings: DEFAULT_SOCIAL_HANGMAN_SETTINGS as object,
       participants: {
         create: {
           userId: params.hostUserId,
@@ -1038,6 +1039,7 @@ export async function createTeamHangmanSession(params: {
       joinPolicy: teamDefaults.joinPolicy,
       maxPlayers: teamDefaults.maxPlayers,
       status: "LOBBY",
+      settings: DEFAULT_SOCIAL_HANGMAN_SETTINGS as object,
       participants: {
         create: {
           userId: params.hostUserId,

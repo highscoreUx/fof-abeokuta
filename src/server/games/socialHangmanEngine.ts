@@ -7,7 +7,8 @@ import {
   type SocialHangmanSettings,
 } from "@/lib/chat-game-hangman-settings";
 import type { SocialHangmanSessionState } from "@/lib/chat-game-hangman-types";
-import { pickRandomWord } from "@/lib/hangman/types";
+import { pickSocialHangmanWord } from "@/data/social-hangman/word-bank";
+import { isSocialHangmanTopicId } from "@/data/social-hangman/topics";
 import { prisma } from "@/lib/prisma";
 
 const turnTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -154,7 +155,7 @@ async function startNextSocialHangmanRound(
   if (!session) return;
 
   const settings = parseSocialHangmanSettings(session.settings);
-  const secretWord = pickRandomWord(settings.words);
+  const secretWord = pickSocialHangmanWord(settings);
 
   await prisma.hangmanMatch.update({
     where: { id: params.matchId },
@@ -280,8 +281,8 @@ export async function updateSocialHangmanSettings(params: {
         },
   );
 
-  if (settings.words.length === 0) {
-    throw new Error("Add at least one word.");
+  if (settings.topicMode === "topic" && (!settings.topicId || !isSocialHangmanTopicId(settings.topicId))) {
+    throw new Error("Choose a valid topic.");
   }
 
   await prisma.chatGameSession.update({

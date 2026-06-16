@@ -1,6 +1,7 @@
-import { normalizeHangmanWord } from "@/lib/hangman/types";
+import { getSocialHangmanTopic } from "@/data/social-hangman/topics";
 
 export type SocialHangmanSeriesMode = "single" | "race";
+export type SocialHangmanTopicMode = "random" | "topic";
 
 export interface SocialHangmanSettings {
   seriesMode: SocialHangmanSeriesMode;
@@ -8,7 +9,8 @@ export interface SocialHangmanSettings {
   maxWrongGuesses: number;
   turnTimerEnabled: boolean;
   turnTimerSeconds: number;
-  words: string[];
+  topicMode: SocialHangmanTopicMode;
+  topicId: string | null;
 }
 
 export interface SocialHangmanScore {
@@ -16,26 +18,14 @@ export interface SocialHangmanScore {
   o: number;
 }
 
-export const DEFAULT_SOCIAL_HANGMAN_WORDS = [
-  "FIGMA",
-  "DESIGN",
-  "PIXEL",
-  "LAYOUT",
-  "FONT",
-  "COLOR",
-  "GRID",
-  "STYLE",
-  "VECTOR",
-  "CANVAS",
-];
-
 export const DEFAULT_SOCIAL_HANGMAN_SETTINGS: SocialHangmanSettings = {
   seriesMode: "single",
   raceTarget: 3,
   maxWrongGuesses: 6,
   turnTimerEnabled: false,
   turnTimerSeconds: 30,
-  words: [...DEFAULT_SOCIAL_HANGMAN_WORDS],
+  topicMode: "random",
+  topicId: null,
 };
 
 const RACE_TARGET_MIN = 1;
@@ -45,29 +35,9 @@ const TURN_SECONDS_MAX = 300;
 const MAX_WRONG_MIN = 3;
 const MAX_WRONG_MAX = 12;
 
-export function parseSocialHangmanWords(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [...DEFAULT_SOCIAL_HANGMAN_WORDS];
-  const words = raw
-    .map((word) => normalizeHangmanWord(String(word)))
-    .filter(Boolean);
-  return words.length > 0 ? words : [...DEFAULT_SOCIAL_HANGMAN_WORDS];
-}
-
-export function parseWordsFromText(text: string): string[] {
-  const words = text
-    .split(/\r?\n/)
-    .map((line) => normalizeHangmanWord(line))
-    .filter(Boolean);
-  return [...new Set(words)];
-}
-
-export function formatWordsForTextarea(words: string[]): string {
-  return words.join("\n");
-}
-
 export function parseSocialHangmanSettings(raw: unknown): SocialHangmanSettings {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_SOCIAL_HANGMAN_SETTINGS };
-  const value = raw as Partial<SocialHangmanSettings>;
+  const value = raw as Partial<SocialHangmanSettings> & { words?: unknown };
   const raceTarget =
     typeof value.raceTarget === "number"
       ? Math.min(RACE_TARGET_MAX, Math.max(RACE_TARGET_MIN, Math.round(value.raceTarget)))
@@ -81,13 +51,20 @@ export function parseSocialHangmanSettings(raw: unknown): SocialHangmanSettings 
       ? Math.min(MAX_WRONG_MAX, Math.max(MAX_WRONG_MIN, Math.round(value.maxWrongGuesses)))
       : DEFAULT_SOCIAL_HANGMAN_SETTINGS.maxWrongGuesses;
 
+  const topicMode = value.topicMode === "topic" ? "topic" : "random";
+  const topicId =
+    topicMode === "topic" && typeof value.topicId === "string" && value.topicId.length > 0
+      ? value.topicId
+      : null;
+
   return {
     seriesMode: value.seriesMode === "race" ? "race" : "single",
     raceTarget,
     maxWrongGuesses,
     turnTimerEnabled: Boolean(value.turnTimerEnabled),
     turnTimerSeconds,
-    words: parseSocialHangmanWords(value.words),
+    topicMode,
+    topicId,
   };
 }
 
@@ -103,5 +80,18 @@ export function parseSocialHangmanScore(raw: unknown): SocialHangmanScore {
 export function normalizeSocialHangmanSettingsInput(
   input: Partial<SocialHangmanSettings>,
 ): SocialHangmanSettings {
-  return parseSocialHangmanSettings({ ...DEFAULT_SOCIAL_HANGMAN_SETTINGS, ...input });
+  const merged = { ...DEFAULT_SOCIAL_HANGMAN_SETTINGS, ...input };
+  if (merged.topicMode === "random") {
+    merged.topicId = null;
+  }
+  return parseSocialHangmanSettings(merged);
 }
+
+export function getSocialHangmanTopicLabel(settings: SocialHangmanSettings): string {
+  if (settings.topicMode === "random") return "Random topics";
+  if (!settings.topicId) return "Random topics";
+  return getSocialHangmanTopic(settings.topicId)?.name ?? "Random topics";
+}
+
+// Legacy helper kept for official hangman challenge config only.
+export const DEFAULT_SOCIAL_HANGMAN_WORDS = ["FIGMA", "DESIGN", "PIXEL"] as const;

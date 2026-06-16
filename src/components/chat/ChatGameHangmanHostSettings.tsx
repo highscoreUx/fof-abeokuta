@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SOCIAL_HANGMAN_TOPICS } from "@/data/social-hangman/topics";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import {
   DEFAULT_SOCIAL_HANGMAN_SETTINGS,
-  formatWordsForTextarea,
-  parseWordsFromText,
+  getSocialHangmanTopicLabel,
   type SocialHangmanSettings,
 } from "@/lib/chat-game-hangman-settings";
 import type { SocialHangmanSessionState } from "@/lib/chat-game-hangman-types";
@@ -34,22 +34,17 @@ export function ChatGameHangmanHostSettings({
   const [draft, setDraft] = useState<SocialHangmanSettings>(
     socialHangman?.settings ?? DEFAULT_SOCIAL_HANGMAN_SETTINGS,
   );
-  const [wordsText, setWordsText] = useState(
-    formatWordsForTextarea(socialHangman?.settings.words ?? DEFAULT_SOCIAL_HANGMAN_SETTINGS.words),
-  );
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (socialHangman?.settings) {
       setDraft(socialHangman.settings);
-      setWordsText(formatWordsForTextarea(socialHangman.settings.words));
     }
   }, [socialHangman?.settings]);
 
   const save = async () => {
-    const words = parseWordsFromText(wordsText);
-    if (!lockedFormat && words.length === 0) {
-      toastError("Add at least one word.");
+    if (!lockedFormat && draft.topicMode === "topic" && !draft.topicId) {
+      toastError("Choose a topic or switch to random mode.");
       return;
     }
 
@@ -61,7 +56,7 @@ export function ChatGameHangmanHostSettings({
           action: "update_settings",
           settings: {
             ...draft,
-            words: lockedFormat ? undefined : words,
+            topicId: draft.topicMode === "random" ? null : draft.topicId,
           },
         }),
       });
@@ -73,6 +68,8 @@ export function ChatGameHangmanHostSettings({
       setBusy(false);
     }
   };
+
+  const topicLabel = getSocialHangmanTopicLabel(draft);
 
   return (
     <>
@@ -86,12 +83,85 @@ export function ChatGameHangmanHostSettings({
         title="Host settings"
         description={
           lockedFormat
-            ? "Adjust the turn timer during play. Word list and format are locked for this series."
+            ? "Adjust the turn timer during play. Topic and format are locked for this series."
             : "Configure the match before both players are in and the game starts."
         }
         className="max-w-md"
       >
         <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Word topic
+            </p>
+            {lockedFormat ? (
+              <p className="text-sm text-foreground">{topicLabel}</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={draft.topicMode === "random" ? "primary" : "outline"}
+                    disabled={busy}
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        topicMode: "random",
+                        topicId: null,
+                      }))
+                    }
+                  >
+                    Random
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={draft.topicMode === "topic" ? "primary" : "outline"}
+                    disabled={busy}
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        topicMode: "topic",
+                        topicId: current.topicId ?? SOCIAL_HANGMAN_TOPICS[0]?.id ?? null,
+                      }))
+                    }
+                  >
+                    Pick topic
+                  </Button>
+                </div>
+                {draft.topicMode === "topic" && (
+                  <select
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    value={draft.topicId ?? ""}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        topicMode: "topic",
+                        topicId: event.target.value || null,
+                      }))
+                    }
+                  >
+                    <option value="" disabled>
+                      Select a topic
+                    </option>
+                    {SOCIAL_HANGMAN_TOPICS.map((topic) => (
+                      <option key={topic.id} value={topic.id}>
+                        {topic.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {draft.topicMode === "random"
+                    ? "Words are drawn from all UI/UX topics."
+                    : SOCIAL_HANGMAN_TOPICS.find((topic) => topic.id === draft.topicId)
+                        ?.description ?? "Choose a topic for this game."}
+                </p>
+              </div>
+            )}
+          </div>
+
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Format
@@ -163,23 +233,6 @@ export function ChatGameHangmanHostSettings({
               }
             />
           </div>
-
-          {!lockedFormat && (
-            <div>
-              <label className="mb-2 block text-sm font-medium" htmlFor="hangman-words">
-                Word list
-              </label>
-              <textarea
-                id="hangman-words"
-                className="min-h-[8rem] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                value={wordsText}
-                disabled={busy}
-                placeholder={"FIGMA\nDESIGN\nPIXEL"}
-                onChange={(event) => setWordsText(event.target.value)}
-              />
-              <p className="mt-2 text-xs text-muted-foreground">One word per line. Letters A–Z only.</p>
-            </div>
-          )}
 
           <label className="flex items-center gap-2 text-sm">
             <input

@@ -15,6 +15,7 @@ import { eventRoom, hangmanMatchRoom, teamRoom, userRoom } from "@/server/socket
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
 import { parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
+import { pickSocialHangmanWord } from "@/data/social-hangman/word-bank";
 import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
 
 function parseGuessedLetters(raw: unknown): string[] {
@@ -277,10 +278,9 @@ export async function startHangmanMatch(
   if (!match) throw new Error("Match not found.");
   if (match.state !== "WAITING") throw new Error("Match already started.");
 
-  const words = match.isSocial
-    ? parseSocialHangmanSettings(match.chatSession?.settings).words
-    : parseHangmanWords(match.challenge.config);
-  const secretWord = pickRandomWord(words);
+  const secretWord = match.isSocial
+    ? pickSocialHangmanWord(parseSocialHangmanSettings(match.chatSession?.settings))
+    : pickRandomWord(parseHangmanWords(match.challenge.config));
 
   await prisma.hangmanMatch.update({
     where: { id: matchId },

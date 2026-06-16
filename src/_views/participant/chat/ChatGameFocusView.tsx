@@ -94,7 +94,11 @@ export function ChatGameFocusView() {
 
   return (
     <PermissionGuard permission="participant.chat" allowAdminShell>
-      <AppShell title={session?.title ?? "Game"} nav={shellNav}>
+      <AppShell
+        title={session?.title ?? "Game"}
+        nav={shellNav}
+        hideMobileTitle={session?.kind === "tic_tac_toe" && session?.status === "lobby"}
+      >
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading game…</p>
         ) : !session ? (
@@ -106,34 +110,64 @@ export function ChatGameFocusView() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h1 className="hidden text-xl font-semibold sm:block">{session.title}</h1>
+            {session.kind === "tic_tac_toe" && session.status === "lobby" ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-xl font-semibold">{session.title}</h1>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isHost && (
+                      <ChatGameTttHostSettings
+                        sessionId={session.sessionId}
+                        socialTtt={session.socialTtt}
+                        playerXName={
+                          session.players.find((player) => player.slot === "X")?.firstName ?? "X"
+                        }
+                        playerOName={
+                          session.players.find((player) => player.slot === "O")?.firstName ?? "O"
+                        }
+                      />
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`${home}?tab=chat`)}
+                    >
+                      Back to chat
+                    </Button>
+                  </div>
+                </div>
                 <p className="text-sm text-muted-foreground">{session.text}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => router.push(`${home}?tab=chat`)}>
-                Back to chat
-              </Button>
-              {session.status === "ended" &&
-                session.players.some((player) => player.userId === user?.id) && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      void api<{ session: ChatGameSessionSnapshot }>(
-                        `/chat-games/${encodeURIComponent(sessionId)}`,
-                        {
-                          method: "POST",
-                          body: JSON.stringify({ action: "rematch" }),
-                        },
-                      ).then((data) => {
-                        router.replace(`${home}/game/${data.session.sessionId}`);
-                      });
-                    }}
-                  >
-                    Rematch
-                  </Button>
-                )}
-            </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h1 className="hidden text-xl font-semibold sm:block">{session.title}</h1>
+                  <p className="text-sm text-muted-foreground">{session.text}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push(`${home}?tab=chat`)}>
+                  Back to chat
+                </Button>
+                {session.status === "ended" &&
+                  session.players.some((player) => player.userId === user?.id) && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        void api<{ session: ChatGameSessionSnapshot }>(
+                          `/chat-games/${encodeURIComponent(sessionId)}`,
+                          {
+                            method: "POST",
+                            body: JSON.stringify({ action: "rematch" }),
+                          },
+                        ).then((data) => {
+                          router.replace(`${home}/game/${data.session.sessionId}`);
+                        });
+                      }}
+                    >
+                      Rematch
+                    </Button>
+                  )}
+              </div>
+            )}
 
             {session.matchId && session.challengeId ? (
               session.kind === "hangman" ? (
@@ -163,19 +197,18 @@ export function ChatGameFocusView() {
                       ? "Waiting for teammates to join. The host can start when at least two players are in."
                       : "Waiting for another player to join from the chat card."}
                   </p>
+                  {session.kind !== "tic_tac_toe" && (
+                    <div className="mt-4 flex justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`${home}?tab=chat`)}
+                      >
+                        Back to chat
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                {session.kind === "tic_tac_toe" && isHost && (
-                  <ChatGameTttHostSettings
-                    sessionId={session.sessionId}
-                    socialTtt={session.socialTtt}
-                    playerXName={
-                      session.players.find((player) => player.slot === "X")?.firstName ?? "X"
-                    }
-                    playerOName={
-                      session.players.find((player) => player.slot === "O")?.firstName ?? "O"
-                    }
-                  />
-                )}
                 {isPlayer && <ChatGameInvitePanel sessionId={session.sessionId} />}
               </div>
             ) : (

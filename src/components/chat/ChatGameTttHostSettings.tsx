@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import {
   DEFAULT_SOCIAL_TTT_SETTINGS,
   type SocialTttSettings,
@@ -25,6 +26,7 @@ export function ChatGameTttHostSettings({
   playerOName = "O",
 }: ChatGameTttHostSettingsProps) {
   const { api } = useEventApi();
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<SocialTttSettings>(
     socialTtt?.settings ?? DEFAULT_SOCIAL_TTT_SETTINGS,
   );
@@ -42,6 +44,7 @@ export function ChatGameTttHostSettings({
         body: JSON.stringify({ action: "update_settings", settings: draft }),
       });
       toastSuccess("Game settings saved");
+      setOpen(false);
     } catch (error) {
       toastError(error instanceof Error ? error.message : "Could not save settings");
     } finally {
@@ -50,120 +53,131 @@ export function ChatGameTttHostSettings({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-sm font-medium">Host settings</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Configure the match before both players are in and the game starts.
-      </p>
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Host settings
+      </Button>
 
-      <div className="mt-4 space-y-3">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Format
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={draft.seriesMode === "single" ? "primary" : "outline"}
-              disabled={busy}
-              onClick={() => setDraft((current) => ({ ...current, seriesMode: "single" }))}
-            >
-              Single game
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={draft.seriesMode === "race" ? "primary" : "outline"}
-              disabled={busy}
-              onClick={() => setDraft((current) => ({ ...current, seriesMode: "race" }))}
-            >
-              Race
-            </Button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Host settings"
+        description="Configure the match before both players are in and the game starts."
+        className="max-w-md"
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Format
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={draft.seriesMode === "single" ? "primary" : "outline"}
+                disabled={busy}
+                onClick={() => setDraft((current) => ({ ...current, seriesMode: "single" }))}
+              >
+                Single game
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={draft.seriesMode === "race" ? "primary" : "outline"}
+                disabled={busy}
+                onClick={() => setDraft((current) => ({ ...current, seriesMode: "race" }))}
+              >
+                Race
+              </Button>
+            </div>
+            {draft.seriesMode === "race" && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">First to</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={9}
+                  className="w-20"
+                  value={draft.raceTarget}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      raceTarget: Number(event.target.value) || 1,
+                    }))
+                  }
+                />
+                <span className="text-sm text-muted-foreground">wins</span>
+              </div>
+            )}
           </div>
-          {draft.seriesMode === "race" && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">First to</span>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.turnTimerEnabled}
+              disabled={busy}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, turnTimerEnabled: event.target.checked }))
+              }
+            />
+            Turn timer
+          </label>
+          {draft.turnTimerEnabled && (
+            <div className="flex items-center gap-2 pl-6">
               <Input
                 type="number"
-                min={1}
-                max={9}
-                className="w-20"
-                value={draft.raceTarget}
+                min={5}
+                max={300}
+                className="w-24"
+                value={draft.turnTimerSeconds}
                 disabled={busy}
                 onChange={(event) =>
                   setDraft((current) => ({
                     ...current,
-                    raceTarget: Number(event.target.value) || 1,
+                    turnTimerSeconds: Number(event.target.value) || 30,
                   }))
                 }
               />
-              <span className="text-sm text-muted-foreground">wins</span>
+              <span className="text-sm text-muted-foreground">seconds per turn</span>
             </div>
           )}
-        </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={draft.turnTimerEnabled}
-            disabled={busy}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, turnTimerEnabled: event.target.checked }))
-            }
-          />
-          Turn timer
-        </label>
-        {draft.turnTimerEnabled && (
-          <div className="flex items-center gap-2 pl-6">
-            <Input
-              type="number"
-              min={5}
-              max={300}
-              className="w-24"
-              value={draft.turnTimerSeconds}
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.endOnDraw}
               disabled={busy}
               onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  turnTimerSeconds: Number(event.target.value) || 30,
-                }))
+                setDraft((current) => ({ ...current, endOnDraw: event.target.checked }))
               }
             />
-            <span className="text-sm text-muted-foreground">seconds per turn</span>
+            End on draw
+          </label>
+          {!draft.endOnDraw && (
+            <p className="text-xs text-muted-foreground">
+              If unchecked, a full board with no winner clears and the other player opens the next
+              round.
+            </p>
+          )}
+
+          {(socialTtt?.score.x ?? 0) > 0 || (socialTtt?.score.o ?? 0) > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Score: {playerXName} {socialTtt?.score.x ?? 0} – {socialTtt?.score.o ?? 0}{" "}
+              {playerOName}
+            </p>
+          ) : null}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button disabled={busy} onClick={() => void save()}>
+              {busy ? "Saving…" : "Save settings"}
+            </Button>
           </div>
-        )}
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={draft.endOnDraw}
-            disabled={busy}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, endOnDraw: event.target.checked }))
-            }
-          />
-          End on draw
-        </label>
-        {!draft.endOnDraw && (
-          <p className="text-xs text-muted-foreground">
-            If unchecked, a full board with no winner clears and the other player opens the next
-            round.
-          </p>
-        )}
-      </div>
-
-      {(socialTtt?.score.x ?? 0) > 0 || (socialTtt?.score.o ?? 0) > 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">
-          Score: {playerXName} {socialTtt?.score.x ?? 0} – {socialTtt?.score.o ?? 0} {playerOName}
-        </p>
-      ) : null}
-
-      <div className="mt-4">
-        <Button size="sm" disabled={busy} onClick={() => void save()}>
-          Save settings
-        </Button>
-      </div>
-    </div>
+        </div>
+      </Modal>
+    </>
   );
 }

@@ -22,6 +22,8 @@ interface AppShellProps {
   nav: NavItem[];
   showSponsors?: boolean;
   contentClassName?: string;
+  /** Hide the large mobile page title when the view renders its own heading. */
+  hideMobileTitle?: boolean;
 }
 
 function resolveActiveHref(pathname: string, nav: NavItem[]) {
@@ -30,7 +32,7 @@ function resolveActiveHref(pathname: string, nav: NavItem[]) {
     .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.href;
 }
 
-export function AppShell({ children, title, nav, showSponsors = false, contentClassName }: AppShellProps) {
+export function AppShell({ children, title, nav, showSponsors = false, contentClassName, hideMobileTitle = false }: AppShellProps) {
   const pathname = usePathname();
   const activeHref = resolveActiveHref(pathname, nav);
   const { user, logout } = useAuth();
@@ -130,9 +132,11 @@ export function AppShell({ children, title, nav, showSponsors = false, contentCl
 
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <div className={cn("mx-auto w-full max-w-6xl", contentClassName)}>
-              <div className="mb-6 lg:hidden">
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-              </div>
+              {!hideMobileTitle && (
+                <div className="mb-6 lg:hidden">
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+                </div>
+              )}
               {children}
             </div>
           </main>

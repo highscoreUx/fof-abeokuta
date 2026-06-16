@@ -62,7 +62,7 @@ export default function PlatformEventPage() {
   };
 
   return (
-    <PlatformAppShell title={event?.title ?? "Event"} nav={nav}>
+    <PlatformAppShell title={event?.title ?? "Event"} nav={nav} hideMobileTitle>
       <div className="space-y-4 sm:space-y-8">
         {createdCredentials && (
           <EventCredentialsBanner

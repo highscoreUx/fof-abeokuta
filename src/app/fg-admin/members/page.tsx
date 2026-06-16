@@ -24,7 +24,7 @@ function MembersPageContent() {
   }, []);
 
   return (
-    <PlatformAppShell title="Members" nav={nav}>
+    <PlatformAppShell title="Members" nav={nav} hideMobileTitle>
       <div className="space-y-6">
         {toast && (
           <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">

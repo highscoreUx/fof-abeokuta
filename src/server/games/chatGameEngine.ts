@@ -1281,6 +1281,75 @@ export async function inviteSpectatorsToChatGame(params: {
   return buildChatGameSessionSnapshot(session.id);
 }
 
+function previousMatchPlayers(session: NonNullable<Awaited<ReturnType<typeof loadSession>>>) {
+  return session.participants.filter((participant) => participant.role === "player");
+}
+
+function resolveDmPeerForRematch(
+  session: NonNullable<Awaited<ReturnType<typeof loadSession>>>,
+  requesterUserId: string,
+) {
+  const peerFromPlayers = previousMatchPlayers(session).find(
+    (participant) => participant.userId !== requesterUserId,
+  )?.userId;
+  if (peerFromPlayers) return peerFromPlayers;
+
+  if (session.dmPeerUserId && session.dmPeerUserId !== requesterUserId) {
+    return session.dmPeerUserId;
+  }
+  if (session.hostUserId !== requesterUserId) {
+    return session.hostUserId;
+  }
+
+  throw new Error("Cannot determine rematch opponent.");
+}
+
+async function seatRematchPlayers(params: {
+  sessionId: string;
+  eventId: string;
+  eventSlug: string;
+  requesterUserId: string;
+  previousPlayers: ReturnType<typeof previousMatchPlayers>;
+  kind: string;
+  channel: string;
+}) {
+  const otherPlayerIds = params.previousPlayers
+    .map((participant) => participant.userId)
+    .filter((userId) => userId !== params.requesterUserId);
+
+  let snapshot = await buildChatGameSessionSnapshot(params.sessionId);
+
+  for (const userId of otherPlayerIds) {
+    snapshot = await joinChatGameSession({
+      sessionId: params.sessionId,
+      eventId: params.eventId,
+      eventSlug: params.eventSlug,
+      userId,
+    });
+  }
+
+  if (params.kind === "spinner" && params.channel === "TEAM") {
+    const io = tryGetIO();
+    const session = await loadSession(params.sessionId);
+    if (io && session?.status === "LOBBY") {
+      const playerCount = session.participants.filter(
+        (participant) => participant.role === "player",
+      ).length;
+      if (playerCount >= 2) {
+        await startSocialSpinnerMatch(io, {
+          sessionId: session.id,
+          eventId: params.eventId,
+          eventSlug: params.eventSlug,
+          hostUserId: session.hostUserId,
+        });
+        snapshot = await buildChatGameSessionSnapshot(params.sessionId);
+      }
+    }
+  }
+
+  return snapshot;
+}
+
 export async function rematchSocialChatGame(params: {
   sessionId: string;
   eventId: string;
@@ -1300,57 +1369,73 @@ export async function rematchSocialChatGame(params: {
   );
   if (!wasPlayer) throw new Error("Only players can request a rematch.");
 
-  if (session.channel === "DM" && session.dmPeerUserId) {
-    if (session.kind === "hangman") {
-      return createDmHangmanSession({
-        eventId: params.eventId,
-        eventSlug: params.eventSlug,
-        hostUserId: params.userId,
-        peerUserId: session.dmPeerUserId,
-      });
-    }
-    if (session.kind === "spinner") {
-      return createDmSpinnerSession({
-        eventId: params.eventId,
-        eventSlug: params.eventSlug,
-        hostUserId: params.userId,
-        peerUserId: session.dmPeerUserId,
-      });
-    }
-    return createDmTicTacToeSession({
-      eventId: params.eventId,
-      eventSlug: params.eventSlug,
-      hostUserId: params.userId,
-      peerUserId: session.dmPeerUserId,
-    });
+  const players = previousMatchPlayers(session);
+  if (players.length < 2) {
+    throw new Error("Not enough players for a rematch.");
   }
 
-  if (session.channel === "TEAM" && session.teamId) {
+  let snapshot: ChatGameSessionSnapshot;
+
+  if (session.channel === "DM") {
+    const peerUserId = resolveDmPeerForRematch(session, params.userId);
     if (session.kind === "hangman") {
-      return createTeamHangmanSession({
+      snapshot = await createDmHangmanSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        peerUserId,
+      });
+    } else if (session.kind === "spinner") {
+      snapshot = await createDmSpinnerSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        peerUserId,
+      });
+    } else {
+      snapshot = await createDmTicTacToeSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        peerUserId,
+      });
+    }
+  } else if (session.channel === "TEAM" && session.teamId) {
+    if (session.kind === "hangman") {
+      snapshot = await createTeamHangmanSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        teamId: session.teamId,
+      });
+    } else if (session.kind === "spinner") {
+      snapshot = await createTeamSpinnerSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        teamId: session.teamId,
+      });
+    } else {
+      snapshot = await createTeamTicTacToeSession({
         eventId: params.eventId,
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         teamId: session.teamId,
       });
     }
-    if (session.kind === "spinner") {
-      return createTeamSpinnerSession({
-        eventId: params.eventId,
-        eventSlug: params.eventSlug,
-        hostUserId: params.userId,
-        teamId: session.teamId,
-      });
-    }
-    return createTeamTicTacToeSession({
-      eventId: params.eventId,
-      eventSlug: params.eventSlug,
-      hostUserId: params.userId,
-      teamId: session.teamId,
-    });
+  } else {
+    throw new Error("Cannot rematch this game.");
   }
 
-  throw new Error("Cannot rematch this game.");
+  return seatRematchPlayers({
+    sessionId: snapshot.sessionId,
+    eventId: params.eventId,
+    eventSlug: params.eventSlug,
+    requesterUserId: params.userId,
+    previousPlayers: players,
+    kind: session.kind,
+    channel: session.channel,
+  });
 }
 
 export async function getChatGameSessionForUser(

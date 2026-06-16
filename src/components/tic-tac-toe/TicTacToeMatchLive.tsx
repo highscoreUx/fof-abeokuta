@@ -154,7 +154,13 @@ export function TicTacToeMatchLive({
       return null;
     }
 
-    return <TttGraceResults snapshot={state} graceRemainingMs={graceRemainingMs} />;
+    return (
+      <TttGraceResults
+        snapshot={state}
+        graceRemainingMs={graceRemainingMs}
+        hideTitle={Boolean(socialSessionId)}
+      />
+    );
   }
 
   const statusText = () => {
@@ -181,7 +187,7 @@ export function TicTacToeMatchLive({
     <Card className={compact ? "p-4" : "p-6"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <CardTitle>{state.challengeTitle}</CardTitle>
+          {!socialSessionId && <CardTitle>{state.challengeTitle}</CardTitle>}
           <BracketMatchSeriesLabel bracket={state.bracket} />
           <p className="mt-1 text-sm text-muted-foreground">
             {state.isSocial

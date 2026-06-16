@@ -85,8 +85,8 @@ export function ChatGameFocusView() {
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h1 className="text-xl font-semibold">{session.title}</h1>
+              <div className="min-w-0 flex-1">
+                <h1 className="hidden text-xl font-semibold sm:block">{session.title}</h1>
                 <p className="text-sm text-muted-foreground">{session.text}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => router.push(`${home}?tab=chat`)}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useSocket } from "@/hooks/useSocket";
@@ -43,6 +43,8 @@ export function TicTacToeActivitiesPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(focusMatchId);
   const [initialLoading, setInitialLoading] = useState(true);
+  const challengesRef = useRef(challenges);
+  challengesRef.current = challenges;
 
   const load = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -93,10 +95,17 @@ export function TicTacToeActivitiesPanel() {
       }, SOCKET_REFRESH_MS);
     };
 
-    socket.on("ttt:state", scheduleRefresh);
+    const onTttState = () => {
+      const needsListRefresh = challengesRef.current.some(
+        (challenge) => challenge.competitionFormat !== "CHAMPIONSHIP",
+      );
+      if (needsListRefresh) scheduleRefresh();
+    };
+
+    socket.on("ttt:state", onTttState);
     socket.on("bracket:state", scheduleRefresh);
     return () => {
-      socket.off("ttt:state", scheduleRefresh);
+      socket.off("ttt:state", onTttState);
       socket.off("bracket:state", scheduleRefresh);
       if (timer) clearTimeout(timer);
     };

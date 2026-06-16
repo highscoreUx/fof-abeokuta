@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useSocket } from "@/hooks/useSocket";
@@ -43,6 +43,8 @@ export function HangmanActivitiesPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(focusMatchId);
   const [initialLoading, setInitialLoading] = useState(true);
+  const challengesRef = useRef(challenges);
+  challengesRef.current = challenges;
 
   const load = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -93,10 +95,17 @@ export function HangmanActivitiesPanel() {
       }, SOCKET_REFRESH_MS);
     };
 
-    socket.on("hangman:state", scheduleRefresh);
+    const onHangmanState = () => {
+      const needsListRefresh = challengesRef.current.some(
+        (challenge) => challenge.competitionFormat !== "CHAMPIONSHIP",
+      );
+      if (needsListRefresh) scheduleRefresh();
+    };
+
+    socket.on("hangman:state", onHangmanState);
     socket.on("bracket:state", scheduleRefresh);
     return () => {
-      socket.off("hangman:state", scheduleRefresh);
+      socket.off("hangman:state", onHangmanState);
       socket.off("bracket:state", scheduleRefresh);
       if (timer) clearTimeout(timer);
     };

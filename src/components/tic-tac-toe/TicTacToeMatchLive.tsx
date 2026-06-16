@@ -24,10 +24,11 @@ export function TicTacToeMatchLive({
   compact = false,
 }: TicTacToeMatchLiveProps) {
   const socket = useSocket();
-  const { user } = useAuth();
+  const { user, isHydrated } = useAuth();
   const { registerCompleted } = useParticipantActivitiesRegistry();
   const [state, setState] = useState<TicTacToeMatchSnapshot | null>(null);
   const registeredMatchId = useRef<string | null>(null);
+  const joinedMatchId = useRef<string | null>(null);
 
   const isFinished = state?.state === "FINISHED";
   const { graceExpired, graceRemainingMs, completedAt } = useActivityCompletionGrace(
@@ -55,10 +56,16 @@ export function TicTacToeMatchLive({
   }, [state?.matchId, state?.state]);
 
   useEffect(() => {
-    if (!socket) return;
+    setState(null);
+    joinedMatchId.current = null;
+  }, [initialMatchId]);
+
+  useEffect(() => {
+    if (!socket || !initialMatchId) return;
 
     const onState = (snapshot: TicTacToeMatchSnapshot) => {
       if (snapshot.challengeId !== challengeId) return;
+      if (snapshot.matchId !== initialMatchId) return;
       setState(snapshot);
     };
 
@@ -66,15 +73,16 @@ export function TicTacToeMatchLive({
     return () => {
       socket.off("ttt:state", onState);
     };
-  }, [socket, challengeId]);
+  }, [socket, challengeId, initialMatchId]);
 
   useEffect(() => {
-    const matchId = initialMatchId ?? state?.matchId;
-    if (!socket || !matchId) return;
-    socket.emit("ttt:match:join", matchId);
-  }, [socket, initialMatchId, state?.matchId]);
+    if (!socket || !initialMatchId) return;
+    if (joinedMatchId.current === initialMatchId) return;
+    joinedMatchId.current = initialMatchId;
+    socket.emit("ttt:match:join", initialMatchId);
+  }, [socket, initialMatchId]);
 
-  const myTeamId = user?.teamId ?? null;
+  const myTeamId = isHydrated ? (user?.teamId ?? null) : null;
   const isTeamX = Boolean(myTeamId && state?.teamX.id === myTeamId);
   const isTeamO = Boolean(myTeamId && state?.teamO.id === myTeamId);
   const inMatch = isTeamX || isTeamO;
@@ -118,7 +126,11 @@ export function TicTacToeMatchLive({
   };
 
   if (!state) {
-    return null;
+    return (
+      <Card className={compact ? "p-4" : "p-6"}>
+        <p className="text-sm text-muted-foreground">Loading match…</p>
+      </Card>
+    );
   }
 
   if (isFinished) {

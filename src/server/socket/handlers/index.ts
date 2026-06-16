@@ -35,13 +35,13 @@ import {
   startCountdownSession,
 } from "@/server/games/countdownEngine";
 import {
-  broadcastHangmanState,
+  buildHangmanSnapshot,
   handleHangmanGuess,
   setHangmanChampion,
   startHangmanMatch,
 } from "@/server/games/hangmanEngine";
 import {
-  broadcastTttState,
+  buildTttSnapshot,
   handleTttMove,
   setTttChampion,
   startTttMatch,
@@ -535,7 +535,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     socket.on("ttt:match:join", async (matchId: string) => {
       if (typeof matchId !== "string" || !matchId) return;
       socket.join(ticTacToeMatchRoom(matchId));
-      const snapshot = await broadcastTttState(io, matchId, slug);
+      const snapshot = await buildTttSnapshot(matchId);
       if (snapshot) socket.emit("ttt:state", snapshot);
     });
 
@@ -622,7 +622,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
     socket.on("hangman:match:join", async (matchId: string) => {
       if (typeof matchId !== "string" || !matchId) return;
       socket.join(hangmanMatchRoom(matchId));
-      const snapshot = await broadcastHangmanState(io, matchId, slug);
+      const snapshot = await buildHangmanSnapshot(matchId);
       if (snapshot) socket.emit("hangman:state", snapshot);
     });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
 import { ChampionshipBracketPanel } from "@/components/activity-bracket/ChampionshipBracketPanel";
@@ -21,6 +21,7 @@ export function BracketChampionshipSection({
   const socket = useSocket();
   const { api } = useEventApi();
   const [bracket, setBracket] = useState<ActivityBracketSnapshot | null>(null);
+  const activeMatchCache = useRef<{ round: number; ids: string[] }>({ round: 0, ids: [] });
 
   const loadBracket = useCallback(async () => {
     try {
@@ -58,10 +59,21 @@ export function BracketChampionshipSection({
   }
 
   const currentRound = bracket.rounds.find((r) => r.roundNumber === bracket.currentRound);
-  const activeMatchIds =
+  const nextActiveMatchIds =
     currentRound?.slots
       .map((slot) => slot.activeMatchId)
       .filter((id): id is string => Boolean(id)) ?? [];
+
+  if (nextActiveMatchIds.length > 0) {
+    activeMatchCache.current = { round: bracket.currentRound, ids: nextActiveMatchIds };
+  }
+
+  const activeMatchIds =
+    nextActiveMatchIds.length > 0
+      ? nextActiveMatchIds
+      : activeMatchCache.current.round === bracket.currentRound
+        ? activeMatchCache.current.ids
+        : [];
 
   return (
     <div className="space-y-4">

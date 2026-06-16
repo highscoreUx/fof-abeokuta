@@ -1,5 +1,5 @@
 import type { BracketMatchContext } from "@/lib/activity-bracket/types";
-import { formatBracketMatchLabel } from "@/lib/activity-bracket/match-context";
+import { formatBracketMatchLabel } from "@/lib/activity-bracket/match-label";
 
 interface BracketMatchSeriesLabelProps {
   bracket?: BracketMatchContext | null;

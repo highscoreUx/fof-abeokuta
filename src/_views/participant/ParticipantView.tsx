@@ -87,7 +87,6 @@ export function ParticipantView() {
       <AppShell
         title="Home"
         nav={shellNav}
-        contentClassName={tab === "gallery" ? "max-w-7xl" : undefined}
       >
         <div
           className={

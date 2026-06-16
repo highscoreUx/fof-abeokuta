@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ChatRoom, ChatRoomCategory } from "@/types/chat";
+import { ChatRoomListSkeleton } from "@/components/chat/ChatRoomListSkeleton";
 import { cn } from "@/lib/cn";
 
 type RoomFilter = "all" | ChatRoomCategory;
@@ -17,11 +18,18 @@ const FILTERS: Array<{ value: RoomFilter; label: string }> = [
 interface ChatRoomListProps {
   rooms: ChatRoom[];
   activeRoomId: string;
+  loading?: boolean;
   onSelect: (roomId: string) => void;
   className?: string;
 }
 
-export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatRoomListProps) {
+export function ChatRoomList({
+  rooms,
+  activeRoomId,
+  loading = false,
+  onSelect,
+  className,
+}: ChatRoomListProps) {
   const [filter, setFilter] = useState<RoomFilter>("all");
 
   const filteredRooms = rooms.filter(
@@ -58,7 +66,9 @@ export function ChatRoomList({ rooms, activeRoomId, onSelect, className }: ChatR
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:max-h-44 md:flex-none">
-        {filteredRooms.length === 0 ? (
+        {loading ? (
+          <ChatRoomListSkeleton />
+        ) : filteredRooms.length === 0 ? (
           <p className="px-2 py-4 text-xs text-muted-foreground">No chats in this category.</p>
         ) : (
           <div className="space-y-1">

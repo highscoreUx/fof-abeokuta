@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
-import type { ChatMessage, ChatRoom } from "@/types/chat";
+import type { ChatMessage } from "@/types/chat";
 import { ChatParticipants } from "@/components/chat/ChatParticipants";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
+import { ChatRoomListSkeleton } from "@/components/chat/ChatRoomListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
-import { useEventApi } from "@/hooks/useEventApi";
+import { useChatRooms } from "@/hooks/useChatRooms";
 import { dmRoomId, parseDmRoomId } from "@/lib/chat-dm";
 import { cn } from "@/lib/cn";
+import { useChatStore } from "@/stores/chatStore";
 
 interface ParticipantChatProps {
   className?: string;
@@ -19,24 +21,13 @@ const panelClass =
   "flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]";
 
 export function ParticipantChat({ className }: ParticipantChatProps) {
-  const { api } = useEventApi();
   const { user } = useAuth();
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
-  const [activeRoomId, setActiveRoomId] = useState<string>("global");
-  const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
-
-  useEffect(() => {
-    api<{ rooms: ChatRoom[] }>("/chat/rooms")
-      .then((data) => {
-        setRooms(data.rooms);
-        setActiveRoomId((current) =>
-          data.rooms.some((room) => room.id === current)
-            ? current
-            : (data.rooms[0]?.id ?? "global"),
-        );
-      })
-      .catch(() => setRooms([{ id: "global", category: "general", label: "General" }]));
-  }, [api]);
+  const { rooms, roomsLoading } = useChatRooms();
+  const activeRoomId = useChatStore((state) => state.activeRoomId);
+  const mobilePane = useChatStore((state) => state.mobilePane);
+  const addChatRoom = useChatStore((state) => state.addChatRoom);
+  const setActiveRoomId = useChatStore((state) => state.setActiveRoomId);
+  const setMobilePane = useChatStore((state) => state.setMobilePane);
 
   const handleIncomingDm = useCallback(
     (message: ChatMessage, roomId: string) => {
@@ -48,30 +39,27 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
           ? rooms.find((room) => room.id === roomId)?.label ?? "Direct message"
           : `${message.user.firstName} ${message.user.lastName}`;
 
-      setRooms((current) => {
-        if (current.some((room) => room.id === roomId)) return current;
-        return [...current, { id: roomId, category: "private", label }];
-      });
+      addChatRoom({ id: roomId, category: "private", label });
     },
-    [rooms, user?.id],
+    [addChatRoom, rooms, user?.id],
   );
 
   useChatRealtime(rooms, handleIncomingDm);
 
-  const openPrivateChat = useCallback((message: ChatMessage) => {
-    const peerId = message.userId;
-    if (!peerId) return;
+  const openPrivateChat = useCallback(
+    (message: ChatMessage) => {
+      const peerId = message.userId;
+      if (!peerId) return;
 
-    const roomId = dmRoomId(peerId);
-    const label = `${message.user.firstName} ${message.user.lastName}`;
+      const roomId = dmRoomId(peerId);
+      const label = `${message.user.firstName} ${message.user.lastName}`;
 
-    setRooms((current) => {
-      if (current.some((room) => room.id === roomId)) return current;
-      return [...current, { id: roomId, category: "private", label }];
-    });
-    setActiveRoomId(roomId);
-    setMobilePane("chat");
-  }, []);
+      addChatRoom({ id: roomId, category: "private", label });
+      setActiveRoomId(roomId);
+      setMobilePane("chat");
+    },
+    [addChatRoom, setActiveRoomId, setMobilePane],
+  );
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -98,10 +86,11 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
         <ChatRoomList
           rooms={rooms}
           activeRoomId={activeRoomId}
+          loading={roomsLoading}
           onSelect={handleSelectRoom}
           className="min-h-0 flex-1 md:flex-none"
         />
-        {activeRoom && (
+        {activeRoom && !roomsLoading && (
           <ChatParticipants
             key={activeRoom.id}
             room={activeRoom}
@@ -118,7 +107,11 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
           mobilePane === "list" ? "hidden md:flex" : "flex",
         )}
       >
-        {rooms.length === 0 ? (
+        {roomsLoading ? (
+          <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
+            Loading chats…
+          </div>
+        ) : rooms.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
             No chat rooms available.
           </div>

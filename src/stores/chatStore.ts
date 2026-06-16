@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { ChatReplyRef } from "@/lib/chat-reply";
-import type { ChatMessage, ChatParticipant } from "@/types/chat";
+import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
 
 /** Stable fallbacks for useSyncExternalStore selectors (never use inline `?? []`). */
 export const EMPTY_CHAT_MESSAGES: ChatMessage[] = [];
@@ -14,6 +14,12 @@ interface ChatStore {
   replyToByRoom: Record<string, ChatReplyRef | null>;
   messagesLoaded: Record<string, boolean>;
   participantsLoaded: Record<string, boolean>;
+  rooms: ChatRoom[];
+  roomsEventSlug: string | null;
+  roomsLoaded: boolean;
+  roomsLoading: boolean;
+  activeRoomId: string;
+  mobilePane: "list" | "chat";
   setMessages: (roomId: string, messages: ChatMessage[]) => void;
   appendMessage: (roomId: string, message: ChatMessage) => void;
   upsertMessage: (roomId: string, message: ChatMessage) => void;
@@ -25,6 +31,12 @@ interface ChatStore {
   setReplyTo: (roomId: string, reply: ChatReplyRef | null) => void;
   markMessagesLoaded: (roomId: string) => void;
   markParticipantsLoaded: (roomId: string) => void;
+  setRoomsForEvent: (eventSlug: string, rooms: ChatRoom[]) => void;
+  setRoomsLoading: (loading: boolean) => void;
+  addChatRoom: (room: ChatRoom) => void;
+  setActiveRoomId: (roomId: string) => void;
+  setMobilePane: (pane: "list" | "chat") => void;
+  resetRoomsForEvent: (eventSlug: string) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -35,6 +47,12 @@ export const useChatStore = create<ChatStore>((set) => ({
   replyToByRoom: {},
   messagesLoaded: {},
   participantsLoaded: {},
+  rooms: [],
+  roomsEventSlug: null,
+  roomsLoaded: false,
+  roomsLoading: false,
+  activeRoomId: "global",
+  mobilePane: "list",
 
   setMessages: (roomId, messages) =>
     set((state) => ({
@@ -144,4 +162,41 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       participantsLoaded: { ...state.participantsLoaded, [roomId]: true },
     })),
+
+  setRoomsForEvent: (eventSlug, rooms) =>
+    set((state) => ({
+      rooms,
+      roomsEventSlug: eventSlug,
+      roomsLoaded: true,
+      roomsLoading: false,
+      activeRoomId: rooms.some((room) => room.id === state.activeRoomId)
+        ? state.activeRoomId
+        : (rooms[0]?.id ?? "global"),
+    })),
+
+  setRoomsLoading: (loading) => set({ roomsLoading: loading }),
+
+  addChatRoom: (room) =>
+    set((state) => {
+      if (state.rooms.some((entry) => entry.id === room.id)) return state;
+      return { rooms: [...state.rooms, room] };
+    }),
+
+  setActiveRoomId: (roomId) => set({ activeRoomId: roomId }),
+
+  setMobilePane: (pane) => set({ mobilePane: pane }),
+
+  resetRoomsForEvent: (eventSlug) =>
+    set((state) =>
+      state.roomsEventSlug === eventSlug
+        ? state
+        : {
+            rooms: [],
+            roomsEventSlug: eventSlug,
+            roomsLoaded: false,
+            roomsLoading: false,
+            activeRoomId: "global",
+            mobilePane: "list",
+          },
+    ),
 }));

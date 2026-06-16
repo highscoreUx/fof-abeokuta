@@ -17,6 +17,7 @@ import { AgendaList } from "@/components/agenda/AgendaList";
 import { AgendaListSkeleton } from "@/components/agenda/AgendaListSkeleton";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-templates";
+import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -118,8 +119,15 @@ export function ParticipantView() {
               />
             )}
           </div>
-          {tab === "chat" && canViewChat && (
-            <ParticipantChat className="min-h-0 min-w-0 w-full flex-1 overflow-hidden" />
+          {canViewChat && (
+            <div
+              className={cn(
+                "min-h-0 min-w-0 w-full flex-1 overflow-hidden",
+                tab !== "chat" && "hidden",
+              )}
+            >
+              <ParticipantChat className="h-full" />
+            </div>
           )}
           {tab === "gallery" && canViewGallery && (
             <GalleryPanel filter={galleryFilter} team={galleryTeam} />

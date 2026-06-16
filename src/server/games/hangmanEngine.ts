@@ -14,7 +14,7 @@ import {
 import { eventRoom, hangmanMatchRoom, teamRoom, userRoom } from "@/server/socket/rooms";
 import { handleBracketGameResult } from "@/server/games/activityBracketEngine";
 import { loadBracketMatchContext } from "@/lib/activity-bracket/match-context";
-import { parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
+import { mergeSocialHangmanSettingsStorage, parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
 import { pickSocialHangmanWord } from "@/data/social-hangman/word-bank";
 import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
 
@@ -272,15 +272,32 @@ export async function startHangmanMatch(
       challenge: true,
       teamX: true,
       teamO: true,
-      chatSession: { select: { settings: true } },
+      chatSession: { select: { id: true, settings: true } },
     },
   });
   if (!match) throw new Error("Match not found.");
   if (match.state !== "WAITING") throw new Error("Match already started.");
 
-  const secretWord = match.isSocial
-    ? pickSocialHangmanWord(parseSocialHangmanSettings(match.chatSession?.settings))
-    : pickRandomWord(parseHangmanWords(match.challenge.config));
+  let secretWord: string;
+  if (match.isSocial) {
+    const settings = parseSocialHangmanSettings(match.chatSession?.settings);
+    const pick = pickSocialHangmanWord(settings);
+    secretWord = pick.word;
+    if (match.chatSession) {
+      await prisma.chatGameSession.update({
+        where: { id: match.chatSession.id },
+        data: {
+          settings: mergeSocialHangmanSettingsStorage(
+            match.chatSession.settings,
+            settings,
+            pick.topicId,
+          ),
+        },
+      });
+    }
+  } else {
+    secretWord = pickRandomWord(parseHangmanWords(match.challenge.config));
+  }
 
   await prisma.hangmanMatch.update({
     where: { id: matchId },

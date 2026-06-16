@@ -1,4 +1,4 @@
-import { getSocialHangmanTopic } from "@/data/social-hangman/topics";
+import { getSocialHangmanTopic, isSocialHangmanTopicId } from "@/data/social-hangman/topics";
 
 export type SocialHangmanSeriesMode = "single" | "race";
 export type SocialHangmanTopicMode = "random" | "topic";
@@ -91,6 +91,39 @@ export function getSocialHangmanTopicLabel(settings: SocialHangmanSettings): str
   if (settings.topicMode === "random") return "Random topics";
   if (!settings.topicId) return "Random topics";
   return getSocialHangmanTopic(settings.topicId)?.name ?? "Random topics";
+}
+
+export function parseSocialHangmanCurrentTopicId(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = (raw as { currentTopicId?: unknown }).currentTopicId;
+  if (typeof value !== "string" || !isSocialHangmanTopicId(value)) return null;
+  return value;
+}
+
+export function mergeSocialHangmanSettingsStorage(
+  existing: unknown,
+  settings: SocialHangmanSettings,
+  currentTopicId?: string | null,
+): object {
+  const payload: Record<string, unknown> = { ...settings };
+  if (currentTopicId !== undefined) {
+    if (currentTopicId) payload.currentTopicId = currentTopicId;
+  } else {
+    const prior = parseSocialHangmanCurrentTopicId(existing);
+    if (prior) payload.currentTopicId = prior;
+  }
+  return payload;
+}
+
+export function getSocialHangmanRoundTopicLabel(
+  settings: SocialHangmanSettings,
+  currentTopicId: string | null,
+): string {
+  if (settings.topicMode === "topic") {
+    return getSocialHangmanTopicLabel(settings);
+  }
+  const hint = currentTopicId ? getSocialHangmanTopic(currentTopicId)?.name : null;
+  return hint ? `Random · ${hint}` : "Random topics";
 }
 
 // Legacy helper kept for official hangman challenge config only.

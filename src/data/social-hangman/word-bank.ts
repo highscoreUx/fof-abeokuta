@@ -1,5 +1,5 @@
 import type { SocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
-import { isSocialHangmanTopicId } from "@/data/social-hangman/topics";
+import { isSocialHangmanTopicId, SOCIAL_HANGMAN_TOPIC_IDS } from "@/data/social-hangman/topics";
 import accessibility from "@/data/social-hangman/words/accessibility.json";
 import brandIdentity from "@/data/social-hangman/words/brand-identity.json";
 import colorVisual from "@/data/social-hangman/words/color-visual.json";
@@ -50,11 +50,12 @@ export function resolveSocialHangmanWordPool(settings: Pick<SocialHangmanSetting
   return getAllSocialHangmanWords();
 }
 
-export function pickSocialHangmanWord(
-  settings: Pick<SocialHangmanSettings, "topicMode" | "topicId">,
-  exclude: string[] = [],
-): string {
-  const pool = resolveSocialHangmanWordPool(settings);
+export interface SocialHangmanWordPick {
+  word: string;
+  topicId: string;
+}
+
+function pickFromPool(pool: string[], exclude: string[]): string {
   if (pool.length === 0) {
     throw new Error("No words available for the selected topic.");
   }
@@ -64,6 +65,20 @@ export function pickSocialHangmanWord(
   const source = available.length > 0 ? available : pool;
   const index = Math.floor(Math.random() * source.length);
   return source[index]!;
+}
+
+export function pickSocialHangmanWord(
+  settings: Pick<SocialHangmanSettings, "topicMode" | "topicId">,
+  exclude: string[] = [],
+): SocialHangmanWordPick {
+  if (settings.topicMode === "topic" && settings.topicId && isSocialHangmanTopicId(settings.topicId)) {
+    const words = getSocialHangmanWordsForTopic(settings.topicId);
+    return { word: pickFromPool(words, exclude), topicId: settings.topicId };
+  }
+
+  const topicId = SOCIAL_HANGMAN_TOPIC_IDS[Math.floor(Math.random() * SOCIAL_HANGMAN_TOPIC_IDS.length)]!;
+  const words = getSocialHangmanWordsForTopic(topicId);
+  return { word: pickFromPool(words, exclude), topicId };
 }
 
 export function getSocialHangmanWordBankStats() {

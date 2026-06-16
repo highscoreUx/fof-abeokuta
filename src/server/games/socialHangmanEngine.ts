@@ -1,7 +1,8 @@
 import type { Server as SocketIOServer } from "socket.io";
 import {
-  DEFAULT_SOCIAL_HANGMAN_SETTINGS,
+  mergeSocialHangmanSettingsStorage,
   normalizeSocialHangmanSettingsInput,
+  parseSocialHangmanCurrentTopicId,
   parseSocialHangmanScore,
   parseSocialHangmanSettings,
   type SocialHangmanSettings,
@@ -49,7 +50,13 @@ export function buildSocialHangmanSessionState(session: {
         : session.hangmanMatch.playerOUserId;
   }
 
-  return { settings, score, turnDeadlineAt, turnUserId };
+  return {
+    settings,
+    score,
+    turnDeadlineAt,
+    turnUserId,
+    currentTopicId: parseSocialHangmanCurrentTopicId(session.settings),
+  };
 }
 
 export function clearSocialHangmanTurnTimer(sessionId: string) {
@@ -155,13 +162,13 @@ async function startNextSocialHangmanRound(
   if (!session) return;
 
   const settings = parseSocialHangmanSettings(session.settings);
-  const secretWord = pickSocialHangmanWord(settings);
+  const pick = pickSocialHangmanWord(settings);
 
   await prisma.hangmanMatch.update({
     where: { id: params.matchId },
     data: {
       state: "ACTIVE",
-      secretWord,
+      secretWord: pick.word,
       guessedLetters: [],
       councilVotes: {},
       wrongGuessesX: 0,
@@ -171,6 +178,13 @@ async function startNextSocialHangmanRound(
       winnerTeamId: null,
       winnerUserId: null,
       finishedAt: null,
+    },
+  });
+
+  await prisma.chatGameSession.update({
+    where: { id: params.sessionId },
+    data: {
+      settings: mergeSocialHangmanSettingsStorage(session.settings, settings, pick.topicId),
     },
   });
 
@@ -287,7 +301,13 @@ export async function updateSocialHangmanSettings(params: {
 
   await prisma.chatGameSession.update({
     where: { id: session.id },
-    data: { settings: settings as object },
+    data: {
+      settings: mergeSocialHangmanSettingsStorage(
+        session.settings,
+        settings,
+        session.status === "LIVE" ? parseSocialHangmanCurrentTopicId(session.settings) : null,
+      ),
+    },
   });
 
   const io = (await import("@/server/socket/io")).tryGetIO();
@@ -369,10 +389,12 @@ export async function copySocialHangmanSessionMeta(fromSessionId: string, toSess
   const from = await prisma.chatGameSession.findUnique({ where: { id: fromSessionId } });
   if (!from || from.kind !== "hangman") return;
 
+  const settings = parseSocialHangmanSettings(from.settings);
+
   await prisma.chatGameSession.update({
     where: { id: toSessionId },
     data: {
-      settings: (from.settings ?? DEFAULT_SOCIAL_HANGMAN_SETTINGS) as object,
+      settings: mergeSocialHangmanSettingsStorage(from.settings, settings, null),
       scoreX: 0,
       scoreO: 0,
       turnDeadlineAt: null,

@@ -5,4 +5,5 @@ export interface SocialHangmanSessionState {
   score: SocialHangmanScore;
   turnDeadlineAt: number | null;
   turnUserId: string | null;
+  currentTopicId: string | null;
 }

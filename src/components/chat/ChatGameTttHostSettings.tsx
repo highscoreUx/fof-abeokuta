@@ -17,6 +17,8 @@ interface ChatGameTttHostSettingsProps {
   socialTtt?: SocialTttSessionState;
   playerXName?: string;
   playerOName?: string;
+  /** When true, format/race options are locked (match already started). */
+  lockedFormat?: boolean;
 }
 
 export function ChatGameTttHostSettings({
@@ -24,6 +26,7 @@ export function ChatGameTttHostSettings({
   socialTtt,
   playerXName = "X",
   playerOName = "O",
+  lockedFormat = false,
 }: ChatGameTttHostSettingsProps) {
   const { api } = useEventApi();
   const [open, setOpen] = useState(false);
@@ -62,7 +65,11 @@ export function ChatGameTttHostSettings({
         open={open}
         onClose={() => setOpen(false)}
         title="Host settings"
-        description="Configure the match before both players are in and the game starts."
+        description={
+          lockedFormat
+            ? "Adjust turn timer and draw rules during play. Format is locked for this series."
+            : "Configure the match before both players are in and the game starts."
+        }
         className="max-w-md"
       >
         <div className="space-y-4">
@@ -75,7 +82,7 @@ export function ChatGameTttHostSettings({
                 type="button"
                 size="sm"
                 variant={draft.seriesMode === "single" ? "primary" : "outline"}
-                disabled={busy}
+                disabled={busy || lockedFormat}
                 onClick={() => setDraft((current) => ({ ...current, seriesMode: "single" }))}
               >
                 Single game
@@ -84,12 +91,17 @@ export function ChatGameTttHostSettings({
                 type="button"
                 size="sm"
                 variant={draft.seriesMode === "race" ? "primary" : "outline"}
-                disabled={busy}
+                disabled={busy || lockedFormat}
                 onClick={() => setDraft((current) => ({ ...current, seriesMode: "race" }))}
               >
                 Race
               </Button>
             </div>
+            {lockedFormat && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Single game vs race cannot be changed mid-match.
+              </p>
+            )}
             {draft.seriesMode === "race" && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">First to</span>
@@ -99,7 +111,7 @@ export function ChatGameTttHostSettings({
                   max={9}
                   className="w-20"
                   value={draft.raceTarget}
-                  disabled={busy}
+                  disabled={busy || lockedFormat}
                   onChange={(event) =>
                     setDraft((current) => ({
                       ...current,

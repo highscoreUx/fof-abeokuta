@@ -91,13 +91,21 @@ export function ChatGameFocusView() {
     user && session?.players.some((player) => player.userId === user.id),
   );
   const isHost = user?.id === session?.hostUserId;
+  const isTttHeader =
+    session?.kind === "tic_tac_toe" &&
+    (session?.status === "lobby" || session?.status === "live");
+
+  const tttPlayerXName =
+    session?.players.find((player) => player.slot === "X")?.firstName ?? "X";
+  const tttPlayerOName =
+    session?.players.find((player) => player.slot === "O")?.firstName ?? "O";
 
   return (
     <PermissionGuard permission="participant.chat" allowAdminShell>
       <AppShell
         title={session?.title ?? "Game"}
         nav={shellNav}
-        hideMobileTitle={session?.kind === "tic_tac_toe" && session?.status === "lobby"}
+        hideMobileTitle={isTttHeader}
       >
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading game…</p>
@@ -110,7 +118,7 @@ export function ChatGameFocusView() {
           </div>
         ) : (
           <div className="space-y-4">
-            {session.kind === "tic_tac_toe" && session.status === "lobby" ? (
+            {isTttHeader ? (
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h1 className="text-xl font-semibold">{session.title}</h1>
@@ -119,12 +127,9 @@ export function ChatGameFocusView() {
                       <ChatGameTttHostSettings
                         sessionId={session.sessionId}
                         socialTtt={session.socialTtt}
-                        playerXName={
-                          session.players.find((player) => player.slot === "X")?.firstName ?? "X"
-                        }
-                        playerOName={
-                          session.players.find((player) => player.slot === "O")?.firstName ?? "O"
-                        }
+                        playerXName={tttPlayerXName}
+                        playerOName={tttPlayerOName}
+                        lockedFormat={session.status === "live"}
                       />
                     )}
                     <Button

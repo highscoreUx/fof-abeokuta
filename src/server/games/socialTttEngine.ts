@@ -280,14 +280,26 @@ export async function updateSocialTttSettings(params: {
   if (session.hostUserId !== params.userId) {
     throw new Error("Only the host can change game settings.");
   }
-  if (session.status !== "LOBBY") {
-    throw new Error("Settings can only be changed before the match starts.");
+  if (session.status !== "LOBBY" && session.status !== "LIVE") {
+    throw new Error("Settings can only be changed before the series ends.");
   }
 
-  const settings = normalizeSocialTttSettingsInput({
-    ...parseSocialTttSettings(session.settings),
-    ...params.settings,
-  });
+  const current = parseSocialTttSettings(session.settings);
+  const settings = normalizeSocialTttSettingsInput(
+    session.status === "LIVE"
+      ? {
+          ...current,
+          turnTimerEnabled:
+            params.settings.turnTimerEnabled ?? current.turnTimerEnabled,
+          turnTimerSeconds:
+            params.settings.turnTimerSeconds ?? current.turnTimerSeconds,
+          endOnDraw: params.settings.endOnDraw ?? current.endOnDraw,
+        }
+      : {
+          ...current,
+          ...params.settings,
+        },
+  );
 
   await prisma.chatGameSession.update({
     where: { id: session.id },
@@ -296,6 +308,31 @@ export async function updateSocialTttSettings(params: {
 
   const io = (await import("@/server/socket/io")).tryGetIO();
   if (io) {
+    if (session.status === "LIVE" && session.tttMatchId) {
+      const match = await prisma.ticTacToeMatch.findUnique({
+        where: { id: session.tttMatchId },
+        select: { state: true },
+      });
+      if (match?.state === "ACTIVE") {
+        if (settings.turnTimerEnabled) {
+          await scheduleSocialTttTurnTimer(io, {
+            sessionId: session.id,
+            matchId: session.tttMatchId,
+            eventSlug: params.eventSlug,
+            settings,
+          });
+        } else {
+          clearSocialTttTurnTimer(session.id);
+          await prisma.chatGameSession.update({
+            where: { id: session.id },
+            data: { turnDeadlineAt: null },
+          });
+          const { broadcastTttState } = await import("@/server/games/ticTacToeEngine");
+          await broadcastTttState(io, session.tttMatchId, params.eventSlug);
+        }
+      }
+    }
+
     const { broadcastChatGameSession } = await import("@/server/games/chatGameEngine");
     await broadcastChatGameSession(io, params.eventSlug, session.id);
   }

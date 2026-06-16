@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AddCommunityUserModal } from "@/components/platform/AddCommunityUserModal";
 import { PlatformCommunityUsersTable } from "@/components/platform/PlatformCommunityUsersTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
 interface CommunityStaffTabProps {
@@ -28,8 +28,8 @@ export function CommunityStaffTab({
 
   return (
     <>
-      <Card className="p-0 shadow-none">
-        <CardHeader className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="border-t border-border pt-4 sm:border-0 sm:pt-6">
+        <CardHeader className="mb-0 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pb-6">
           <div className="space-y-1">
             <CardTitle>Staff</CardTitle>
             <CardDescription>
@@ -42,7 +42,7 @@ export function CommunityStaffTab({
           </Button>
         </CardHeader>
 
-        <div className="p-6 pt-4">
+        <div className="pt-4 sm:pt-6">
           <PlatformCommunityUsersTable
             eventId={event.id}
             audience="staff"
@@ -51,7 +51,7 @@ export function CommunityStaffTab({
             countLabel="staff"
           />
         </div>
-      </Card>
+      </div>
 
       <AddCommunityUserModal
         open={addOpen}

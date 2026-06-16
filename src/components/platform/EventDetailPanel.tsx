@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { cn } from "@/lib/cn";
 import { CommunityStaffTab } from "@/components/platform/CommunityStaffTab";
 import { EventCustomizeTab } from "@/components/platform/EventCustomizeTab";
 import { EventParticipantsTab } from "@/components/platform/EventParticipantsTab";
@@ -98,8 +98,13 @@ export function EventDetailPanel({
   };
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="relative aspect-[21/9] max-h-56 w-full bg-muted sm:max-h-72">
+    <div
+      className={cn(
+        "-mx-3 overflow-hidden sm:mx-0",
+        "sm:rounded-xl sm:border sm:border-border sm:bg-card sm:shadow-[var(--shadow-card)]",
+      )}
+    >
+      <div className="relative aspect-[21/9] max-h-56 w-full bg-muted sm:max-h-72 sm:rounded-t-xl">
         <Image
           src={coverUrl}
           alt=""
@@ -109,14 +114,14 @@ export function EventDetailPanel({
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="absolute bottom-4 left-6 right-6 flex flex-wrap items-end justify-between gap-3">
+        <div className="absolute bottom-3 left-0 right-0 flex flex-wrap items-end justify-between gap-3 px-4 sm:bottom-4 sm:px-6">
           <div>
             <div className="mb-2 flex flex-wrap gap-2">
               {event.status === "LIVE" && <Badge variant="success">Live</Badge>}
               {event.status === "DRAFT" && <Badge variant="muted">Draft</Badge>}
               {event.status === "ARCHIVED" && <Badge variant="muted">Archived</Badge>}
             </div>
-            <h2 className="text-2xl font-bold text-white">{event.title}</h2>
+            <h2 className="text-xl font-bold text-white sm:text-2xl">{event.title}</h2>
             <p className="mt-1 text-sm text-white/80">
               /{event.slug} · {new Date(event.date).toLocaleString()}
               {typeof event.userCount === "number" ? ` · ${event.userCount} users` : ""}
@@ -144,34 +149,37 @@ export function EventDetailPanel({
         </div>
       </div>
 
-      <div className="space-y-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <SegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
+      <div className="px-4 pt-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+          <div className="overflow-x-auto sm:overflow-visible">
+            <SegmentedControl value={tab} onChange={setTab} options={TAB_OPTIONS} />
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/${event.slug}/home`} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="secondary">
-                Visit event
-              </Button>
-            </Link>
-            {event.status !== "LIVE" && (
-              <Button size="sm" disabled={statusLoading} onClick={() => updateStatus("LIVE")}>
-                Go live
-              </Button>
-            )}
-            {event.status === "LIVE" && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={statusLoading}
-                onClick={() => updateStatus("ARCHIVED")}
-              >
-                Archive
-              </Button>
-            )}
+          <Link href={`/${event.slug}/home`} target="_blank" rel="noopener noreferrer">
+            <Button size="sm" variant="secondary">
+              Visit event
+            </Button>
+          </Link>
+          {event.status !== "LIVE" && (
+            <Button size="sm" disabled={statusLoading} onClick={() => updateStatus("LIVE")}>
+              Go live
+            </Button>
+          )}
+          {event.status === "LIVE" && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={statusLoading}
+              onClick={() => updateStatus("ARCHIVED")}
+            >
+              Archive
+            </Button>
+          )}
           </div>
         </div>
 
+        <div className="mt-4 sm:mt-6">
         {tab === "settings" && <EventSettingsTab event={event} onUpdated={onUpdated} />}
         {tab === "participants" && (
           <EventParticipantsTab
@@ -188,7 +196,8 @@ export function EventDetailPanel({
           />
         )}
         {tab === "customize" && <EventCustomizeTab eventSlug={event.slug} />}
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }

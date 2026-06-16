@@ -7,7 +7,7 @@ import { PlatformCommunityUsersTable } from "@/components/platform/PlatformCommu
 import { TicketImportModal } from "@/components/platform/TicketImportModal";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlatformCreatedEventUser, PlatformEvent } from "@/types";
 
 interface EventParticipantsTabProps {
@@ -33,8 +33,8 @@ export function EventParticipantsTab({
 
   return (
     <>
-      <Card className="p-0 shadow-none">
-        <CardHeader className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="border-t border-border pt-4 sm:border-0 sm:pt-6">
+        <CardHeader className="mb-0 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pb-6">
           <div className="space-y-1">
             <CardTitle>Participants</CardTitle>
             <CardDescription>
@@ -70,7 +70,7 @@ export function EventParticipantsTab({
           </div>
         </CardHeader>
 
-        <div className="p-6 pt-4">
+        <div className="pt-4 sm:pt-6">
           <PlatformCommunityUsersTable
             eventId={event.id}
             audience="participants"
@@ -79,7 +79,7 @@ export function EventParticipantsTab({
             countLabel="participants"
           />
         </div>
-      </Card>
+      </div>
 
       <AddCommunityUserModal
         open={addOpen}

@@ -98,7 +98,7 @@ export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   type="button"
@@ -137,10 +137,10 @@ export function PlatformAppShell({ children, title, nav }: PlatformAppShellProps
             )}
           </header>
 
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
             <div className="mx-auto w-full max-w-6xl">
-              <div className="mb-6 lg:hidden">
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+              <div className="mb-4 lg:hidden">
+                <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
               </div>
               {children}
             </div>

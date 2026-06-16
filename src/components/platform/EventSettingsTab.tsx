@@ -92,7 +92,7 @@ export function EventSettingsTab({ event, onUpdated }: EventSettingsTabProps) {
   };
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+    <div className="grid gap-8 border-t border-border pt-4 sm:border-0 sm:pt-6 lg:grid-cols-2 lg:items-start">
       <section className="space-y-6">
         <div className="space-y-4">
           <div>

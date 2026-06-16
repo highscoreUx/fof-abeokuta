@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DEFAULT_LOGIN_SLIDE_PATHS, resolveLoginSlides } from "@/lib/login-slides";
 import { platformApiFetch, platformApiUpload } from "@/lib/platform-api-client";
 import { toastError, toastSuccess } from "@/lib/toast";
@@ -63,14 +63,14 @@ export function EventCustomizeTab({ eventSlug }: EventCustomizeTabProps) {
   };
 
   return (
-    <Card className="p-0 shadow-none">
-      <CardHeader className="border-b border-border p-6">
+    <div className="border-t border-border pt-4 sm:border-0 sm:pt-6">
+      <CardHeader className="mb-0 border-b border-border pb-4 sm:pb-6">
         <CardTitle>Customize</CardTitle>
         <CardDescription>
           Branding for this event — landing page layout and sign-in slideshow.
         </CardDescription>
       </CardHeader>
-      <div className="space-y-8 p-6">
+      <div className="space-y-6 pt-4 sm:space-y-8 sm:pt-6">
         <section>
           <h3 className="text-sm font-semibold">Landing page</h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -132,6 +132,6 @@ export function EventCustomizeTab({ eventSlug }: EventCustomizeTabProps) {
         </div>
         </section>
       </div>
-    </Card>
+    </div>
   );
 }

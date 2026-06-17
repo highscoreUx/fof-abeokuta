@@ -1,4 +1,10 @@
-import { normalizeSudokuGrid, sudokuPencilsForUser, toggleSudokuNote } from "@/lib/social-games/sudoku-grid";
+import {
+  normalizeSudokuGrid,
+  removeSudokuNote,
+  sudokuPencilsForUser,
+  sudokuPeerIndices,
+  toggleSudokuNote,
+} from "@/lib/social-games/sudoku-grid";
 
 /** Preset Sudoku puzzles (81 chars, 0 = empty). */
 const PUZZLES = [
@@ -104,6 +110,11 @@ export function applySudokuCell(
   const pencilRows = sudokuPencilsForUser(state.pencils, userId);
   const nextPencils = [...pencilRows];
   nextPencils[index] = value === 0 ? nextPencils[index] : "";
+  if (value >= 1 && value <= 9) {
+    for (const peerIndex of sudokuPeerIndices(index)) {
+      nextPencils[peerIndex] = removeSudokuNote(nextPencils[peerIndex] ?? "", value);
+    }
+  }
   const pencils = { ...state.pencils, [userId]: nextPencils };
 
   const completedAt = { ...state.completedAt };

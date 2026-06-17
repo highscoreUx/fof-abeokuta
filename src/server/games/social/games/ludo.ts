@@ -172,7 +172,6 @@ export function applyLudoMove(
     userId,
     piece.homeSeat,
     nextPos,
-    enteringFromYard,
   );
   allPieces = afterCapture;
 

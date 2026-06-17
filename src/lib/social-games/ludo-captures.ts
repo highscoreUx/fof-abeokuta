@@ -34,34 +34,32 @@ export function ludoIsInHomeColumn(piece: LudoPiece): boolean {
   return rel >= LUDO_TRACK_LEN - LUDO_HOME_STRETCH && rel < LUDO_TRACK_LEN;
 }
 
-export function ludoIsSafeBoardSquare(row: number, col: number): boolean {
-  return ludoCellKind(row, col) === "safe" || ludoPathStartSeat(row, col) != null;
+/** Star-marked cells on the outer track — stationary pieces here cannot be captured. */
+export function ludoIsStarSafeSquare(row: number, col: number): boolean {
+  return ludoCellKind(row, col) === "safe";
 }
 
-export function ludoIsPieceOnSafeSquare(piece: LudoPiece): boolean {
-  if (!isActiveOnBoard(piece) || ludoIsInHomeColumn(piece)) return false;
-  const { row, col } = ludoPieceCoords(piece.homeSeat, piece.position, 0);
-  return ludoIsSafeBoardSquare(row, col);
+/** Squares where two of your own tokens may share a cell (stars + colored starts). */
+export function ludoIsStackSafeSquare(row: number, col: number): boolean {
+  return ludoIsStarSafeSquare(row, col) || ludoPathStartSeat(row, col) != null;
 }
 
-export function ludoIsPieceOnStartSquare(piece: LudoPiece): boolean {
+export function ludoIsPieceOnStarSquare(piece: LudoPiece): boolean {
   if (!isActiveOnBoard(piece) || ludoIsInHomeColumn(piece)) return false;
   const { row, col } = ludoPieceCoords(piece.homeSeat, piece.position, 0);
-  return ludoPathStartSeat(row, col) != null;
+  return ludoIsStarSafeSquare(row, col);
 }
 
 /**
  * Classic Ludo: landing on an opponent on the outer track sends them home.
  * The capturing seed completes its journey and leaves the board (same as finishing).
- * Safe squares (colored starts + star cells) protect stationary pieces, except
- * entering from the yard with a 6 may capture on a colored start square.
+ * Only star cells protect stationary pieces; colored start squares do not.
  */
 export function ludoCanCaptureVictim(
   victim: LudoPiece,
   victimUserId: string,
   moverUserId: string,
   landingKey: number,
-  enteringFromYard: boolean,
 ): boolean {
   if (victimUserId === moverUserId) return false;
   if (!isActiveOnBoard(victim)) return false;
@@ -70,12 +68,11 @@ export function ludoCanCaptureVictim(
   const victimKey = ludoOuterPathKey(victim.homeSeat, victim.position);
   if (victimKey == null || victimKey !== landingKey) return false;
 
-  if (enteringFromYard && ludoIsPieceOnStartSquare(victim)) return true;
-  if (ludoIsPieceOnSafeSquare(victim)) return false;
+  if (ludoIsPieceOnStarSquare(victim)) return false;
   return true;
 }
 
-/** Cannot end a move on top of your own token except on safe squares (where stacks are allowed). */
+/** Cannot end a move on top of your own token except on stack-safe squares. */
 export function ludoCanLandAt(
   state: LudoState,
   userId: string,
@@ -98,7 +95,7 @@ export function ludoCanLandAt(
 
       if (ownerId === userId) {
         const { row, col } = ludoPieceCoords(other.homeSeat, other.position, 0);
-        if (!ludoIsSafeBoardSquare(row, col)) return false;
+        if (!ludoIsStackSafeSquare(row, col)) return false;
       }
     }
   }
@@ -111,7 +108,6 @@ export function applyLudoCaptures(
   moverUserId: string,
   movedHomeSeat: number,
   nextPos: number,
-  enteringFromYard: boolean,
 ): { pieces: Record<string, LudoPiece[]>; captured: number } {
   const landingKey = ludoOuterPathKey(movedHomeSeat, nextPos);
   if (landingKey == null) {
@@ -125,13 +121,7 @@ export function applyLudoCaptures(
     let changed = false;
     const updated = pieces.map((victim) => {
       if (
-        !ludoCanCaptureVictim(
-          victim,
-          victimUserId,
-          moverUserId,
-          landingKey,
-          enteringFromYard,
-        )
+        !ludoCanCaptureVictim(victim, victimUserId, moverUserId, landingKey)
       ) {
         return victim;
       }

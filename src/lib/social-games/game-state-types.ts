@@ -42,6 +42,8 @@ export interface LudoState {
   dice: LudoDiceRoll | null;
   playerOrder: string[];
   lastRoll: LudoDiceRoll | null;
+  /** Who rolled `lastRoll` (shown to both players after the turn ends). */
+  lastRollUserId: string | null;
   mode: "standard" | "two_player";
   /** Corners each player controls (1 corner in 4-player, 2 in 2-player DM). */
   playerSeats: Record<string, number[]>;

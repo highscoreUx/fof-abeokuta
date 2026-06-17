@@ -191,6 +191,10 @@ export function LudoLive({
     [game, user?.id],
   );
 
+  const displayedRoll = game.dice ?? game.lastRoll;
+  const rollIsActive = game.dice != null;
+  const rollOwnerId = rollIsActive ? snapshot.currentTurnUserId : game.lastRollUserId;
+
   const flipBoard = useMemo(() => {
     if (game.mode !== "two_player" || !user?.id) return false;
     return ludoFlipBoardForViewer(game.playerSeats[user.id] ?? []);
@@ -317,16 +321,18 @@ export function LudoLive({
         </div>
 
         <div className="flex w-full max-w-xs flex-col items-center gap-4">
-          {isMyTurn && game.dice != null ? (
-            <div className="flex flex-col items-center gap-2">
+          {displayedRoll != null ? (
+            <div className={`flex flex-col items-center gap-2 ${rollIsActive ? "" : "opacity-90"}`}>
               <div className="flex items-center gap-3">
-                <LudoDie value={game.dice[0]} />
-                <LudoDie value={game.dice[1]} />
+                <LudoDie value={displayedRoll[0]} />
+                <LudoDie value={displayedRoll[1]} />
               </div>
-              <p className="text-sm text-muted-foreground">
-                {myLegalMove
-                  ? `Total ${ludoDiceSum(game.dice)} — tap a seed to move`
-                  : "No legal move — passing turn…"}
+              <p className="text-center text-sm text-muted-foreground">
+                {rollIsActive && isMyTurn
+                  ? myLegalMove
+                    ? `Total ${ludoDiceSum(displayedRoll)} — tap a seed to move`
+                    : "No legal move — passing turn…"
+                  : `${playerName(snapshot, rollOwnerId)} rolled ${displayedRoll[0]} + ${displayedRoll[1]} (total ${ludoDiceSum(displayedRoll)})`}
               </p>
             </div>
           ) : (
@@ -339,11 +345,6 @@ export function LudoLive({
                   Die
                 </div>
               </div>
-              {!isMyTurn && !finished && (
-                <p className="text-sm text-muted-foreground">
-                  Waiting for {playerName(snapshot, snapshot.currentTurnUserId)} to roll
-                </p>
-              )}
             </div>
           )}
 
@@ -351,6 +352,12 @@ export function LudoLive({
             <Button size="lg" className="w-full" onClick={() => sendMove("roll")}>
               Roll dice
             </Button>
+          )}
+
+          {!isMyTurn && !finished && game.dice == null && displayedRoll == null && (
+            <p className="text-sm text-muted-foreground">
+              Waiting for {playerName(snapshot, snapshot.currentTurnUserId)} to roll
+            </p>
           )}
 
           <div className="w-full space-y-2 rounded-lg border border-border bg-muted/30 p-3">

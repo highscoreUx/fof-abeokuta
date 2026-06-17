@@ -159,6 +159,7 @@ export function normalizeLudoState(raw: unknown): LudoState {
       dice: null,
       playerOrder: [],
       lastRoll: null,
+      lastRollUserId: null,
       mode: "standard",
       playerSeats: {},
     };
@@ -221,6 +222,8 @@ export function normalizeLudoState(raw: unknown): LudoState {
     dice,
     playerOrder,
     lastRoll,
+    lastRollUserId:
+      typeof value.lastRollUserId === "string" ? value.lastRollUserId : null,
     mode,
     playerSeats,
   };

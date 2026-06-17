@@ -62,6 +62,7 @@ export function createLudoState(playerIds: string[]): LudoState {
     dice: null,
     playerOrder: [...playerIds],
     lastRoll: null,
+    lastRollUserId: null,
     mode,
     playerSeats,
   };
@@ -80,12 +81,16 @@ export function ludoIsDoubles(dice: LudoDiceRoll): boolean {
 }
 
 export function passLudoTurn(state: LudoState, userId: string): LudoState {
-  return { ...state, dice: null };
+  return {
+    ...state,
+    dice: null,
+    lastRollUserId: state.lastRollUserId ?? userId,
+  };
 }
 
-export function rollLudoDice(state: LudoState): LudoState {
+export function rollLudoDice(state: LudoState, userId: string): LudoState {
   const dice: LudoDiceRoll = [rollDie(), rollDie()];
-  return { ...state, dice, lastRoll: dice };
+  return { ...state, dice, lastRoll: dice, lastRollUserId: userId };
 }
 
 export function applyLudoMove(

@@ -152,7 +152,7 @@ const ludoHandler: SocialGameHandler = {
       if (s.dice != null) {
         return { state: s, winnerUserId: null, nextTurnUserId: ctx.userId, error: "Already rolled." };
       }
-      const rolled = rollLudoDice(s);
+      const rolled = rollLudoDice(s, ctx.userId);
       if (!ludoHasLegalMove(rolled, ctx.userId)) {
         return {
           state: passLudoTurn(rolled, ctx.userId),

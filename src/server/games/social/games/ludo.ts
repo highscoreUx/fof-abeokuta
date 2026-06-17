@@ -6,6 +6,7 @@ import {
   ludoFinishPosition,
   ludoHasLegalMove,
   ludoIsDoubleSix,
+  ludoIsPieceFinished,
   ludoIsPieceOnTrack,
   ludoLegalChoicesForPiece,
   ludoMarkDiceUsed,
@@ -175,9 +176,7 @@ export function applyLudoMove(
   );
   allPieces = afterCapture;
 
-  const winnerUserId = (allPieces[userId] ?? []).every(
-    (entry) => entry.position >= ludoFinishPosition(entry.homeSeat),
-  )
+  const winnerUserId = (allPieces[userId] ?? []).every((entry) => ludoIsPieceFinished(entry))
     ? userId
     : null;
 

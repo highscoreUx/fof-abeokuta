@@ -200,7 +200,7 @@ export function ludoPieceCoords(
     return { row: cell[0], col: cell[1] };
   }
 
-  const pathIndex = position % LUDO_PATH.length;
+  const pathIndex = (start + rel) % LUDO_PATH.length;
   const pathCell = LUDO_PATH[pathIndex] ?? LUDO_PATH[0]!;
   return { row: pathCell[0], col: pathCell[1] };
 }

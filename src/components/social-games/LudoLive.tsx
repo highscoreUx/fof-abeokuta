@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { LudoDieChoice, LudoState } from "@/lib/social-games/game-state-types";
+import { LUDO_HOME } from "@/lib/social-games/ludo-board-layout";
 import {
   DEFAULT_SOCIAL_LUDO_SETTINGS,
   type SocialLudoSettings,
@@ -36,6 +37,7 @@ import {
   ludoFlipBoardForViewer,
   ludoHasLegalMove,
   ludoIsPieceAtHome,
+  ludoIsPieceFinished,
   ludoLegalChoicesForPiece,
   ludoPieceHasLegalMove,
   ludoRemainingDice,
@@ -297,29 +299,45 @@ export function LudoLive({
       return;
     }
 
-    let movedKey: string | null = null;
-    let fromPosition = 0;
-    let toPosition = 0;
-    let homeSeat = 0;
-    let yardIndex = 0;
+    const changes: Array<{
+      key: string;
+      fromPosition: number;
+      toPosition: number;
+      homeSeat: number;
+      yardIndex: number;
+    }> = [];
 
     for (const [key, curr] of current) {
       const prev = prevPositionsRef.current.get(key);
       if (prev && prev.position !== curr.position) {
-        movedKey = key;
-        fromPosition = prev.position;
-        toPosition = curr.position;
-        homeSeat = curr.homeSeat;
-        yardIndex = curr.yardIndex;
-        break;
+        changes.push({
+          key,
+          fromPosition: prev.position,
+          toPosition: curr.position,
+          homeSeat: curr.homeSeat,
+          yardIndex: curr.yardIndex,
+        });
       }
     }
 
     prevPositionsRef.current = current;
-    if (!movedKey) return;
+    if (!changes.length) return;
 
-    const frames = ludoMoveAnimationFrames(homeSeat, fromPosition, toPosition, yardIndex);
-    runPieceAnimation(movedKey, frames);
+    const forward = changes.filter(
+      (change) =>
+        change.toPosition >= 0 &&
+        (change.fromPosition < LUDO_HOME || change.toPosition > change.fromPosition),
+    );
+    const picked = forward[0];
+    if (!picked) return;
+
+    const frames = ludoMoveAnimationFrames(
+      picked.homeSeat,
+      picked.fromPosition,
+      picked.toPosition,
+      picked.yardIndex,
+    );
+    runPieceAnimation(picked.key, frames);
   }, [layoutKey, showAnimations]);
 
   const tokens = useMemo(() => {
@@ -622,8 +640,11 @@ export function LudoLive({
             {activePlayers.map((player) => {
               const corners = game.playerSeats[player.userId] ?? [];
               const pieceCount = game.pieces[player.userId]?.length ?? 0;
-              const inHome = (game.pieces[player.userId] ?? []).filter((piece) =>
+              const inYard = (game.pieces[player.userId] ?? []).filter((piece) =>
                 ludoIsPieceAtHome(piece),
+              ).length;
+              const done = (game.pieces[player.userId] ?? []).filter((piece) =>
+                ludoIsPieceFinished(piece),
               ).length;
               const isActive = snapshot.currentTurnUserId === player.userId;
               return (
@@ -642,7 +663,8 @@ export function LudoLive({
                   </span>
                   <span className="flex-1">{player.firstName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {inHome}/{pieceCount} home
+                    {done > 0 ? `${done} done · ` : ""}
+                    {inYard}/{pieceCount} in yard
                   </span>
                 </div>
               );

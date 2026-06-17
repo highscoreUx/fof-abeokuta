@@ -1,4 +1,5 @@
 import type { LudoDieChoice, LudoDiceRoll, LudoPiece, LudoState } from "@/lib/social-games/game-state-types";
+import { LUDO_TRACK_LEN } from "@/lib/social-games/ludo-board-layout";
 import { ludoCanLandAt } from "@/lib/social-games/ludo-captures";
 
 const TRACK_LEN = 52;
@@ -47,15 +48,23 @@ export function ludoStepsForChoice(state: LudoState, choice: LudoDieChoice): num
   return state.dice[choice];
 }
 
+export function ludoIsPieceFinished(piece: LudoPiece): boolean {
+  if (piece.position == null || piece.position < 0) return false;
+  const start = ludoStartSquare(piece.homeSeat);
+  const rel = piece.position - start;
+  return rel >= LUDO_TRACK_LEN;
+}
+
+/** On the shared outer ring or colored home column (not yard, not finished). */
 export function ludoIsPieceOnTrack(piece: LudoPiece): boolean {
   if (piece.position == null || piece.position < 0) return false;
   const start = ludoStartSquare(piece.homeSeat);
-  const finish = ludoFinishLine(piece.homeSeat);
-  return piece.position >= start && piece.position <= finish;
+  const rel = piece.position - start;
+  return rel >= 0 && rel < LUDO_TRACK_LEN;
 }
 
 export function ludoIsPieceAtHome(piece: LudoPiece): boolean {
-  return !ludoIsPieceOnTrack(piece);
+  return piece.position == null || piece.position < 0;
 }
 
 /** Enter yard only with a single die showing 6; track moves use die pips or both-dice sum. */
@@ -66,7 +75,9 @@ export function ludoCanMovePieceWithSteps(
   steps: number,
 ): boolean {
   if (!ludoIsPieceOnTrack(piece)) {
-    return steps === 6;
+    if (steps !== 6) return false;
+    const enterPos = ludoEnterPosition(piece.homeSeat);
+    return ludoCanLandAt(state, userId, piece, enterPos);
   }
   const nextPos = piece.position + steps;
   if (nextPos > ludoFinishLine(piece.homeSeat)) return false;

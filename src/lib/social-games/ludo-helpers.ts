@@ -17,6 +17,7 @@ export {
   ludoIsDoubles,
   ludoIsDoubleSix,
   ludoIsPieceAtHome,
+  ludoIsPieceFinished,
   ludoIsPieceOnTrack,
   ludoLegalChoicesForPiece,
   ludoMarkDiceUsed,

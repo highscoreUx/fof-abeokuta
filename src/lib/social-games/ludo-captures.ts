@@ -11,11 +11,11 @@ import {
   ludoStartSquare,
 } from "@/lib/social-games/ludo-board-layout";
 
-function isOnOuterOrHomeTrack(piece: LudoPiece): boolean {
+function isActiveOnBoard(piece: LudoPiece): boolean {
   if (piece.position == null || piece.position < 0) return false;
   const start = ludoStartSquare(piece.homeSeat);
-  const finish = ludoFinishLine(piece.homeSeat);
-  return piece.position >= start && piece.position <= finish;
+  const rel = piece.position - start;
+  return rel >= 0 && rel < LUDO_TRACK_LEN;
 }
 
 /** Shared outer-ring cell index (0–51) for a token on the main track. */
@@ -24,11 +24,11 @@ export function ludoOuterPathKey(homeSeat: number, position: number): number | n
   const start = ludoStartSquare(homeSeat);
   const rel = position - start;
   if (rel < 0 || rel >= LUDO_TRACK_LEN - LUDO_HOME_STRETCH) return null;
-  return position % LUDO_PATH.length;
+  return (start + rel) % LUDO_PATH.length;
 }
 
 export function ludoIsInHomeColumn(piece: LudoPiece): boolean {
-  if (!isOnOuterOrHomeTrack(piece)) return false;
+  if (!isActiveOnBoard(piece)) return false;
   const start = ludoStartSquare(piece.homeSeat);
   const rel = piece.position - start;
   return rel >= LUDO_TRACK_LEN - LUDO_HOME_STRETCH && rel < LUDO_TRACK_LEN;
@@ -39,13 +39,13 @@ export function ludoIsSafeBoardSquare(row: number, col: number): boolean {
 }
 
 export function ludoIsPieceOnSafeSquare(piece: LudoPiece): boolean {
-  if (!isOnOuterOrHomeTrack(piece)) return false;
+  if (!isActiveOnBoard(piece) || ludoIsInHomeColumn(piece)) return false;
   const { row, col } = ludoPieceCoords(piece.homeSeat, piece.position, 0);
   return ludoIsSafeBoardSquare(row, col);
 }
 
 export function ludoIsPieceOnStartSquare(piece: LudoPiece): boolean {
-  if (!isOnOuterOrHomeTrack(piece)) return false;
+  if (!isActiveOnBoard(piece) || ludoIsInHomeColumn(piece)) return false;
   const { row, col } = ludoPieceCoords(piece.homeSeat, piece.position, 0);
   return ludoPathStartSeat(row, col) != null;
 }
@@ -63,7 +63,7 @@ export function ludoCanCaptureVictim(
   enteringFromYard: boolean,
 ): boolean {
   if (victimUserId === moverUserId) return false;
-  if (!isOnOuterOrHomeTrack(victim)) return false;
+  if (!isActiveOnBoard(victim)) return false;
   if (ludoIsInHomeColumn(victim)) return false;
 
   const victimKey = ludoOuterPathKey(victim.homeSeat, victim.position);

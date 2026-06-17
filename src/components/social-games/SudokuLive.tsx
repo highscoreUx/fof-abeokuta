@@ -56,9 +56,11 @@ function cellHighlightClass({
       ? "bg-red-200 font-semibold text-red-900"
       : "bg-red-100 font-medium text-red-800";
   }
-  if (isSelected) return "bg-primary/20 font-semibold text-foreground ring-2 ring-inset ring-primary";
-  if (isSameNumber) return "bg-amber-100 font-medium text-amber-950";
-  if (isPeer) return "bg-primary/10";
+  if (isSelected) {
+    return "bg-surface font-semibold text-foreground ring-2 ring-inset ring-primary";
+  }
+  if (isSameNumber) return "bg-accent-light font-medium text-foreground";
+  if (isPeer) return "bg-accent-light";
   if (fixed) return "bg-muted font-semibold text-foreground";
   return "bg-card";
 }
@@ -85,6 +87,7 @@ export function SudokuLive({
   const [pencilMode, setPencilMode] = useState(false);
   const [now, setNow] = useState(() => snapshot.serverNow);
   const gridRef = useRef<HTMLDivElement>(null);
+  const selectionControlsRef = useRef<HTMLDivElement>(null);
   const finished = snapshot.status === "FINISHED";
 
   const startedAt = game.startedAt ?? snapshot.serverNow;
@@ -138,6 +141,16 @@ export function SudokuLive({
     },
     [finished],
   );
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const controls = selectionControlsRef.current;
+      if (!controls || controls.contains(event.target as Node)) return;
+      setSelected(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -255,14 +268,15 @@ export function SudokuLive({
         </div>
       )}
 
+      <div ref={selectionControlsRef}>
       <div
         ref={gridRef}
         tabIndex={0}
         role="grid"
         aria-label="Sudoku board"
-        className="mx-auto w-full max-w-[18rem] outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+        className="mx-auto w-full max-w-[18rem] outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 rounded-lg"
       >
-        <div className="grid aspect-square w-full grid-cols-9 grid-rows-9 gap-px rounded-lg border-2 border-foreground/80 bg-foreground/80 p-px">
+        <div className="grid aspect-square w-full grid-cols-9 grid-rows-9 gap-px rounded-lg border-2 border-border bg-border p-px">
           {Array.from({ length: 81 }, (_, index) => {
             const cell = myBoard[index] ?? "0";
             const fixed = puzzle[index] !== "0";
@@ -322,6 +336,7 @@ export function SudokuLive({
           </Button>
         </div>
       )}
+      </div>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">
         {pencilMode

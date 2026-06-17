@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import {
   LUDO_CENTER_FINISH_WEDGES,
   LUDO_GRID,
-  LUDO_HOME,
   LUDO_PLAYER_COLORS,
   LUDO_PLAYER_NAMES,
   LUDO_SEEDS_PER_CORNER,
@@ -21,7 +20,7 @@ import {
   ludoPieceCoords,
   ludoYardSeat,
 } from "@/lib/social-games/ludo-board-layout";
-import { ludoCanMovePiece, ludoDiceSum, ludoFlipBoardForViewer, ludoHasLegalMove, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
+import { ludoCanMovePiece, ludoDiceSum, ludoFlipBoardForViewer, ludoHasLegalMove, ludoIsPieceAtHome, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
 
 function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | undefined) {
   if (!userId) return "Player";
@@ -197,6 +196,18 @@ export function LudoLive({
     return ludoFlipBoardForViewer(game.playerSeats[user.id] ?? []);
   }, [game.mode, game.playerSeats, user?.id]);
 
+  const autoPassKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || !isMyTurn || finished || game.dice == null) return;
+    if (ludoHasLegalMove(game, user.id)) return;
+
+    const key = `${game.dice[0]}-${game.dice[1]}-${snapshot.currentTurnUserId}`;
+    if (autoPassKeyRef.current === key) return;
+    autoPassKeyRef.current = key;
+    sendMove("pass");
+  }, [user?.id, isMyTurn, finished, game, snapshot.currentTurnUserId, sendMove]);
+
   return (
     <Card className="p-4">
       <CardTitle className="mb-2 text-center text-base">
@@ -306,7 +317,7 @@ export function LudoLive({
         </div>
 
         <div className="flex w-full max-w-xs flex-col items-center gap-4">
-          {game.dice != null ? (
+          {isMyTurn && game.dice != null ? (
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center gap-3">
                 <LudoDie value={game.dice[0]} />
@@ -315,19 +326,24 @@ export function LudoLive({
               <p className="text-sm text-muted-foreground">
                 {myLegalMove
                   ? `Total ${ludoDiceSum(game.dice)} — tap a seed to move`
-                  : isMyTurn
-                    ? "No legal move — turn passes to opponent"
-                    : `Rolled ${ludoDiceSum(game.dice)}`}
+                  : "No legal move — passing turn…"}
               </p>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 text-xs text-muted-foreground sm:h-16 sm:w-16">
-                Die
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 text-xs text-muted-foreground sm:h-16 sm:w-16">
+                  Die
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 text-xs text-muted-foreground sm:h-16 sm:w-16">
+                  Die
+                </div>
               </div>
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 text-xs text-muted-foreground sm:h-16 sm:w-16">
-                Die
-              </div>
+              {!isMyTurn && !finished && (
+                <p className="text-sm text-muted-foreground">
+                  Waiting for {playerName(snapshot, snapshot.currentTurnUserId)} to roll
+                </p>
+              )}
             </div>
           )}
 
@@ -341,8 +357,8 @@ export function LudoLive({
             {activePlayers.map((player) => {
               const corners = game.playerSeats[player.userId] ?? [];
               const pieceCount = game.pieces[player.userId]?.length ?? 0;
-              const inHome = (game.pieces[player.userId] ?? []).filter(
-                (piece) => piece.position === LUDO_HOME,
+              const inHome = (game.pieces[player.userId] ?? []).filter((piece) =>
+                ludoIsPieceAtHome(piece),
               ).length;
               const isActive = snapshot.currentTurnUserId === player.userId;
               return (

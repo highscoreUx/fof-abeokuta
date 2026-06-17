@@ -73,10 +73,16 @@ function pieceColor(piece: string | null): "w" | "b" | null {
   return piece === piece.toUpperCase() ? "w" : "b";
 }
 
-function useSocialGameState(matchId: string) {
+function useSocialGameState(matchId: string, sessionId?: string) {
   const socket = useSocket();
   const [state, setState] = useState<SocialGameMatchSnapshot | null>(null);
   const joinedMatchId = useRef<string | null>(null);
+
+  const requestState = () => {
+    if (!socket || !matchId) return;
+    joinedMatchId.current = matchId;
+    socket.emit("social-game:join", matchId);
+  };
 
   useEffect(() => {
     setState(null);
@@ -100,9 +106,35 @@ function useSocialGameState(matchId: string) {
   useEffect(() => {
     if (!socket || !matchId) return;
     if (joinedMatchId.current === matchId) return;
-    joinedMatchId.current = matchId;
-    socket.emit("social-game:join", matchId);
+    requestState();
   }, [socket, matchId]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onConnect = () => {
+      joinedMatchId.current = null;
+      requestState();
+    };
+    socket.on("connect", onConnect);
+    return () => {
+      socket.off("connect", onConnect);
+    };
+  }, [socket, matchId]);
+
+  useEffect(() => {
+    if (!socket || !sessionId) return;
+
+    const onChatState = (snapshot: { sessionId: string; status: string }) => {
+      if (snapshot.sessionId !== sessionId || snapshot.status !== "live") return;
+      joinedMatchId.current = null;
+      requestState();
+    };
+
+    socket.on("chat:game:state", onChatState);
+    return () => {
+      socket.off("chat:game:state", onChatState);
+    };
+  }, [socket, sessionId, matchId]);
 
   const sendMove = (action: string, payload: Record<string, unknown> = {}) => {
     if (!socket) return;
@@ -324,8 +356,8 @@ function SudokuLive({
   );
 }
 
-export function SocialGameMatchLive({ matchId, kind, chessSettings }: SocialGameMatchLiveProps) {
-  const { state, sendMove } = useSocialGameState(matchId);
+export function SocialGameMatchLive({ matchId, kind, sessionId, chessSettings }: SocialGameMatchLiveProps) {
+  const { state, sendMove } = useSocialGameState(matchId, sessionId);
 
   if (!state) {
     return (

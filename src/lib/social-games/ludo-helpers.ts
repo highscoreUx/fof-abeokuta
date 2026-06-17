@@ -47,6 +47,42 @@ export function ludoHasSix(dice: LudoDiceRoll): boolean {
   return dice[0] === 6 || dice[1] === 6;
 }
 
+/** Normalize + bind seats/pieces to the live player list from the chat session. */
+export function prepareLudoStateForPlay(raw: unknown, playerIds: string[]): LudoState {
+  const normalized = normalizeLudoState(raw) as LudoState;
+  const playerOrder = playerIds.length > 0 ? [...playerIds] : normalized.playerOrder;
+  const playerSeats = { ...normalized.playerSeats };
+  const pieces: Record<string, LudoPiece[]> = { ...normalized.pieces };
+
+  playerOrder.forEach((userId, index) => {
+    if (!playerSeats[userId]?.length) {
+      playerSeats[userId] = cornersForPlayer(index, playerOrder.length);
+    }
+
+    const existing = pieces[userId];
+    if (!existing?.length) {
+      pieces[userId] = defaultPieces(index, playerOrder.length);
+      return;
+    }
+
+    pieces[userId] = existing.map((piece, pieceIndex) => ({
+      id: piece.id ?? pieceIndex,
+      position: coerceLudoPosition(piece.position),
+      homeSeat:
+        typeof piece.homeSeat === "number"
+          ? piece.homeSeat
+          : (playerSeats[userId]?.[0] ?? index),
+    }));
+  });
+
+  return {
+    ...normalized,
+    playerOrder,
+    playerSeats,
+    pieces,
+  };
+}
+
 const LUDO_TRACK_LEN = 52;
 
 function ludoStartSquare(homeSeat: number): number {
@@ -57,8 +93,24 @@ function ludoFinishLine(homeSeat: number): number {
   return ludoStartSquare(homeSeat) + LUDO_TRACK_LEN;
 }
 
+function coerceLudoPosition(position: number | undefined | null): number {
+  if (position == null) return HOME;
+  return position;
+}
+
+export function ludoIsPieceOnTrack(piece: LudoPiece): boolean {
+  if (piece.position == null || piece.position < 0) return false;
+  const start = ludoStartSquare(piece.homeSeat);
+  const finish = ludoFinishLine(piece.homeSeat);
+  return piece.position >= start && piece.position <= finish;
+}
+
+export function ludoIsPieceAtHome(piece: LudoPiece): boolean {
+  return !ludoIsPieceOnTrack(piece);
+}
+
 export function ludoCanMovePiece(piece: LudoPiece, dice: LudoDiceRoll): boolean {
-  if (piece.position === HOME) {
+  if (!ludoIsPieceOnTrack(piece)) {
     return ludoHasSix(dice);
   }
   const nextPos = piece.position + ludoDiceSum(dice);

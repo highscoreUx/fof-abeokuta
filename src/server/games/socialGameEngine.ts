@@ -108,6 +108,15 @@ export async function broadcastSocialGameState(
     io.to(room).emit("social-game:state", snapshot);
   }
 
+  if (match?.chatSession) {
+    for (const participant of match.chatSession.participants) {
+      const personal = await buildSocialGameSnapshot(matchId, participant.userId);
+      if (personal) {
+        io.to(userRoom(participant.userId)).emit("social-game:state", personal);
+      }
+    }
+  }
+
   return snapshot;
 }
 
@@ -179,6 +188,14 @@ export async function applySocialGameMove(params: {
   const io = tryGetIO();
   if (io) {
     await broadcastSocialGameState(io, match.id, params.eventSlug);
+    const chatSession = await prisma.chatGameSession.findFirst({
+      where: { socialMatchId: match.id },
+      select: { id: true },
+    });
+    if (chatSession) {
+      const { broadcastChatGameSession } = await import("@/server/games/chatGameEngine");
+      await broadcastChatGameSession(io, params.eventSlug, chatSession.id);
+    }
     if (finished) {
       const { completeSocialJsonGame } = await import("@/server/games/chatGameEngine");
       await completeSocialJsonGame(match.id, params.eventSlug);

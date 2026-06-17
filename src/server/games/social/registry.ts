@@ -7,7 +7,10 @@ import {
   nextLudoPlayer,
   ludoHasLegalMove,
   ludoIsDoubles,
+  passLudoTurn,
 } from "@/server/games/social/games/ludo";
+import { prepareLudoStateForPlay } from "@/lib/social-games/ludo-helpers";
+import type { LudoState } from "@/lib/social-games/game-state-types";
 import { createSudokuState, applySudokuCell } from "@/server/games/social/games/sudoku";
 import {
   createWhotState,
@@ -129,7 +132,21 @@ const ludoHandler: SocialGameHandler = {
   createInitialState: (ctx) => createLudoState(ctx.playerIds),
   getFirstTurnUserId: (_state, playerIds) => playerIds[0] ?? null,
   applyMove: (state, ctx) => {
-    const s = state as ReturnType<typeof createLudoState>;
+    const s = prepareLudoStateForPlay(state, ctx.playerIds) as LudoState;
+
+    if (ctx.action === "pass") {
+      if (s.dice == null) {
+        return { state: s, winnerUserId: null, nextTurnUserId: ctx.userId, error: "Nothing to pass." };
+      }
+      if (ludoHasLegalMove(s, ctx.userId)) {
+        return { state: s, winnerUserId: null, nextTurnUserId: ctx.userId, error: "You have a legal move." };
+      }
+      return {
+        state: passLudoTurn(s, ctx.userId),
+        winnerUserId: null,
+        nextTurnUserId: nextLudoPlayer(s, ctx.userId),
+      };
+    }
 
     if (ctx.action === "roll") {
       if (s.dice != null) {
@@ -138,7 +155,7 @@ const ludoHandler: SocialGameHandler = {
       const rolled = rollLudoDice(s);
       if (!ludoHasLegalMove(rolled, ctx.userId)) {
         return {
-          state: { ...rolled, dice: null },
+          state: passLudoTurn(rolled, ctx.userId),
           winnerUserId: null,
           nextTurnUserId: nextLudoPlayer(rolled, ctx.userId),
         };

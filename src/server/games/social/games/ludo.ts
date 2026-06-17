@@ -4,6 +4,7 @@ import {
   ludoDiceSum,
   ludoHasLegalMove,
   ludoHasSix,
+  ludoIsPieceOnTrack,
 } from "@/lib/social-games/ludo-helpers";
 
 export { ludoDiceSum, ludoHasLegalMove, ludoHasSix } from "@/lib/social-games/ludo-helpers";
@@ -78,6 +79,10 @@ export function ludoIsDoubles(dice: LudoDiceRoll): boolean {
   return dice[0] === dice[1];
 }
 
+export function passLudoTurn(state: LudoState, userId: string): LudoState {
+  return { ...state, dice: null };
+}
+
 export function rollLudoDice(state: LudoState): LudoState {
   const dice: LudoDiceRoll = [rollDie(), rollDie()];
   return { ...state, dice, lastRoll: dice };
@@ -108,7 +113,7 @@ export function applyLudoMove(
   const steps = ludoDiceSum(dice);
   let nextPos = piece.position;
 
-  if (piece.position === HOME) {
+  if (!ludoIsPieceOnTrack(piece)) {
     if (!ludoHasSix(dice)) {
       return { state, winnerUserId: null, error: "Need a 6 on either die to leave home." };
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { LudoDieChoice } from "@/lib/social-games/game-state-types";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,19 @@ import {
   ludoPieceCoords,
   ludoYardSeat,
 } from "@/lib/social-games/ludo-board-layout";
-import { ludoCanMovePiece, ludoDiceSum, ludoFlipBoardForViewer, ludoHasLegalMove, ludoIsPieceAtHome, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
+import {
+  ludoDiceSum,
+  ludoDiceUsed,
+  ludoDieChoiceLabel,
+  ludoFlipBoardForViewer,
+  ludoHasLegalMove,
+  ludoIsPieceAtHome,
+  ludoLegalChoicesForPiece,
+  ludoPieceHasLegalMove,
+  ludoRemainingDice,
+  ludoYardSlotIndex,
+  normalizeLudoState,
+} from "@/lib/social-games/ludo-helpers";
 
 function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | undefined) {
   if (!userId) return "Player";
@@ -28,7 +41,7 @@ function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | u
   return player?.firstName ?? "Player";
 }
 
-function LudoDie({ value }: { value: number }) {
+function LudoDie({ value, used = false }: { value: number; used?: boolean }) {
   const dots: Record<number, number[][]> = {
     1: [[1, 1]],
     2: [
@@ -64,7 +77,11 @@ function LudoDie({ value }: { value: number }) {
   };
 
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white shadow-lg sm:h-16 sm:w-16">
+    <div
+      className={`flex h-14 w-14 items-center justify-center rounded-xl border-2 bg-white shadow-lg sm:h-16 sm:w-16 ${
+        used ? "border-neutral-200 opacity-40" : "border-neutral-300"
+      }`}
+    >
       <div className="grid h-10 w-10 grid-cols-3 grid-rows-3 gap-0.5">
         {Array.from({ length: 9 }).map((_, index) => {
           const row = Math.floor(index / 3);
@@ -146,6 +163,7 @@ export function LudoLive({
 }) {
   const { user } = useAuth();
   const game = useMemo(() => normalizeLudoState(snapshot.state), [snapshot.state]);
+  const [pendingPieceId, setPendingPieceId] = useState<number | null>(null);
   const myPieces = user?.id ? (game.pieces[user.id] ?? []) : [];
   const isMyTurn = snapshot.currentTurnUserId === user?.id;
   const finished = snapshot.status === "FINISHED";
@@ -194,6 +212,28 @@ export function LudoLive({
   const displayedRoll = game.dice ?? game.lastRoll;
   const rollIsActive = game.dice != null;
   const rollOwnerId = rollIsActive ? snapshot.currentTurnUserId : game.lastRollUserId;
+  const diceUsed = ludoDiceUsed(game);
+  const remainingDice = ludoRemainingDice(game);
+
+  const pendingPiece = pendingPieceId != null ? myPieces.find((p) => p.id === pendingPieceId) : null;
+  const pendingChoices =
+    pendingPiece && game.dice ? ludoLegalChoicesForPiece(game, pendingPiece) : [];
+
+  useEffect(() => {
+    setPendingPieceId(null);
+  }, [game.dice, game.diceUsed, snapshot.currentTurnUserId]);
+
+  const handleSeedClick = (pieceId: number) => {
+    const piece = myPieces.find((entry) => entry.id === pieceId);
+    if (!piece || !game.dice) return;
+    const choices = ludoLegalChoicesForPiece(game, piece);
+    if (!choices.length) return;
+    if (choices.length === 1) {
+      sendMove("move", { pieceId, dieChoice: choices[0] });
+      return;
+    }
+    setPendingPieceId(pieceId);
+  };
 
   const flipBoard = useMemo(() => {
     if (game.mode !== "two_player" || !user?.id) return false;
@@ -294,16 +334,20 @@ export function LudoLive({
                       isMine &&
                       game.dice != null &&
                       piece != null &&
-                      ludoCanMovePiece(piece, game.dice);
+                      ludoPieceHasLegalMove(game, piece);
 
                     return (
                       <button
                         key={`${token.userId}-${token.pieceId}`}
                         type="button"
                         disabled={!canSelect}
-                        onClick={() => canSelect && sendMove("move", { pieceId: token.pieceId })}
+                        onClick={() => canSelect && handleSeedClick(token.pieceId)}
                         className={`absolute z-10 h-[54%] w-[54%] rounded-full border-2 border-white shadow-md transition ${
-                          canSelect ? "cursor-pointer ring-2 ring-amber-400 hover:scale-110" : ""
+                          canSelect
+                            ? pendingPieceId === token.pieceId
+                              ? "cursor-pointer ring-2 ring-primary scale-110"
+                              : "cursor-pointer ring-2 ring-amber-400 hover:scale-110"
+                            : ""
                         }`}
                         style={{
                           backgroundColor: color,
@@ -324,15 +368,17 @@ export function LudoLive({
           {displayedRoll != null ? (
             <div className={`flex flex-col items-center gap-2 ${rollIsActive ? "" : "opacity-90"}`}>
               <div className="flex items-center gap-3">
-                <LudoDie value={displayedRoll[0]} />
-                <LudoDie value={displayedRoll[1]} />
+                <LudoDie value={displayedRoll[0]} used={rollIsActive && diceUsed[0]} />
+                <LudoDie value={displayedRoll[1]} used={rollIsActive && diceUsed[1]} />
               </div>
               <p className="text-center text-sm text-muted-foreground">
                 {rollIsActive && isMyTurn
                   ? myLegalMove
-                    ? `Total ${ludoDiceSum(displayedRoll)} — tap a seed to move`
+                    ? remainingDice.length === 2
+                      ? "Tap a seed — use one die, the other, or both combined"
+                      : `Use your remaining die (${remainingDice.map((d) => d.value).join(", ")})`
                     : "No legal move — passing turn…"
-                  : `${playerName(snapshot, rollOwnerId)} rolled ${displayedRoll[0]} + ${displayedRoll[1]} (total ${ludoDiceSum(displayedRoll)})`}
+                  : `${playerName(snapshot, rollOwnerId)} rolled ${displayedRoll[0]} + ${displayedRoll[1]}`}
               </p>
             </div>
           ) : (
@@ -344,6 +390,34 @@ export function LudoLive({
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 text-xs text-muted-foreground sm:h-16 sm:w-16">
                   Die
                 </div>
+              </div>
+            </div>
+          )}
+
+          {pendingPiece && pendingChoices.length > 1 && (
+            <div className="w-full space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-center text-xs font-medium text-muted-foreground">
+                Which die for this seed?
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {pendingChoices.map((choice) => (
+                  <Button
+                    key={String(choice)}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      sendMove("move", { pieceId: pendingPiece.id, dieChoice: choice });
+                      setPendingPieceId(null);
+                    }}
+                  >
+                    {choice === "sum"
+                      ? `Both (${ludoDiceSum(game.dice!)})`
+                      : `Die ${ludoDieChoiceLabel(game, choice as LudoDieChoice)}`}
+                  </Button>
+                ))}
+                <Button size="sm" variant="ghost" onClick={() => setPendingPieceId(null)}>
+                  Cancel
+                </Button>
               </div>
             </div>
           )}

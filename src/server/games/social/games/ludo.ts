@@ -1,13 +1,23 @@
-import type { LudoDiceRoll, LudoPiece, LudoState } from "@/lib/social-games/game-state-types";
+import type { LudoDieChoice, LudoDiceRoll, LudoPiece, LudoState } from "@/lib/social-games/game-state-types";
 import { LUDO_SEEDS_PER_CORNER, LUDO_TWO_PLAYER_SEATS } from "@/lib/social-games/game-state-types";
 import {
+  ludoDiceUsed,
+  ludoEnterPosition,
+  ludoFinishPosition,
+  ludoHasLegalMove,
+  ludoIsDoubles,
+  ludoIsPieceOnTrack,
+  ludoLegalChoicesForPiece,
+  ludoMarkDiceUsed,
+  ludoStepsForChoice,
+} from "@/lib/social-games/ludo-rules";
+
+export {
   ludoDiceSum,
   ludoHasLegalMove,
   ludoHasSix,
-  ludoIsPieceOnTrack,
-} from "@/lib/social-games/ludo-helpers";
-
-export { ludoDiceSum, ludoHasLegalMove, ludoHasSix } from "@/lib/social-games/ludo-helpers";
+  ludoIsDoubles,
+} from "@/lib/social-games/ludo-rules";
 
 const HOME = -1;
 const TRACK_LEN = 52;
@@ -60,6 +70,7 @@ export function createLudoState(playerIds: string[]): LudoState {
   return {
     pieces,
     dice: null,
+    diceUsed: [false, false],
     playerOrder: [...playerIds],
     lastRoll: null,
     lastRollUserId: null,
@@ -68,35 +79,39 @@ export function createLudoState(playerIds: string[]): LudoState {
   };
 }
 
-function startSquare(homeSeat: number): number {
-  return homeSeat * 13;
-}
-
-function finishLine(homeSeat: number): number {
-  return startSquare(homeSeat) + TRACK_LEN;
-}
-
-export function ludoIsDoubles(dice: LudoDiceRoll): boolean {
-  return dice[0] === dice[1];
+export function parseLudoDieChoice(value: unknown): LudoDieChoice | null {
+  if (value === "sum") return "sum";
+  if (value === 0 || value === 1) return value;
+  if (value === "0") return 0;
+  if (value === "1") return 1;
+  return null;
 }
 
 export function passLudoTurn(state: LudoState, userId: string): LudoState {
   return {
     ...state,
     dice: null,
+    diceUsed: [false, false],
     lastRollUserId: state.lastRollUserId ?? userId,
   };
 }
 
 export function rollLudoDice(state: LudoState, userId: string): LudoState {
   const dice: LudoDiceRoll = [rollDie(), rollDie()];
-  return { ...state, dice, lastRoll: dice, lastRollUserId: userId };
+  return {
+    ...state,
+    dice,
+    diceUsed: [false, false],
+    lastRoll: dice,
+    lastRollUserId: userId,
+  };
 }
 
 export function applyLudoMove(
   state: LudoState,
   userId: string,
   pieceId: number,
+  dieChoice: LudoDieChoice,
 ): { state: LudoState; winnerUserId: string | null; error?: string } {
   if (state.dice == null) {
     return { state, winnerUserId: null, error: "Roll the dice first." };
@@ -114,18 +129,25 @@ export function applyLudoMove(
     return { state, winnerUserId: null, error: "Invalid piece." };
   }
 
-  const dice = state.dice;
-  const steps = ludoDiceSum(dice);
-  let nextPos = piece.position;
+  const legalChoices = ludoLegalChoicesForPiece(state, piece);
+  if (!legalChoices.includes(dieChoice)) {
+    return { state, winnerUserId: null, error: "That die value cannot move this seed." };
+  }
 
+  const steps = ludoStepsForChoice(state, dieChoice);
+  if (steps == null) {
+    return { state, winnerUserId: null, error: "Die already used." };
+  }
+
+  let nextPos = piece.position;
   if (!ludoIsPieceOnTrack(piece)) {
-    if (!ludoHasSix(dice)) {
-      return { state, winnerUserId: null, error: "Need a 6 on either die to leave home." };
+    if (steps !== 6) {
+      return { state, winnerUserId: null, error: "Need a 6 on a die to leave home." };
     }
-    nextPos = startSquare(piece.homeSeat);
+    nextPos = ludoEnterPosition(piece.homeSeat);
   } else {
     nextPos = piece.position + steps;
-    if (nextPos > finishLine(piece.homeSeat)) {
+    if (nextPos > ludoFinishPosition(piece.homeSeat)) {
       return { state, winnerUserId: null, error: "Move overshoots finish." };
     }
   }
@@ -135,17 +157,42 @@ export function applyLudoMove(
   );
   const allPieces = { ...state.pieces, [userId]: updatedPieces };
 
-  const winnerUserId = updatedPieces.every((entry) => entry.position >= finishLine(entry.homeSeat))
+  const winnerUserId = updatedPieces.every(
+    (entry) => entry.position >= ludoFinishPosition(entry.homeSeat),
+  )
     ? userId
     : null;
+
+  const diceUsed = ludoMarkDiceUsed(ludoDiceUsed(state), dieChoice);
 
   return {
     state: {
       ...state,
       pieces: allPieces,
+      diceUsed,
     },
     winnerUserId,
   };
+}
+
+export function resolveLudoTurnAfterMove(
+  state: LudoState,
+  userId: string,
+  initialRoll: LudoDiceRoll,
+  winnerUserId: string | null,
+): { state: LudoState; nextTurnUserId: string | null } {
+  if (winnerUserId) {
+    return { state: passLudoTurn(state, userId), nextTurnUserId: null };
+  }
+
+  if (ludoHasLegalMove(state, userId)) {
+    return { state, nextTurnUserId: userId };
+  }
+
+  const cleared = passLudoTurn(state, userId);
+  const extraTurn = ludoIsDoubles(initialRoll);
+  const nextTurnUserId = extraTurn ? userId : nextLudoPlayer(state, userId);
+  return { state: cleared, nextTurnUserId };
 }
 
 export function nextLudoPlayer(state: LudoState, currentUserId: string): string {
@@ -154,7 +201,7 @@ export function nextLudoPlayer(state: LudoState, currentUserId: string): string 
 }
 
 export function ludoPieceHome(homeSeat: number): number {
-  return finishLine(homeSeat);
+  return ludoFinishPosition(homeSeat);
 }
 
 export { HOME as LUDO_HOME, TRACK_LEN as LUDO_TRACK_LEN };

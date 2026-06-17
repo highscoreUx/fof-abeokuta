@@ -4,6 +4,28 @@ import {
   LUDO_TWO_PLAYER_SEATS,
 } from "@/lib/social-games/game-state-types";
 
+export {
+  ludoAllDiceUsed,
+  ludoCanMovePieceWithSteps,
+  ludoCanUseSum,
+  ludoDiceSum,
+  ludoDiceUsed,
+  ludoDieChoiceLabel,
+  ludoHasLegalMove,
+  ludoHasSix,
+  ludoHasSixOnRemainingDice,
+  ludoIsDoubles,
+  ludoIsPieceAtHome,
+  ludoIsPieceOnTrack,
+  ludoLegalChoicesForPiece,
+  ludoMarkDiceUsed,
+  ludoPieceHasLegalMove,
+  ludoRemainingDice,
+  ludoStepsForChoice,
+  ludoEnterPosition,
+  ludoFinishPosition,
+} from "@/lib/social-games/ludo-rules";
+
 const HOME = -1;
 
 function cornersForPlayer(playerIndex: number, playerCount: number): number[] {
@@ -37,14 +59,6 @@ function defaultPieces(playerIndex: number, playerCount: number): LudoPiece[] {
 
 export function ludoYardSlotIndex(piece: LudoPiece): number {
   return piece.id % LUDO_SEEDS_PER_CORNER;
-}
-
-export function ludoDiceSum(dice: LudoDiceRoll): number {
-  return dice[0] + dice[1];
-}
-
-export function ludoHasSix(dice: LudoDiceRoll): boolean {
-  return dice[0] === 6 || dice[1] === 6;
 }
 
 /** Normalize + bind seats/pieces to the live player list from the chat session. */
@@ -83,49 +97,16 @@ export function prepareLudoStateForPlay(raw: unknown, playerIds: string[]): Ludo
   };
 }
 
-const LUDO_TRACK_LEN = 52;
-
-function ludoStartSquare(homeSeat: number): number {
-  return homeSeat * 13;
-}
-
-function ludoFinishLine(homeSeat: number): number {
-  return ludoStartSquare(homeSeat) + LUDO_TRACK_LEN;
-}
-
 function coerceLudoPosition(position: number | undefined | null): number {
   if (position == null) return HOME;
   return position;
 }
 
-export function ludoIsPieceOnTrack(piece: LudoPiece): boolean {
-  if (piece.position == null || piece.position < 0) return false;
-  const start = ludoStartSquare(piece.homeSeat);
-  const finish = ludoFinishLine(piece.homeSeat);
-  return piece.position >= start && piece.position <= finish;
-}
-
-export function ludoIsPieceAtHome(piece: LudoPiece): boolean {
-  return !ludoIsPieceOnTrack(piece);
-}
-
-export function ludoCanMovePiece(piece: LudoPiece, dice: LudoDiceRoll): boolean {
-  if (!ludoIsPieceOnTrack(piece)) {
-    return ludoHasSix(dice);
+function parseDiceUsed(value: unknown): [boolean, boolean] {
+  if (Array.isArray(value) && value.length === 2) {
+    return [Boolean(value[0]), Boolean(value[1])];
   }
-  const nextPos = piece.position + ludoDiceSum(dice);
-  return nextPos <= ludoFinishLine(piece.homeSeat);
-}
-
-export function ludoHasLegalMove(state: LudoState, userId: string): boolean {
-  if (state.dice == null) return false;
-  const ownedSeats = state.playerSeats[userId];
-  if (!ownedSeats?.length) return false;
-  const pieces = state.pieces[userId] ?? [];
-  return pieces.some(
-    (piece) =>
-      ownedSeats.includes(piece.homeSeat) && ludoCanMovePiece(piece, state.dice!),
-  );
+  return [false, false];
 }
 
 /** Red+green player: rotate board 180° so their colors sit at the bottom (facing them). */
@@ -157,6 +138,7 @@ export function normalizeLudoState(raw: unknown): LudoState {
     return {
       pieces: {},
       dice: null,
+      diceUsed: [false, false],
       playerOrder: [],
       lastRoll: null,
       lastRollUserId: null,
@@ -220,6 +202,7 @@ export function normalizeLudoState(raw: unknown): LudoState {
   return {
     pieces,
     dice,
+    diceUsed: parseDiceUsed(value.diceUsed),
     playerOrder,
     lastRoll,
     lastRollUserId:

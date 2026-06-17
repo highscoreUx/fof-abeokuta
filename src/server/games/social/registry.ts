@@ -6,8 +6,9 @@ import {
   applyLudoMove,
   nextLudoPlayer,
   ludoHasLegalMove,
-  ludoIsDoubles,
+  parseLudoDieChoice,
   passLudoTurn,
+  resolveLudoTurnAfterMove,
 } from "@/server/games/social/games/ludo";
 import { prepareLudoStateForPlay } from "@/lib/social-games/ludo-helpers";
 import type { LudoState } from "@/lib/social-games/game-state-types";
@@ -164,22 +165,33 @@ const ludoHandler: SocialGameHandler = {
     }
 
     const pieceId = Number(ctx.payload.pieceId);
-    const move = applyLudoMove(s, ctx.userId, pieceId);
+    const dieChoice = parseLudoDieChoice(ctx.payload.dieChoice);
+    if (dieChoice == null) {
+      return {
+        state: s,
+        winnerUserId: null,
+        nextTurnUserId: ctx.userId,
+        error: "Choose which die to use.",
+      };
+    }
+
+    const initialRoll = s.dice!;
+    const move = applyLudoMove(s, ctx.userId, pieceId, dieChoice);
     if (move.error) {
       return { state: s, winnerUserId: null, nextTurnUserId: ctx.userId, error: move.error };
     }
 
-    const doubles = s.dice != null && ludoIsDoubles(s.dice);
-    const next = move.winnerUserId
-      ? null
-      : doubles
-        ? ctx.userId
-        : nextLudoPlayer(move.state, ctx.userId);
+    const resolved = resolveLudoTurnAfterMove(
+      move.state,
+      ctx.userId,
+      initialRoll,
+      move.winnerUserId,
+    );
 
     return {
-      state: { ...move.state, dice: null },
+      state: resolved.state,
       winnerUserId: move.winnerUserId,
-      nextTurnUserId: next,
+      nextTurnUserId: resolved.nextTurnUserId,
     };
   },
 };

@@ -37,9 +37,14 @@ export interface LudoPiece {
 
 export type LudoDiceRoll = [number, number];
 
+/** Which die value to apply for a move (0/1 = single die, sum = both dice combined). */
+export type LudoDieChoice = 0 | 1 | "sum";
+
 export interface LudoState {
   pieces: Record<string, LudoPiece[]>;
   dice: LudoDiceRoll | null;
+  /** Which dice have been spent this turn (after a roll). */
+  diceUsed: [boolean, boolean];
   playerOrder: string[];
   lastRoll: LudoDiceRoll | null;
   /** Who rolled `lastRoll` (shown to both players after the turn ends). */

@@ -14,6 +14,7 @@ import {
   LUDO_YARDS,
   ludoBaseZoneSeat,
   ludoCellKind,
+  ludoCenterFinishBackground,
   ludoHomeColumnArrow,
   ludoHomeColumnSeat,
   ludoPathStartSeat,
@@ -97,10 +98,8 @@ function cellInlineStyle(row: number, col: number): CSSProperties | undefined {
   if (startSeat != null) {
     return { backgroundColor: LUDO_PLAYER_COLORS[startSeat] };
   }
-  if (kind === "center") {
-    return {
-      background: `conic-gradient(from 45deg, ${LUDO_PLAYER_COLORS[0]} 0deg 90deg, ${LUDO_PLAYER_COLORS[1]} 90deg 180deg, ${LUDO_PLAYER_COLORS[2]} 180deg 270deg, ${LUDO_PLAYER_COLORS[3]} 270deg 360deg)`,
-    };
+  if (kind === "center-finish") {
+    return { background: ludoCenterFinishBackground() };
   }
   if (baseSeat != null && kind === "empty") {
     return { backgroundColor: `${LUDO_PLAYER_COLORS[baseSeat]}28` };

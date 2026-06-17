@@ -66,10 +66,29 @@ export type LudoCellKind =
   | "safe"
   | "yard"
   | "home-col"
-  | "center";
+  | "center-finish";
+
+/** Diagonal pads in the 3×3 center block — plain white track squares. */
+const LUDO_CENTER_CORNER_PADS: ReadonlyArray<readonly [number, number]> = [
+  [6, 6],
+  [6, 8],
+  [8, 6],
+  [8, 8],
+];
+
+export function ludoIsCenterFinish(row: number, col: number): boolean {
+  return row === 7 && col === 7;
+}
+
+/** Four triangles meeting at center — colors face the matching home arm. */
+export function ludoCenterFinishBackground(): string {
+  const [red, green, yellow, blue] = LUDO_PLAYER_COLORS;
+  return `conic-gradient(from 0deg, ${green} -45deg 45deg, ${yellow} 45deg 135deg, ${blue} 135deg 225deg, ${red} 225deg 315deg)`;
+}
 
 export function ludoCellKind(row: number, col: number): LudoCellKind {
-  if (row >= 6 && row <= 8 && col >= 6 && col <= 8) return "center";
+  if (ludoIsCenterFinish(row, col)) return "center-finish";
+  if (LUDO_CENTER_CORNER_PADS.some(([r, c]) => r === row && c === col)) return "path";
   if (LUDO_PATH.some(([r, c]) => r === row && c === col)) return "path";
   if (
     ([[6, 2], [8, 6], [12, 8], [8, 12]] as const).some(([r, c]) => r === row && c === col)

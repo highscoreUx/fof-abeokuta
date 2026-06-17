@@ -374,16 +374,19 @@ export function LudoLive({
 
   const pendingPiece = pendingPieceId != null ? myPieces.find((p) => p.id === pendingPieceId) : null;
   const pendingChoices =
-    pendingPiece && game.dice ? ludoLegalChoicesForPiece(game, pendingPiece) : [];
+    pendingPiece && game.dice && user?.id
+      ? ludoLegalChoicesForPiece(game, user.id, pendingPiece)
+      : [];
 
   useEffect(() => {
     setPendingPieceId(null);
   }, [game.dice, game.diceUsed, snapshot.currentTurnUserId]);
 
   const handleSeedClick = (pieceId: number) => {
+    if (!user?.id) return;
     const piece = myPieces.find((entry) => entry.id === pieceId);
     if (!piece || !game.dice) return;
-    const choices = ludoLegalChoicesForPiece(game, piece);
+    const choices = ludoLegalChoicesForPiece(game, user.id, piece);
     if (!choices.length) return;
     if (choices.length === 1) {
       sendMove("move", { pieceId, dieChoice: choices[0] });
@@ -505,7 +508,7 @@ export function LudoLive({
                       isMine &&
                       game.dice != null &&
                       piece != null &&
-                      ludoPieceHasLegalMove(game, piece);
+                      ludoPieceHasLegalMove(game, user.id, piece);
 
                     return (
                       <button
@@ -551,6 +554,11 @@ export function LudoLive({
                     : "No legal move — passing turn…"
                   : `${playerName(snapshot, rollOwnerId)} rolled ${displayedRoll[0]} + ${displayedRoll[1]}`}
               </p>
+              {game.capturedThisTurn && rollIsActive && (
+                <p className="text-center text-xs font-medium text-amber-700">
+                  Take out! Bonus roll after you finish this turn.
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">

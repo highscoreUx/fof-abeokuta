@@ -142,6 +142,7 @@ export function normalizeLudoState(raw: unknown): LudoState {
       playerOrder: [],
       lastRoll: null,
       lastRollUserId: null,
+      capturedThisTurn: false,
       mode: "standard",
       playerSeats: {},
     };
@@ -207,6 +208,7 @@ export function normalizeLudoState(raw: unknown): LudoState {
     lastRoll,
     lastRollUserId:
       typeof value.lastRollUserId === "string" ? value.lastRollUserId : null,
+    capturedThisTurn: Boolean(value.capturedThisTurn),
     mode,
     playerSeats,
   };

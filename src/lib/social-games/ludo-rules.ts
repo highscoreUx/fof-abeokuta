@@ -1,4 +1,5 @@
 import type { LudoDieChoice, LudoDiceRoll, LudoPiece, LudoState } from "@/lib/social-games/game-state-types";
+import { ludoCanLandAt } from "@/lib/social-games/ludo-captures";
 
 const TRACK_LEN = 52;
 
@@ -58,16 +59,23 @@ export function ludoIsPieceAtHome(piece: LudoPiece): boolean {
 }
 
 /** Enter yard only with a single die showing 6; track moves use die pips or both-dice sum. */
-export function ludoCanMovePieceWithSteps(piece: LudoPiece, steps: number): boolean {
+export function ludoCanMovePieceWithSteps(
+  state: LudoState,
+  userId: string,
+  piece: LudoPiece,
+  steps: number,
+): boolean {
   if (!ludoIsPieceOnTrack(piece)) {
     return steps === 6;
   }
   const nextPos = piece.position + steps;
-  return nextPos <= ludoFinishLine(piece.homeSeat);
+  if (nextPos > ludoFinishLine(piece.homeSeat)) return false;
+  return ludoCanLandAt(state, userId, piece, nextPos);
 }
 
 export function ludoLegalChoicesForPiece(
   state: LudoState,
+  userId: string,
   piece: LudoPiece,
 ): LudoDieChoice[] {
   if (!state.dice) return [];
@@ -76,14 +84,14 @@ export function ludoLegalChoicesForPiece(
   const onTrack = ludoIsPieceOnTrack(piece);
 
   for (const { index, value } of ludoRemainingDice(state)) {
-    if (ludoCanMovePieceWithSteps(piece, value)) {
+    if (ludoCanMovePieceWithSteps(state, userId, piece, value)) {
       choices.push(index);
     }
   }
 
   if (onTrack && ludoCanUseSum(state)) {
     const sum = state.dice[0] + state.dice[1];
-    if (ludoCanMovePieceWithSteps(piece, sum)) {
+    if (ludoCanMovePieceWithSteps(state, userId, piece, sum)) {
       choices.push("sum");
     }
   }
@@ -91,8 +99,12 @@ export function ludoLegalChoicesForPiece(
   return choices;
 }
 
-export function ludoPieceHasLegalMove(state: LudoState, piece: LudoPiece): boolean {
-  return ludoLegalChoicesForPiece(state, piece).length > 0;
+export function ludoPieceHasLegalMove(
+  state: LudoState,
+  userId: string,
+  piece: LudoPiece,
+): boolean {
+  return ludoLegalChoicesForPiece(state, userId, piece).length > 0;
 }
 
 export function ludoHasLegalMove(state: LudoState, userId: string): boolean {
@@ -102,7 +114,7 @@ export function ludoHasLegalMove(state: LudoState, userId: string): boolean {
   const pieces = state.pieces[userId] ?? [];
   return pieces.some(
     (piece) =>
-      ownedSeats.includes(piece.homeSeat) && ludoPieceHasLegalMove(state, piece),
+      ownedSeats.includes(piece.homeSeat) && ludoPieceHasLegalMove(state, userId, piece),
   );
 }
 

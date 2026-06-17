@@ -11,6 +11,7 @@ import {
   ludoMarkDiceUsed,
   ludoStepsForChoice,
 } from "@/lib/social-games/ludo-rules";
+import { applyLudoCaptures, ludoCanLandAt } from "@/lib/social-games/ludo-captures";
 
 export {
   ludoDiceSum,
@@ -93,6 +94,7 @@ export function passLudoTurn(state: LudoState, userId: string): LudoState {
     dice: null,
     diceUsed: [false, false],
     lastRollUserId: state.lastRollUserId ?? userId,
+    capturedThisTurn: false,
   };
 }
 
@@ -104,6 +106,7 @@ export function rollLudoDice(state: LudoState, userId: string): LudoState {
     diceUsed: [false, false],
     lastRoll: dice,
     lastRollUserId: userId,
+    capturedThisTurn: false,
   };
 }
 
@@ -129,7 +132,7 @@ export function applyLudoMove(
     return { state, winnerUserId: null, error: "Invalid piece." };
   }
 
-  const legalChoices = ludoLegalChoicesForPiece(state, piece);
+  const legalChoices = ludoLegalChoicesForPiece(state, userId, piece);
   if (!legalChoices.includes(dieChoice)) {
     return { state, winnerUserId: null, error: "That die value cannot move this seed." };
   }
@@ -139,8 +142,9 @@ export function applyLudoMove(
     return { state, winnerUserId: null, error: "Die already used." };
   }
 
+  const enteringFromYard = !ludoIsPieceOnTrack(piece);
   let nextPos = piece.position;
-  if (!ludoIsPieceOnTrack(piece)) {
+  if (enteringFromYard) {
     if (steps !== 6) {
       return { state, winnerUserId: null, error: "Need a 6 on a die to leave home." };
     }
@@ -152,12 +156,25 @@ export function applyLudoMove(
     }
   }
 
+  if (!ludoCanLandAt(state, userId, piece, nextPos)) {
+    return { state, winnerUserId: null, error: "Cannot land on that square." };
+  }
+
   const updatedPieces = pieces.map((entry) =>
     entry.id === pieceId ? { ...entry, position: nextPos } : entry,
   );
-  const allPieces = { ...state.pieces, [userId]: updatedPieces };
+  let allPieces = { ...state.pieces, [userId]: updatedPieces };
 
-  const winnerUserId = updatedPieces.every(
+  const { pieces: afterCapture, captured } = applyLudoCaptures(
+    allPieces,
+    userId,
+    piece.homeSeat,
+    nextPos,
+    enteringFromYard,
+  );
+  allPieces = afterCapture;
+
+  const winnerUserId = (allPieces[userId] ?? []).every(
     (entry) => entry.position >= ludoFinishPosition(entry.homeSeat),
   )
     ? userId
@@ -170,6 +187,7 @@ export function applyLudoMove(
       ...state,
       pieces: allPieces,
       diceUsed,
+      capturedThisTurn: Boolean(state.capturedThisTurn) || captured > 0,
     },
     winnerUserId,
   };
@@ -190,7 +208,7 @@ export function resolveLudoTurnAfterMove(
   }
 
   const cleared = passLudoTurn(state, userId);
-  const extraTurn = ludoIsDoubles(initialRoll);
+  const extraTurn = ludoIsDoubles(initialRoll) || Boolean(state.capturedThisTurn);
   const nextTurnUserId = extraTurn ? userId : nextLudoPlayer(state, userId);
   return { state: cleared, nextTurnUserId };
 }

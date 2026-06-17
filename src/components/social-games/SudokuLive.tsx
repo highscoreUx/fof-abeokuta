@@ -86,8 +86,8 @@ export function SudokuLive({
   const [selected, setSelected] = useState<number | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
   const [now, setNow] = useState(() => snapshot.serverNow);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const selectionControlsRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const inputControlsRef = useRef<HTMLDivElement>(null);
   const finished = snapshot.status === "FINISHED";
 
   const startedAt = game.startedAt ?? snapshot.serverNow;
@@ -137,19 +137,26 @@ export function SudokuLive({
     (index: number) => {
       if (finished) return;
       setSelected(index);
-      gridRef.current?.focus();
+      boardRef.current?.focus();
     },
     [finished],
   );
 
   useEffect(() => {
+    const shouldKeepSelection = (target: Node | null) => {
+      if (!target) return false;
+      if (boardRef.current?.contains(target)) return true;
+      if (inputControlsRef.current?.contains(target)) return true;
+      return false;
+    };
+
     const onPointerDown = (event: PointerEvent) => {
-      const controls = selectionControlsRef.current;
-      if (!controls || controls.contains(event.target as Node)) return;
+      if (shouldKeepSelection(event.target as Node)) return;
       setSelected(null);
     };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, []);
 
   useEffect(() => {
@@ -268,9 +275,8 @@ export function SudokuLive({
         </div>
       )}
 
-      <div ref={selectionControlsRef}>
       <div
-        ref={gridRef}
+        ref={boardRef}
         tabIndex={0}
         role="grid"
         aria-label="Sudoku board"
@@ -312,6 +318,7 @@ export function SudokuLive({
         </div>
       </div>
 
+      <div ref={inputControlsRef}>
       <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
         <Button
           type="button"

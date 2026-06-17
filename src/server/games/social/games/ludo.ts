@@ -133,6 +133,9 @@ export function applyLudoMove(
   if (!ownedSeats.includes(piece.homeSeat)) {
     return { state, winnerUserId: null, error: "Invalid piece." };
   }
+  if (ludoIsPieceFinished(piece)) {
+    return { state, winnerUserId: null, error: "That seed has already finished." };
+  }
 
   const legalChoices = ludoLegalChoicesForPiece(state, userId, piece);
   if (!legalChoices.includes(dieChoice)) {
@@ -218,7 +221,7 @@ export function resolveLudoTurnAfterMove(
   }
 
   const cleared = passLudoTurn(state, userId);
-  const extraTurn = ludoIsDoubleSix(initialRoll) || Boolean(state.capturedThisTurn);
+  const extraTurn = ludoIsDoubleSix(initialRoll);
   const nextTurnUserId = extraTurn ? userId : nextLudoPlayer(state, userId);
   return { state: cleared, nextTurnUserId };
 }

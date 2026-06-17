@@ -2,14 +2,12 @@ import type { LudoDieChoice, LudoDiceRoll, LudoPiece, LudoState } from "@/lib/so
 import { LUDO_TRACK_LEN } from "@/lib/social-games/ludo-board-layout";
 import { ludoCanLandAt } from "@/lib/social-games/ludo-captures";
 
-const TRACK_LEN = 52;
-
 function ludoStartSquare(homeSeat: number): number {
   return homeSeat * 13;
 }
 
 function ludoFinishLine(homeSeat: number): number {
-  return ludoStartSquare(homeSeat) + TRACK_LEN;
+  return ludoStartSquare(homeSeat) + LUDO_TRACK_LEN;
 }
 
 export function ludoDiceUsed(state: LudoState): [boolean, boolean] {
@@ -74,6 +72,7 @@ export function ludoCanMovePieceWithSteps(
   piece: LudoPiece,
   steps: number,
 ): boolean {
+  if (ludoIsPieceFinished(piece)) return false;
   if (!ludoIsPieceOnTrack(piece)) {
     if (steps !== 6) return false;
     const enterPos = ludoEnterPosition(piece.homeSeat);
@@ -89,7 +88,7 @@ export function ludoLegalChoicesForPiece(
   userId: string,
   piece: LudoPiece,
 ): LudoDieChoice[] {
-  if (!state.dice) return [];
+  if (!state.dice || ludoIsPieceFinished(piece)) return [];
 
   const choices: LudoDieChoice[] = [];
   const onTrack = ludoIsPieceOnTrack(piece);

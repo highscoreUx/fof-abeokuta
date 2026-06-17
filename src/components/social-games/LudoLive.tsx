@@ -560,6 +560,7 @@ export function LudoLive({
                       isMine &&
                       game.dice != null &&
                       piece != null &&
+                      !ludoIsPieceFinished(piece) &&
                       ludoPieceHasLegalMove(game, user.id, piece);
 
                     return (
@@ -608,7 +609,7 @@ export function LudoLive({
               </p>
               {game.capturedThisTurn && rollIsActive && (
                 <p className="text-center text-xs font-medium text-amber-700">
-                  Take out! That seed is done — bonus roll after you finish this turn.
+                  Take out! That seed is done.
                 </p>
               )}
             </div>

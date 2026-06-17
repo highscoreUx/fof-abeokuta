@@ -52,7 +52,7 @@ export interface LudoState {
   mode: "standard" | "two_player";
   /** Corners each player controls (1 corner in 4-player, 2 in 2-player DM). */
   playerSeats: Record<string, number[]>;
-  /** Set when this turn included a capture — grants a bonus roll after the turn ends (classic rule). */
+  /** Set when this turn included a capture (capturing seed finished). */
   capturedThisTurn?: boolean;
 }
 

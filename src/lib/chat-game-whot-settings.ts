@@ -19,6 +19,8 @@ export interface SocialWhotSettings {
   pick3AllowStacking: boolean;
   /** Enable Suspension (8) / Star 8 skip. Off by default — 8 is a normal card. */
   allowSuspension: boolean;
+  /** When the market runs out, lowest hand total wins (tender). On by default. */
+  allowTender: boolean;
 }
 
 export const DEFAULT_SOCIAL_WHOT_SETTINGS: SocialWhotSettings = {
@@ -33,6 +35,7 @@ export const DEFAULT_SOCIAL_WHOT_SETTINGS: SocialWhotSettings = {
   pick3AllowBlock: true,
   pick3AllowStacking: true,
   allowSuspension: false,
+  allowTender: true,
 };
 
 const CARDS_PER_PLAYER_MIN = 3;
@@ -79,6 +82,7 @@ export function parseSocialWhotSettings(raw: unknown): SocialWhotSettings {
     pick3AllowBlock: value.pick3AllowBlock !== false,
     pick3AllowStacking: value.pick3AllowStacking !== false,
     allowSuspension: Boolean(value.allowSuspension),
+    allowTender: value.allowTender !== false,
   };
 }
 

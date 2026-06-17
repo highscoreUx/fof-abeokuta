@@ -236,6 +236,8 @@ export async function POST(
               typeof settings.allowSuspension === "boolean"
                 ? settings.allowSuspension
                 : undefined,
+            allowTender:
+              typeof settings.allowTender === "boolean" ? settings.allowTender : undefined,
           },
         });
         return NextResponse.json({ session });

@@ -106,16 +106,19 @@ async function expireSocialWhotTurn(
   const currentUserId = match.currentTurnUserId;
   const playerIds = match.chatSession.participants.map((p) => p.userId);
   const whotState = prepareWhotStateForPlay(match.state, playerIds);
-  const draw = applyWhotDraw(whotState, currentUserId);
+  const draw = applyWhotDraw(whotState, currentUserId, settings);
   if (draw.error) return;
 
-  const nextTurnUserId = nextWhotPlayer(draw.state, currentUserId);
+  const finished = Boolean(draw.winnerUserId);
 
   await prisma.socialGameMatch.update({
     where: { id: matchId },
     data: {
       state: draw.state as object,
-      currentTurnUserId: nextTurnUserId,
+      currentTurnUserId: finished ? null : nextWhotPlayer(draw.state, currentUserId),
+      status: finished ? "FINISHED" : "ACTIVE",
+      winnerUserId: draw.winnerUserId,
+      finishedAt: finished ? new Date() : null,
     },
   });
 
@@ -123,6 +126,13 @@ async function expireSocialWhotTurn(
   await broadcastSocialGameState(io, matchId, eventSlug);
   const { broadcastChatGameSession } = await import("@/server/games/chatGameEngine");
   await broadcastChatGameSession(io, eventSlug, sessionId);
+
+  if (finished) {
+    const { completeSocialJsonGame } = await import("@/server/games/chatGameEngine");
+    await completeSocialJsonGame(matchId, eventSlug);
+    clearSocialWhotTurnTimer(sessionId);
+    return;
+  }
 
   await scheduleSocialWhotTurnTimer(io, {
     sessionId,

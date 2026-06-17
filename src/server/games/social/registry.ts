@@ -140,9 +140,16 @@ const whotHandler: SocialGameHandler = {
     }
 
     if (ctx.action === "draw") {
-      const draw = applyWhotDraw(s, ctx.userId);
+      const draw = applyWhotDraw(s, ctx.userId, settings);
       if (draw.error) {
         return { state: s, winnerUserId: null, nextTurnUserId: null, error: draw.error };
+      }
+      if (draw.winnerUserId) {
+        return {
+          state: draw.state,
+          winnerUserId: draw.winnerUserId,
+          nextTurnUserId: null,
+        };
       }
       const nextTurnUserId = advanceWhotPlayer(
         { ...draw.state, holdOn: false },

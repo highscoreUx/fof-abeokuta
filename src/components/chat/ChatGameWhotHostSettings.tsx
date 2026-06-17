@@ -288,6 +288,28 @@ export function ChatGameWhotHostSettings({
             </span>
           </label>
 
+          <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={draft.allowTender}
+              disabled={busy}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  allowTender: event.target.checked,
+                }))
+              }
+            />
+            <span>
+              Allow tender
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                When the market is empty, everyone counts their cards — lowest total wins.
+                Stars count double; Whot counts as 20.
+              </span>
+            </span>
+          </label>
+
           {lockedFormat && (
             <p className="text-xs text-muted-foreground">
               Timer and call rules apply immediately. Deal size applies on rematch.

@@ -32,5 +32,7 @@ export function prepareWhotStateForPlay(raw: unknown, playerIds: string[]): Whot
     pendingSkips: state.pendingSkips ?? 0,
     holdOn: state.holdOn ?? false,
     calledLastCard,
+    tenderTotals: state.tenderTotals,
+    endedByTender: state.endedByTender,
   };
 }

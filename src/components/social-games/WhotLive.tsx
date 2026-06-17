@@ -10,6 +10,7 @@ import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import type { WhotShape } from "@/lib/social-games/game-state-types";
 import { prepareWhotStateForPlay } from "@/lib/social-games/whot-helpers";
 import { canPlayWhotCard } from "@/lib/social-games/whot-rules";
+import { whotHandPoints } from "@/lib/social-games/whot-scoring";
 import {
   WhotCardBackStack,
   WhotPlayingCard,
@@ -104,16 +105,44 @@ export function WhotLive({
   const showSemiCall = whotSettings.enforceLastCardCall && hand.length === 2 && myCall !== "semi";
   const showLastCall = whotSettings.enforceLastCardCall && hand.length === 1 && myCall !== "last";
 
+  const marketEmpty = game.deck.length === 0;
+  const tenderImminent = whotSettings.allowTender && marketEmpty && !finished;
+
+  const titleText = finished
+    ? game.endedByTender
+      ? `${playerName(snapshot, snapshot.winnerUserId)} wins on tender!`
+      : `${playerName(snapshot, snapshot.winnerUserId)} wins!`
+    : isMyTurn
+      ? "Your turn — play a card or draw"
+      : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`;
+
   return (
     <Card className="overflow-hidden border-0 bg-transparent p-0 shadow-none">
       <div className="rounded-2xl bg-gradient-to-b from-[#1b5e3b] to-[#0d3d24] p-4 shadow-inner sm:p-6">
-        <CardTitle className="mb-2 text-center text-base text-emerald-50">
-          {finished
-            ? `${playerName(snapshot, snapshot.winnerUserId)} wins!`
-            : isMyTurn
-              ? "Your turn — play a card or draw"
-              : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`}
-        </CardTitle>
+        <CardTitle className="mb-2 text-center text-base text-emerald-50">{titleText}</CardTitle>
+
+        {tenderImminent && (
+          <p className="mb-2 text-center text-xs font-medium text-amber-200">
+            Market empty — next draw ends the round (lowest total wins)
+          </p>
+        )}
+
+        {finished && game.tenderTotals && (
+          <div className="mb-3 flex flex-wrap justify-center gap-2">
+            {snapshot.players.map((player) => (
+              <span
+                key={player.userId}
+                className={`rounded-full px-3 py-1 text-xs ${
+                  player.userId === snapshot.winnerUserId
+                    ? "bg-amber-400 font-semibold text-black"
+                    : "bg-black/30 text-emerald-100"
+                }`}
+              >
+                {player.firstName}: {game.tenderTotals![player.userId] ?? "—"} pts
+              </span>
+            ))}
+          </div>
+        )}
 
         {secondsLeft != null && isMyTurn && !finished && (
           <p className="mb-3 text-center text-sm font-medium text-amber-200">
@@ -123,6 +152,19 @@ export function WhotLive({
 
         {pickLabel && (
           <p className="mb-3 text-center text-sm font-semibold text-amber-300">{pickLabel}</p>
+        )}
+
+        {tenderImminent && (
+          <div className="mb-3 flex flex-wrap justify-center gap-2">
+            {snapshot.players.map((player) => (
+              <span
+                key={player.userId}
+                className="rounded-full bg-black/25 px-2 py-0.5 text-[11px] text-emerald-100/90"
+              >
+                {player.firstName}: {whotHandPoints(game.hands[player.userId] ?? [])} pts
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Opponents */}

@@ -41,6 +41,9 @@ export interface WhotState {
   holdOn: boolean;
   /** Tracks semi / last card announcements per player. */
   calledLastCard: Record<string, WhotLastCardCall | null>;
+  /** Set when the game ended via tender — hand point totals per player. */
+  tenderTotals?: Record<string, number>;
+  endedByTender?: boolean;
 }
 
 export interface LudoPiece {

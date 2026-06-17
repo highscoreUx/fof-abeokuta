@@ -9,6 +9,11 @@ import type { SocialWhotSettings, WhotRuleSettings } from "@/lib/chat-game-whot-
 import { DEFAULT_SOCIAL_WHOT_SETTINGS, whotRuleSettings } from "@/lib/chat-game-whot-settings";
 import { buildWhotDeck } from "@/lib/social-games/whot-deck";
 import { canPlayWhotCard, isWhotPickBlock } from "@/lib/social-games/whot-rules";
+import {
+  computeWhotTenderTotals,
+  isWhotMarketExhausted,
+  resolveWhotTenderWinner,
+} from "@/lib/social-games/whot-scoring";
 
 export { canPlayWhotCard } from "@/lib/social-games/whot-rules";
 
@@ -23,18 +28,22 @@ function shuffle<T>(items: T[]): T[] {
   return arr;
 }
 
-function refillDeckFromDiscard(state: WhotState): WhotState {
-  if (state.deck.length > 0 || state.discard.length <= 1) return state;
+function refillDeckFromDiscard(state: WhotState, allowTender: boolean): WhotState {
+  if (allowTender || state.deck.length > 0 || state.discard.length <= 1) return state;
   const [top, ...rest] = state.discard;
   return { ...state, deck: shuffle(rest), discard: top ? [top] : [] };
 }
 
-function drawCards(state: WhotState, count: number): { state: WhotState; drawn: WhotCard[] } {
-  let next = refillDeckFromDiscard(state);
+function drawCards(
+  state: WhotState,
+  count: number,
+  allowTender: boolean,
+): { state: WhotState; drawn: WhotCard[] } {
+  let next = state;
   const drawn: WhotCard[] = [];
   for (let i = 0; i < count; i++) {
     if (next.deck.length === 0) {
-      next = refillDeckFromDiscard(next);
+      next = refillDeckFromDiscard(next, allowTender);
       if (next.deck.length === 0) break;
     }
     const card = next.deck[0]!;
@@ -44,12 +53,38 @@ function drawCards(state: WhotState, count: number): { state: WhotState; drawn: 
   return { state: next, drawn };
 }
 
-function applyGeneralMarket(state: WhotState, playedBy: string): WhotState {
+function maybeEndByTender(
+  state: WhotState,
+  settings: SocialWhotSettings,
+): { state: WhotState; winnerUserId: string | null } {
+  if (!settings.allowTender || !isWhotMarketExhausted(state.deck.length)) {
+    return { state, winnerUserId: null };
+  }
+  const tenderTotals = computeWhotTenderTotals(state.hands, state.playerOrder);
+  const winnerUserId = resolveWhotTenderWinner(tenderTotals, state.playerOrder);
+  return {
+    state: {
+      ...state,
+      tenderTotals,
+      endedByTender: true,
+      pickPenalty: null,
+      pendingSkips: 0,
+      holdOn: false,
+    },
+    winnerUserId,
+  };
+}
+
+function applyGeneralMarket(
+  state: WhotState,
+  playedBy: string,
+  allowTender: boolean,
+): WhotState {
   let next = state;
   const hands = { ...state.hands };
   for (const userId of state.playerOrder) {
     if (userId === playedBy) continue;
-    const { state: afterDraw, drawn } = drawCards(next, 1);
+    const { state: afterDraw, drawn } = drawCards(next, 1, allowTender);
     next = afterDraw;
     hands[userId] = [...(hands[userId] ?? []), ...drawn];
   }
@@ -122,6 +157,7 @@ function applySpecialCardEffects(
   userId: string,
   card: WhotCard,
   rules: WhotRuleSettings,
+  allowTender: boolean,
 ): WhotState {
   if (card.shape === "whot") return state;
 
@@ -144,7 +180,7 @@ function applySpecialCardEffects(
       }
       break;
     case 14:
-      next = applyGeneralMarket(next, userId);
+      next = applyGeneralMarket(next, userId, allowTender);
       break;
     default:
       break;
@@ -182,8 +218,9 @@ function applyLastCardPenalty(
   state: WhotState,
   userId: string,
   penaltyCards: number,
+  allowTender: boolean,
 ): WhotState {
-  const { state: afterDraw, drawn } = drawCards(state, penaltyCards);
+  const { state: afterDraw, drawn } = drawCards(state, penaltyCards, allowTender);
   return {
     ...afterDraw,
     hands: {
@@ -252,19 +289,31 @@ export function applyWhotPlay(
     userId,
     card,
     rules,
+    settings.allowTender,
   );
+
+  const tenderAfterPlay = maybeEndByTender(nextState, settings);
+  if (tenderAfterPlay.winnerUserId) {
+    return { state: tenderAfterPlay.state, winnerUserId: tenderAfterPlay.winnerUserId };
+  }
+  nextState = tenderAfterPlay.state;
 
   if (nextHand.length === 0) {
     if (
-      settings?.enforceLastCardCall &&
+      settings.enforceLastCardCall &&
       state.calledLastCard?.[userId] !== "last"
     ) {
       const penalised = applyLastCardPenalty(
         { ...nextState, hands: { ...nextState.hands, [userId]: nextHand } },
         userId,
         settings.lastCardPenaltyCards ?? 2,
+        settings.allowTender,
       );
-      return { state: penalised, winnerUserId: null };
+      const tenderAfterPenalty = maybeEndByTender(penalised, settings);
+      if (tenderAfterPenalty.winnerUserId) {
+        return { state: tenderAfterPenalty.state, winnerUserId: tenderAfterPenalty.winnerUserId };
+      }
+      return { state: tenderAfterPenalty.state, winnerUserId: null };
     }
     return {
       state: { ...nextState, pickPenalty: null, pendingSkips: 0, holdOn: false },
@@ -285,27 +334,36 @@ export function applyWhotPlay(
 export function applyWhotDraw(
   state: WhotState,
   userId: string,
-): { state: WhotState; error?: string } {
+  settings: SocialWhotSettings = DEFAULT_SOCIAL_WHOT_SETTINGS,
+): { state: WhotState; winnerUserId: string | null; error?: string } {
   const penalty = state.pickPenalty;
   const drawCount = penalty
     ? penalty.stack * (penalty.kind === "two" ? 2 : 3)
     : 1;
 
-  const { state: afterDraw, drawn } = drawCards(state, drawCount);
+  const { state: afterDraw, drawn } = drawCards(state, drawCount, settings.allowTender);
   if (drawn.length === 0) {
-    return { state, error: "No cards left to draw." };
+    const tender = maybeEndByTender(afterDraw, settings);
+    if (tender.winnerUserId) {
+      return { state: tender.state, winnerUserId: tender.winnerUserId };
+    }
+    return { state, winnerUserId: null, error: "No cards left to draw." };
   }
 
-  return {
-    state: {
-      ...afterDraw,
-      hands: {
-        ...afterDraw.hands,
-        [userId]: [...(afterDraw.hands[userId] ?? []), ...drawn],
-      },
-      pickPenalty: null,
-      calledLastCard: { ...(afterDraw.calledLastCard ?? {}), [userId]: null },
+  const nextState: WhotState = {
+    ...afterDraw,
+    hands: {
+      ...afterDraw.hands,
+      [userId]: [...(afterDraw.hands[userId] ?? []), ...drawn],
     },
+    pickPenalty: null,
+    calledLastCard: { ...(afterDraw.calledLastCard ?? {}), [userId]: null },
+  };
+
+  const tender = maybeEndByTender(nextState, settings);
+  return {
+    state: tender.state,
+    winnerUserId: tender.winnerUserId,
   };
 }
 

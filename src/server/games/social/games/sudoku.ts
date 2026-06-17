@@ -1,10 +1,12 @@
+import { normalizeSudokuGrid } from "@/lib/social-games/sudoku-grid";
+
 /** Preset Sudoku puzzles (81 chars, 0 = empty). */
 const PUZZLES = [
-  "530070000600195000098000060000060003406000007000020085000000000000000000000000000000",
-  "000260701680070090190004500820100040004005006050008037009400074040720063701000000000",
-  "800000000003600000070090200050007000000045600000100030001000068000500007005000000080",
-  "000000907000420180000705026100201000047080280000605003920108000034059000507000000000",
-  "020000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "530070000600195000098000060000060003406000007000020085000000000000000000000000000",
+  "000260701680070090190004500820100040004005006050008037009400074040720063701000000",
+  "800000000003600000070090200050007000000045600000100030001000068000500007005000000",
+  "000000907000420180000705026100201000047080280000605003920108000034059000507000000",
+  "020000000000000000000000000000000000000000000000000000000000000000000000000000",
 ];
 
 export function pickSudokuPuzzle(): string {
@@ -49,21 +51,17 @@ export function solveSudoku(grid: string): string | null {
 }
 
 export function isSudokuComplete(grid: string, solution: string): boolean {
-  if (grid.length !== 81 || solution.length !== 81) return false;
+  const normalized = normalizeSudokuGrid(grid);
+  const answer = normalizeSudokuGrid(solution);
   for (let i = 0; i < 81; i++) {
-    const g = grid[i]!;
+    const g = normalized[i]!;
     if (g === "0") return false;
-    if (g !== solution[i]) return false;
+    if (g !== answer[i]) return false;
   }
   return true;
 }
 
-export function normalizeSudokuGrid(grid: string): string {
-  return grid
-    .replace(/[^0-9]/g, "")
-    .padEnd(81, "0")
-    .slice(0, 81);
-}
+export { normalizeSudokuGrid } from "@/lib/social-games/sudoku-grid";
 
 export interface SudokuState {
   puzzle: string;
@@ -74,7 +72,7 @@ export interface SudokuState {
 }
 
 export function createSudokuState(): SudokuState {
-  const puzzle = pickSudokuPuzzle();
+  const puzzle = normalizeSudokuGrid(pickSudokuPuzzle());
   const solution = solveSudoku(puzzle) ?? puzzle;
   return {
     puzzle,
@@ -92,15 +90,17 @@ export function applySudokuCell(
   value: number,
 ): { state: SudokuState; winnerUserId: string | null; error?: string } {
   if (index < 0 || index > 80) return { state, winnerUserId: null, error: "Invalid cell." };
-  if (state.puzzle[index] !== "0") return { state, winnerUserId: null, error: "Cell is fixed." };
   if (value < 0 || value > 9) return { state, winnerUserId: null, error: "Invalid value." };
 
-  const board = normalizeSudokuGrid(state.boards[userId] ?? state.puzzle);
+  const puzzle = normalizeSudokuGrid(state.puzzle);
+  if (puzzle[index] !== "0") return { state, winnerUserId: null, error: "Cell is fixed." };
+
+  const board = normalizeSudokuGrid(state.boards[userId] ?? puzzle);
   const next = board.split("");
   next[index] = String(value);
   const boards = { ...state.boards, [userId]: next.join("") };
 
-  if (value !== 0 && parseInt(state.solution[index]!, 10) !== value) {
+  if (value !== 0 && parseInt(normalizeSudokuGrid(state.solution)[index]!, 10) !== value) {
     return {
       state: { ...state, boards },
       winnerUserId: null,
@@ -110,7 +110,7 @@ export function applySudokuCell(
 
   const completedAt = { ...state.completedAt };
   let winnerUserId: string | null = null;
-  if (isSudokuComplete(next.join(""), state.solution)) {
+  if (isSudokuComplete(next.join(""), normalizeSudokuGrid(state.solution))) {
     completedAt[userId] = Date.now();
     winnerUserId = userId;
   }

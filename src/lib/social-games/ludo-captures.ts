@@ -52,6 +52,7 @@ export function ludoIsPieceOnStartSquare(piece: LudoPiece): boolean {
 
 /**
  * Classic Ludo: landing on an opponent on the outer track sends them home.
+ * The capturing seed completes its journey and leaves the board (same as finishing).
  * Safe squares (colored starts + star cells) protect stationary pieces, except
  * entering from the yard with a 6 may capture on a colored start square.
  */

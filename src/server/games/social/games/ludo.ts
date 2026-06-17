@@ -176,6 +176,17 @@ export function applyLudoMove(
   );
   allPieces = afterCapture;
 
+  // Capturing completes the mover's journey — it leaves the board like reaching home.
+  if (captured > 0) {
+    const finishPos = ludoFinishPosition(piece.homeSeat);
+    allPieces = {
+      ...allPieces,
+      [userId]: (allPieces[userId] ?? []).map((entry) =>
+        entry.id === pieceId ? { ...entry, position: finishPos } : entry,
+      ),
+    };
+  }
+
   const winnerUserId = (allPieces[userId] ?? []).every((entry) => ludoIsPieceFinished(entry))
     ? userId
     : null;

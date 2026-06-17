@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { LudoDieChoice, LudoState } from "@/lib/social-games/game-state-types";
 import { LUDO_HOME } from "@/lib/social-games/ludo-board-layout";
 import {
@@ -195,6 +195,28 @@ function pieceLayoutKey(game: LudoState, playerIds: string[]): string {
     .join("|");
 }
 
+function pickForwardPieceChange(
+  prev: Map<string, { position: number; homeSeat: number; yardIndex: number }>,
+  current: Map<string, { position: number; homeSeat: number; yardIndex: number }>,
+) {
+  for (const [key, curr] of current) {
+    const before = prev.get(key);
+    if (!before || before.position === curr.position) continue;
+    const isForward =
+      curr.position >= 0 &&
+      (before.position < LUDO_HOME || curr.position > before.position);
+    if (!isForward) continue;
+    return {
+      key,
+      fromPosition: before.position,
+      toPosition: curr.position,
+      homeSeat: curr.homeSeat,
+      yardIndex: curr.yardIndex,
+    };
+  }
+  return null;
+}
+
 export function LudoLive({
   snapshot,
   sendMove,
@@ -220,6 +242,12 @@ export function LudoLive({
   const positionsReadyRef = useRef(false);
   const animatingRef = useRef(false);
   const animTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevLayoutKeyRef = useRef<string | null>(null);
+  const renderHoldRef = useRef<Record<string, { row: number; col: number }>>({});
+  const pendingAnimRef = useRef<{
+    key: string;
+    frames: Array<{ row: number; col: number }>;
+  } | null>(null);
   const myPieces = user?.id ? (game.pieces[user.id] ?? []) : [];
   const isMyTurn = snapshot.currentTurnUserId === user?.id;
   const finished = snapshot.status === "FINISHED";
@@ -232,32 +260,69 @@ export function LudoLive({
   const gameRef = useRef(game);
   gameRef.current = game;
 
-  const stopPieceAnimation = (clearOverrides: boolean) => {
+  // Hold pieces at their start square during render (before the animation effect runs)
+  // so we never flash the final position first.
+  if (
+    layoutKey !== prevLayoutKeyRef.current &&
+    showAnimations &&
+    positionsReadyRef.current &&
+    !animatingRef.current
+  ) {
+    const current = snapshotPiecePositions(game);
+    const picked = pickForwardPieceChange(prevPositionsRef.current, current);
+    if (picked) {
+      const frames = ludoMoveAnimationFrames(
+        picked.homeSeat,
+        picked.fromPosition,
+        picked.toPosition,
+        picked.yardIndex,
+      );
+      if (frames.length > 1) {
+        renderHoldRef.current[picked.key] = frames[0]!;
+        pendingAnimRef.current = { key: picked.key, frames };
+      }
+    }
+  }
+  if (layoutKey !== prevLayoutKeyRef.current) {
+    prevLayoutKeyRef.current = layoutKey;
+  }
+
+  const stopPieceAnimation = (clearOverrides: boolean, movingKey?: string) => {
     if (animTimerRef.current) {
       clearInterval(animTimerRef.current);
       animTimerRef.current = null;
     }
     animatingRef.current = false;
     setIsAnimating(false);
-    if (clearOverrides) setAnimOverrides({});
+    if (clearOverrides) {
+      setAnimOverrides({});
+      if (movingKey) delete renderHoldRef.current[movingKey];
+      else renderHoldRef.current = {};
+    }
   };
 
   const runPieceAnimation = (
     movedKey: string,
     frames: Array<{ row: number; col: number }>,
   ) => {
-    stopPieceAnimation(true);
-    if (frames.length <= 1) return;
+    if (animTimerRef.current) {
+      clearInterval(animTimerRef.current);
+      animTimerRef.current = null;
+    }
+    if (frames.length <= 1) {
+      delete renderHoldRef.current[movedKey];
+      return;
+    }
 
     animatingRef.current = true;
     setIsAnimating(true);
-    let frameIndex = 0;
     setAnimOverrides({ [movedKey]: frames[0]! });
 
+    let frameIndex = 0;
     animTimerRef.current = setInterval(() => {
       frameIndex += 1;
       if (frameIndex >= frames.length) {
-        stopPieceAnimation(true);
+        stopPieceAnimation(true, movedKey);
         return;
       }
       setAnimOverrides({ [movedKey]: frames[frameIndex]! });
@@ -267,26 +332,22 @@ export function LudoLive({
   useEffect(() => () => stopPieceAnimation(false), []);
 
   useEffect(() => {
-    stopPieceAnimation(true);
-    positionsReadyRef.current = false;
-    prevPositionsRef.current = new Map();
-  }, [snapshot.matchId]);
-
-  useEffect(() => {
     if (!ludoSettings.turnTimerEnabled || !turnDeadlineAt || finished) return;
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, [ludoSettings.turnTimerEnabled, turnDeadlineAt, finished]);
 
   useEffect(() => {
-    const current = snapshotPiecePositions(gameRef.current);
+    stopPieceAnimation(true);
+    positionsReadyRef.current = false;
+    prevPositionsRef.current = new Map();
+    prevLayoutKeyRef.current = null;
+    renderHoldRef.current = {};
+    pendingAnimRef.current = null;
+  }, [snapshot.matchId]);
 
-    if (!showAnimations) {
-      stopPieceAnimation(true);
-      prevPositionsRef.current = current;
-      positionsReadyRef.current = true;
-      return;
-    }
+  useLayoutEffect(() => {
+    const current = snapshotPiecePositions(gameRef.current);
 
     if (!positionsReadyRef.current) {
       prevPositionsRef.current = current;
@@ -294,62 +355,35 @@ export function LudoLive({
       return;
     }
 
-    if (animatingRef.current) {
-      prevPositionsRef.current = current;
+    prevPositionsRef.current = current;
+
+    if (!showAnimations) {
+      pendingAnimRef.current = null;
+      renderHoldRef.current = {};
       return;
     }
 
-    const changes: Array<{
-      key: string;
-      fromPosition: number;
-      toPosition: number;
-      homeSeat: number;
-      yardIndex: number;
-    }> = [];
+    if (animatingRef.current) return;
 
-    for (const [key, curr] of current) {
-      const prev = prevPositionsRef.current.get(key);
-      if (prev && prev.position !== curr.position) {
-        changes.push({
-          key,
-          fromPosition: prev.position,
-          toPosition: curr.position,
-          homeSeat: curr.homeSeat,
-          yardIndex: curr.yardIndex,
-        });
-      }
-    }
+    const pending = pendingAnimRef.current;
+    pendingAnimRef.current = null;
+    if (!pending) return;
 
-    prevPositionsRef.current = current;
-    if (!changes.length) return;
-
-    const forward = changes.filter(
-      (change) =>
-        change.toPosition >= 0 &&
-        (change.fromPosition < LUDO_HOME || change.toPosition > change.fromPosition),
-    );
-    const picked = forward[0];
-    if (!picked) return;
-
-    const frames = ludoMoveAnimationFrames(
-      picked.homeSeat,
-      picked.fromPosition,
-      picked.toPosition,
-      picked.yardIndex,
-    );
-    runPieceAnimation(picked.key, frames);
+    runPieceAnimation(pending.key, pending.frames);
   }, [layoutKey, showAnimations]);
 
   const tokens = useMemo(() => {
     const list: BoardToken[] = [];
+    const holds = renderHoldRef.current;
     for (const player of snapshot.players) {
       const pieces = game.pieces[player.userId] ?? [];
       pieces.forEach((piece) => {
         const yardIndex = ludoYardSlotIndex(piece);
         const key = piecePositionKey(player.userId, piece.id);
         const override = animOverrides[key];
+        const held = holds[key];
         const { row, col } =
-          override ?? ludoPieceCoords(piece.homeSeat, piece.position, yardIndex);
+          override ?? held ?? ludoPieceCoords(piece.homeSeat, piece.position, yardIndex);
         list.push({
           userId: player.userId,
           homeSeat: piece.homeSeat,
@@ -574,7 +608,7 @@ export function LudoLive({
               </p>
               {game.capturedThisTurn && rollIsActive && (
                 <p className="text-center text-xs font-medium text-amber-700">
-                  Take out! Bonus roll after you finish this turn.
+                  Take out! That seed is done — bonus roll after you finish this turn.
                 </p>
               )}
             </div>

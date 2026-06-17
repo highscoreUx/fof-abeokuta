@@ -109,6 +109,26 @@ export function ludoLegalChoicesForPiece(
   return choices;
 }
 
+/** Prefer single dice (in order) before using both dice combined. */
+export function ludoPreferredDieChoice(choices: LudoDieChoice[]): LudoDieChoice | null {
+  if (!choices.length) return null;
+  if (choices.length === 1) return choices[0]!;
+  if (choices.includes(0)) return 0;
+  if (choices.includes(1)) return 1;
+  return choices[0]!;
+}
+
+export function ludoPlayableOnTrackPieces(state: LudoState, userId: string): LudoPiece[] {
+  const ownedSeats = state.playerSeats[userId];
+  if (!ownedSeats?.length || !state.dice) return [];
+  return (state.pieces[userId] ?? []).filter(
+    (piece) =>
+      ownedSeats.includes(piece.homeSeat) &&
+      ludoIsPieceOnTrack(piece) &&
+      ludoPieceHasLegalMove(state, userId, piece),
+  );
+}
+
 export function ludoPieceHasLegalMove(
   state: LudoState,
   userId: string,

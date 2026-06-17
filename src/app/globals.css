@@ -79,6 +79,26 @@ body {
   border-radius: 0.5rem;
 }
 
+@keyframes ludo-seed-playable-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgb(251 191 36),
+      0 2px 4px rgba(0, 0, 0, 0.25),
+      0 0 8px 2px rgba(251, 191, 36, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgb(245 158 11),
+      0 2px 4px rgba(0, 0, 0, 0.25),
+      0 0 12px 4px rgba(251, 191, 36, 0.75);
+  }
+}
+
+.ludo-seed-playable {
+  animation: ludo-seed-playable-pulse 1s ease-in-out infinite;
+}
+
 .gallery-shimmer {
   position: relative;
   overflow: hidden;

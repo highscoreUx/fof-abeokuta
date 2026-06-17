@@ -22,6 +22,8 @@ export {
   ludoLegalChoicesForPiece,
   ludoMarkDiceUsed,
   ludoPieceHasLegalMove,
+  ludoPlayableOnTrackPieces,
+  ludoPreferredDieChoice,
   ludoRemainingDice,
   ludoStepsForChoice,
   ludoEnterPosition,

@@ -40,6 +40,8 @@ import {
   ludoIsPieceFinished,
   ludoLegalChoicesForPiece,
   ludoPieceHasLegalMove,
+  ludoPlayableOnTrackPieces,
+  ludoPreferredDieChoice,
   ludoRemainingDice,
   ludoYardSlotIndex,
   normalizeLudoState,
@@ -424,6 +426,24 @@ export function LudoLive({
   const diceUsed = ludoDiceUsed(game);
   const remainingDice = ludoRemainingDice(game);
 
+  const playableOnTrackPieces = useMemo(
+    () => (user?.id && game.dice != null ? ludoPlayableOnTrackPieces(game, user.id) : []),
+    [game, user?.id],
+  );
+  const solePlayableOutside =
+    playableOnTrackPieces.length === 1 ? playableOnTrackPieces[0]! : null;
+
+  const myPlayableTokenKeys = useMemo(() => {
+    if (!user?.id || !isMyTurn || finished || game.dice == null) return new Set<string>();
+    const keys = new Set<string>();
+    for (const piece of myPieces) {
+      if (ludoPieceHasLegalMove(game, user.id, piece)) {
+        keys.add(piecePositionKey(user.id, piece.id));
+      }
+    }
+    return keys;
+  }, [user?.id, isMyTurn, finished, game, myPieces]);
+
   const pendingPiece = pendingPieceId != null ? myPieces.find((p) => p.id === pendingPieceId) : null;
   const pendingChoices =
     pendingPiece && game.dice && user?.id
@@ -440,8 +460,15 @@ export function LudoLive({
     if (!piece || !game.dice) return;
     const choices = ludoLegalChoicesForPiece(game, user.id, piece);
     if (!choices.length) return;
-    if (choices.length === 1) {
-      sendMove("move", { pieceId, dieChoice: choices[0] });
+
+    const autoPlay =
+      choices.length === 1 ||
+      (solePlayableOutside != null && solePlayableOutside.id === pieceId);
+    if (autoPlay) {
+      const dieChoice = choices.length === 1 ? choices[0]! : ludoPreferredDieChoice(choices);
+      if (dieChoice != null) {
+        sendMove("move", { pieceId, dieChoice });
+      }
       return;
     }
     setPendingPieceId(pieceId);
@@ -494,10 +521,10 @@ export function LudoLive({
 
       <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center">
         <div
-          className={`rounded-xl border-4 border-neutral-700 bg-[#f5e6c8] p-1.5 shadow-xl transition-transform ${flipBoard ? "rotate-180" : ""}`}
+          className={`overflow-visible rounded-xl border-4 border-neutral-700 bg-[#f5e6c8] p-1.5 shadow-xl transition-transform ${flipBoard ? "rotate-180" : ""}`}
         >
           <div
-            className="grid gap-px bg-neutral-500/40"
+            className="grid gap-px overflow-visible bg-neutral-500/40"
             style={{
               gridTemplateColumns: `repeat(${LUDO_GRID}, minmax(0, 1fr))`,
               width: "min(92vw, 24rem)",
@@ -522,7 +549,13 @@ export function LudoLive({
               return (
                 <div
                   key={`${row}-${col}`}
-                  className="relative flex aspect-square items-center justify-center border border-neutral-400/30"
+                  className={`relative flex aspect-square items-center justify-center overflow-visible border border-neutral-400/30 ${
+                    here.some((token) =>
+                      myPlayableTokenKeys.has(piecePositionKey(token.userId, token.pieceId)),
+                    )
+                      ? "z-20"
+                      : ""
+                  }`}
                   style={cellInlineStyle(row, col)}
                 >
                   {yardCorner != null && yardSlot >= 0 && activeCorners.has(yardCorner) && (
@@ -563,23 +596,24 @@ export function LudoLive({
                       !ludoIsPieceFinished(piece) &&
                       ludoPieceHasLegalMove(game, user.id, piece);
 
+                    const isPending = pendingPieceId === token.pieceId;
+
                     return (
                       <button
                         key={`${token.userId}-${token.pieceId}`}
                         type="button"
                         disabled={!canSelect}
                         onClick={() => canSelect && handleSeedClick(token.pieceId)}
-                        className={`absolute z-10 h-[54%] w-[54%] rounded-full border-2 border-white shadow-md transition ${
+                        className={`absolute h-[54%] w-[54%] rounded-full border-2 border-white transition ${
                           canSelect
-                            ? pendingPieceId === token.pieceId
-                              ? "cursor-pointer ring-2 ring-primary scale-110"
-                              : "cursor-pointer ring-2 ring-amber-400 hover:scale-110"
-                            : ""
+                            ? isPending
+                              ? "z-30 cursor-pointer shadow-md ring-2 ring-primary scale-110"
+                              : "ludo-seed-playable z-30 cursor-pointer hover:scale-110"
+                            : "z-10 shadow-md"
                         }`}
                         style={{
                           backgroundColor: color,
                           transform: `translate(${stackIndex * 2}px, ${stackIndex * -2}px)`,
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.25)",
                         }}
                         title={`${LUDO_PLAYER_NAMES[token.homeSeat]} seed ${(token.pieceId % LUDO_SEEDS_PER_CORNER) + 1}`}
                       />

@@ -15,6 +15,7 @@ export {
   ludoHasSix,
   ludoHasSixOnRemainingDice,
   ludoIsDoubles,
+  ludoIsDoubleSix,
   ludoIsPieceAtHome,
   ludoIsPieceOnTrack,
   ludoLegalChoicesForPiece,

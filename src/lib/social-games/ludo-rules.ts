@@ -150,6 +150,11 @@ export function ludoIsDoubles(dice: LudoDiceRoll): boolean {
   return dice[0] === dice[1];
 }
 
+/** Two sixes grant a bonus roll after the turn ends (other doubles do not). */
+export function ludoIsDoubleSix(dice: LudoDiceRoll): boolean {
+  return dice[0] === 6 && dice[1] === 6;
+}
+
 export function ludoEnterPosition(homeSeat: number): number {
   return ludoStartSquare(homeSeat);
 }

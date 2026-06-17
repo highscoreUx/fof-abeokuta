@@ -5,7 +5,7 @@ import {
   ludoEnterPosition,
   ludoFinishPosition,
   ludoHasLegalMove,
-  ludoIsDoubles,
+  ludoIsDoubleSix,
   ludoIsPieceOnTrack,
   ludoLegalChoicesForPiece,
   ludoMarkDiceUsed,
@@ -18,6 +18,7 @@ export {
   ludoHasLegalMove,
   ludoHasSix,
   ludoIsDoubles,
+  ludoIsDoubleSix,
 } from "@/lib/social-games/ludo-rules";
 
 const HOME = -1;
@@ -208,7 +209,7 @@ export function resolveLudoTurnAfterMove(
   }
 
   const cleared = passLudoTurn(state, userId);
-  const extraTurn = ludoIsDoubles(initialRoll) || Boolean(state.capturedThisTurn);
+  const extraTurn = ludoIsDoubleSix(initialRoll) || Boolean(state.capturedThisTurn);
   const nextTurnUserId = extraTurn ? userId : nextLudoPlayer(state, userId);
   return { state: cleared, nextTurnUserId };
 }

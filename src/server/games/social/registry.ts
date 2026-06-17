@@ -12,7 +12,7 @@ import {
 } from "@/server/games/social/games/ludo";
 import { prepareLudoStateForPlay } from "@/lib/social-games/ludo-helpers";
 import type { LudoState } from "@/lib/social-games/game-state-types";
-import { createSudokuState, applySudokuCell } from "@/server/games/social/games/sudoku";
+import { createSudokuState, applySudokuCell, applySudokuPencil } from "@/server/games/social/games/sudoku";
 import {
   createWhotState,
   applyWhotPlay,
@@ -90,6 +90,17 @@ const sudokuHandler: SocialGameHandler = {
   getFirstTurnUserId: () => null,
   applyMove: (state, ctx) => {
     const s = state as ReturnType<typeof createSudokuState>;
+
+    if (ctx.action === "pencil") {
+      const index = Number(ctx.payload.index);
+      const value = Number(ctx.payload.value);
+      const result = applySudokuPencil(s, ctx.userId, index, value);
+      if (result.error) {
+        return { state: s, winnerUserId: null, nextTurnUserId: null, error: result.error };
+      }
+      return { state: result.state, winnerUserId: null, nextTurnUserId: null };
+    }
+
     const index = Number(ctx.payload.index);
     const value = Number(ctx.payload.value);
     const result = applySudokuCell(s, ctx.userId, index, value);

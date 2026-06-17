@@ -18,3 +18,37 @@ export function sudokuBoxBorderClass(index: number): string {
   if (row % 3 === 0 && row > 0) classes.push("border-t-2 border-t-foreground/70");
   return classes.join(" ");
 }
+
+export function formatSudokuElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+export function emptySudokuPencils(): string[] {
+  return Array.from({ length: 81 }, () => "");
+}
+
+export function toggleSudokuNote(notes: string, digit: number): string {
+  if (digit === 0) return "";
+  if (digit < 1 || digit > 9) return notes;
+  const digits = new Set(notes.split("").filter(Boolean));
+  const key = String(digit);
+  if (digits.has(key)) digits.delete(key);
+  else digits.add(key);
+  return [...digits].sort().join("");
+}
+
+export function sudokuPencilsForUser(
+  pencils: Record<string, string[]> | undefined,
+  userId: string,
+): string[] {
+  const existing = pencils?.[userId];
+  if (existing?.length === 81) return existing;
+  return emptySudokuPencils();
+}

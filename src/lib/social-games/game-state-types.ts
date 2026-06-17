@@ -7,6 +7,8 @@ export interface SudokuState {
   puzzle: string;
   solution: string;
   boards: Record<string, string>;
+  /** Per-player pencil marks: 81 strings of sorted note digits, e.g. "24" for 2 and 4. */
+  pencils?: Record<string, string[]>;
   completedAt: Record<string, number>;
   startedAt: number;
 }

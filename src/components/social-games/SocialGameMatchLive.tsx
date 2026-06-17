@@ -12,10 +12,10 @@ import type { SocialLudoSettings } from "@/lib/chat-game-ludo-settings";
 import { DEFAULT_SOCIAL_LUDO_SETTINGS } from "@/lib/chat-game-ludo-settings";
 import type { SocialJsonGameKind } from "@/lib/social-games/kinds";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
-import type { ChessState, SudokuState } from "@/lib/social-games/game-state-types";
-import { normalizeSudokuGrid, sudokuBoxBorderClass } from "@/lib/social-games/sudoku-grid";
+import type { ChessState } from "@/lib/social-games/game-state-types";
 import { WhotLive } from "@/components/social-games/WhotLive";
 import { LudoLive } from "@/components/social-games/LudoLive";
+import { SudokuLive } from "@/components/social-games/SudokuLive";
 
 interface SocialGameMatchLiveProps {
   matchId: string;
@@ -304,76 +304,6 @@ function ChessLive({
         You play as {myColor === "w" ? "White" : "Black"}. Tap a piece, then a destination.
         {showLegalMoves ? " Direction lines show legal moves." : ""}
       </p>
-    </Card>
-  );
-}
-
-function SudokuLive({
-  snapshot,
-  sendMove,
-}: {
-  snapshot: SocialGameMatchSnapshot;
-  sendMove: (action: string, payload?: Record<string, unknown>) => void;
-}) {
-  const { user } = useAuth();
-  const game = snapshot.state as SudokuState;
-  const puzzle = useMemo(() => normalizeSudokuGrid(game.puzzle), [game.puzzle]);
-  const myBoard = useMemo(() => {
-    const raw = user?.id ? (game.boards[user.id] ?? puzzle) : puzzle;
-    return normalizeSudokuGrid(raw);
-  }, [game.boards, puzzle, user?.id]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const finished = snapshot.status === "FINISHED";
-
-  const setCell = (value: number) => {
-    if (selected == null || finished) return;
-    sendMove("cell", { index: selected, value });
-    setSelected(null);
-  };
-
-  return (
-    <Card className="p-4">
-      <CardTitle className="mb-3 text-base">
-        {finished
-          ? snapshot.winnerUserId
-            ? `${playerName(snapshot, snapshot.winnerUserId)} finished first`
-            : "Puzzle complete"
-          : "Race — first correct completion wins"}
-      </CardTitle>
-      <div className="mx-auto w-full max-w-[18rem]">
-        <div className="grid aspect-square w-full grid-cols-9 grid-rows-9 gap-px rounded-lg border-2 border-foreground/80 bg-foreground/80 p-px">
-          {Array.from({ length: 81 }, (_, index) => {
-            const cell = myBoard[index] ?? "0";
-            const fixed = puzzle[index] !== "0";
-            const selectedCell = selected === index;
-            return (
-              <button
-                key={index}
-                type="button"
-                disabled={finished || fixed}
-                onClick={() => !fixed && setSelected(index)}
-                className={`flex h-full min-h-0 w-full min-w-0 items-center justify-center text-sm font-medium sm:text-base ${
-                  fixed ? "bg-muted font-semibold text-foreground" : "bg-card"
-                } ${sudokuBoxBorderClass(index)} ${selectedCell ? "ring-2 ring-inset ring-primary" : ""}`}
-              >
-                {cell === "0" ? "" : cell}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      {selected != null && !finished && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => (
-            <Button key={value} size="sm" variant="outline" onClick={() => setCell(value)}>
-              {value}
-            </Button>
-          ))}
-          <Button size="sm" variant="ghost" onClick={() => setCell(0)}>
-            Clear
-          </Button>
-        </div>
-      )}
     </Card>
   );
 }

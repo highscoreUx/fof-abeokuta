@@ -1,4 +1,4 @@
-import { normalizeSudokuGrid } from "@/lib/social-games/sudoku-grid";
+import { normalizeSudokuGrid, sudokuPencilsForUser, toggleSudokuNote } from "@/lib/social-games/sudoku-grid";
 
 /** Preset Sudoku puzzles (81 chars, 0 = empty). */
 const PUZZLES = [
@@ -67,6 +67,7 @@ export interface SudokuState {
   puzzle: string;
   solution: string;
   boards: Record<string, string>;
+  pencils?: Record<string, string[]>;
   completedAt: Record<string, number>;
   startedAt: number;
 }
@@ -100,23 +101,43 @@ export function applySudokuCell(
   next[index] = String(value);
   const boards = { ...state.boards, [userId]: next.join("") };
 
-  if (value !== 0 && parseInt(normalizeSudokuGrid(state.solution)[index]!, 10) !== value) {
-    return {
-      state: { ...state, boards },
-      winnerUserId: null,
-      error: "Incorrect number.",
-    };
-  }
+  const pencilRows = sudokuPencilsForUser(state.pencils, userId);
+  const nextPencils = [...pencilRows];
+  nextPencils[index] = value === 0 ? nextPencils[index] : "";
+  const pencils = { ...state.pencils, [userId]: nextPencils };
 
   const completedAt = { ...state.completedAt };
   let winnerUserId: string | null = null;
-  if (isSudokuComplete(next.join(""), normalizeSudokuGrid(state.solution))) {
+  if (value !== 0 && isSudokuComplete(next.join(""), normalizeSudokuGrid(state.solution))) {
     completedAt[userId] = Date.now();
     winnerUserId = userId;
   }
 
   return {
-    state: { ...state, boards, completedAt },
+    state: { ...state, boards, pencils, completedAt },
     winnerUserId,
   };
+}
+
+export function applySudokuPencil(
+  state: SudokuState,
+  userId: string,
+  index: number,
+  digit: number,
+): { state: SudokuState; error?: string } {
+  if (index < 0 || index > 80) return { state, error: "Invalid cell." };
+  if (digit < 0 || digit > 9) return { state, error: "Invalid value." };
+
+  const puzzle = normalizeSudokuGrid(state.puzzle);
+  if (puzzle[index] !== "0") return { state, error: "Cell is fixed." };
+
+  const board = normalizeSudokuGrid(state.boards[userId] ?? puzzle);
+  if (board[index] !== "0") return { state, error: "Clear the cell before editing notes." };
+
+  const pencilRows = sudokuPencilsForUser(state.pencils, userId);
+  const nextPencils = [...pencilRows];
+  nextPencils[index] = toggleSudokuNote(pencilRows[index] ?? "", digit);
+  const pencils = { ...state.pencils, [userId]: nextPencils };
+
+  return { state: { ...state, pencils } };
 }

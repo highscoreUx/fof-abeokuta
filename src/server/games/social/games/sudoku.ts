@@ -5,19 +5,11 @@ import {
   sudokuPeerIndices,
   toggleSudokuNote,
 } from "@/lib/social-games/sudoku-grid";
-
-/** Preset Sudoku puzzles (81 chars, 0 = empty). */
-const PUZZLES = [
-  "530070000600195000098000060000060003406000007000020085000000000000000000000000000",
-  "000260701680070090190004500820100040004005006050008037009400074040720063701000000",
-  "800000000003600000070090200050007000000045600000100030001000068000500007005000000",
-  "000000907000420180000705026100201000047080280000605003920108000034059000507000000",
-  "020000000000000000000000000000000000000000000000000000000000000000000000000000",
-];
+import { SUDOKU_PUZZLES } from "@/lib/social-games/sudoku-puzzles";
 
 export function pickSudokuPuzzle(): string {
-  const index = Math.floor(Math.random() * PUZZLES.length);
-  return PUZZLES[index]!;
+  const index = Math.floor(Math.random() * SUDOKU_PUZZLES.length);
+  return SUDOKU_PUZZLES[index]!;
 }
 
 export function solveSudoku(grid: string): string | null {

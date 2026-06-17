@@ -183,6 +183,12 @@ export function ludoPieceCoords(
   const rel = position - start;
   const finish = ludoFinishLine(homeSeat);
 
+  // Positions below this seat's entry are treated as still in the yard (avoids ghost tokens on the wrong path cells).
+  if (position >= 0 && position < start) {
+    const slot = LUDO_YARDS[homeSeat]![yardIndex] ?? LUDO_YARDS[homeSeat]![0]!;
+    return { row: slot[0], col: slot[1] };
+  }
+
   if (position >= finish || rel >= LUDO_TRACK_LEN) {
     return { row: 7, col: 7 };
   }

@@ -98,7 +98,17 @@ function useSocialGameState(matchId: string, sessionId?: string) {
 
     const onState = (snapshot: SocialGameMatchSnapshot) => {
       if (snapshot.matchId !== matchId) return;
-      setState(snapshot);
+      setState((prev) => {
+        if (
+          prev &&
+          prev.status === snapshot.status &&
+          prev.currentTurnUserId === snapshot.currentTurnUserId &&
+          JSON.stringify(prev.state) === JSON.stringify(snapshot.state)
+        ) {
+          return prev;
+        }
+        return snapshot;
+      });
     };
 
     socket.on("social-game:state", onState);

@@ -183,6 +183,16 @@ function snapshotPiecePositions(game: LudoState) {
   return map;
 }
 
+function pieceLayoutKey(game: LudoState, playerIds: string[]): string {
+  return playerIds
+    .flatMap((userId) =>
+      (game.pieces[userId] ?? []).map(
+        (piece) => `${userId}:${piece.id}:${piece.homeSeat}:${piece.position}`,
+      ),
+    )
+    .join("|");
+}
+
 export function LudoLive({
   snapshot,
   sendMove,
@@ -206,16 +216,58 @@ export function LudoLive({
     new Map(),
   );
   const positionsReadyRef = useRef(false);
+  const animatingRef = useRef(false);
+  const animTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const myPieces = user?.id ? (game.pieces[user.id] ?? []) : [];
   const isMyTurn = snapshot.currentTurnUserId === user?.id;
   const finished = snapshot.status === "FINISHED";
   const showAnimations = ludoSettings.showAnimations;
 
+  const layoutKey = useMemo(
+    () => pieceLayoutKey(game, snapshot.players.map((player) => player.userId)),
+    [game, snapshot.players],
+  );
+  const gameRef = useRef(game);
+  gameRef.current = game;
+
+  const stopPieceAnimation = (clearOverrides: boolean) => {
+    if (animTimerRef.current) {
+      clearInterval(animTimerRef.current);
+      animTimerRef.current = null;
+    }
+    animatingRef.current = false;
+    setIsAnimating(false);
+    if (clearOverrides) setAnimOverrides({});
+  };
+
+  const runPieceAnimation = (
+    movedKey: string,
+    frames: Array<{ row: number; col: number }>,
+  ) => {
+    stopPieceAnimation(true);
+    if (frames.length <= 1) return;
+
+    animatingRef.current = true;
+    setIsAnimating(true);
+    let frameIndex = 0;
+    setAnimOverrides({ [movedKey]: frames[0]! });
+
+    animTimerRef.current = setInterval(() => {
+      frameIndex += 1;
+      if (frameIndex >= frames.length) {
+        stopPieceAnimation(true);
+        return;
+      }
+      setAnimOverrides({ [movedKey]: frames[frameIndex]! });
+    }, LUDO_ANIMATION_STEP_MS);
+  };
+
+  useEffect(() => () => stopPieceAnimation(false), []);
+
   useEffect(() => {
+    stopPieceAnimation(true);
     positionsReadyRef.current = false;
     prevPositionsRef.current = new Map();
-    setAnimOverrides({});
-    setIsAnimating(false);
   }, [snapshot.matchId]);
 
   useEffect(() => {
@@ -225,12 +277,12 @@ export function LudoLive({
   }, [ludoSettings.turnTimerEnabled, turnDeadlineAt, finished]);
 
   useEffect(() => {
-    const current = snapshotPiecePositions(game);
+    const current = snapshotPiecePositions(gameRef.current);
 
     if (!showAnimations) {
+      stopPieceAnimation(true);
       prevPositionsRef.current = current;
-      setAnimOverrides({});
-      setIsAnimating(false);
+      positionsReadyRef.current = true;
       return;
     }
 
@@ -240,7 +292,10 @@ export function LudoLive({
       return;
     }
 
-    if (isAnimating) return;
+    if (animatingRef.current) {
+      prevPositionsRef.current = current;
+      return;
+    }
 
     let movedKey: string | null = null;
     let fromPosition = 0;
@@ -264,25 +319,8 @@ export function LudoLive({
     if (!movedKey) return;
 
     const frames = ludoMoveAnimationFrames(homeSeat, fromPosition, toPosition, yardIndex);
-    if (frames.length <= 1) return;
-
-    setIsAnimating(true);
-    let frameIndex = 0;
-    setAnimOverrides({ [movedKey]: frames[0]! });
-
-    const timer = setInterval(() => {
-      frameIndex += 1;
-      if (frameIndex >= frames.length) {
-        clearInterval(timer);
-        setAnimOverrides({});
-        setIsAnimating(false);
-        return;
-      }
-      setAnimOverrides({ [movedKey!]: frames[frameIndex]! });
-    }, LUDO_ANIMATION_STEP_MS);
-
-    return () => clearInterval(timer);
-  }, [game.pieces, showAnimations, isAnimating]);
+    runPieceAnimation(movedKey, frames);
+  }, [layoutKey, showAnimations]);
 
   const tokens = useMemo(() => {
     const list: BoardToken[] = [];
@@ -458,10 +496,12 @@ export function LudoLive({
                     const color = LUDO_PLAYER_COLORS[token.homeSeat]!;
                     const isMine = token.userId === user?.id;
                     const piece = myPieces.find((entry) => entry.id === token.pieceId);
+                    const tokenKey = piecePositionKey(token.userId, token.pieceId);
+                    const isThisPieceAnimating = Boolean(animOverrides[tokenKey]);
                     const canSelect =
                       isMyTurn &&
                       !finished &&
-                      !isAnimating &&
+                      !isThisPieceAnimating &&
                       isMine &&
                       game.dice != null &&
                       piece != null &&

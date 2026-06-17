@@ -1,4 +1,4 @@
-import { LUDO_HOME, ludoPieceCoords } from "@/lib/social-games/ludo-board-layout";
+import { LUDO_HOME, ludoPieceCoords, ludoStartSquare } from "@/lib/social-games/ludo-board-layout";
 
 /** Board cells visited when a seed moves (one frame per step). */
 export function ludoMoveAnimationFrames(
@@ -13,7 +13,8 @@ export function ludoMoveAnimationFrames(
     const frames: Array<{ row: number; col: number }> = [
       ludoPieceCoords(homeSeat, LUDO_HOME, yardIndex),
     ];
-    for (let position = 0; position <= toPosition; position += 1) {
+    const enterPos = ludoStartSquare(homeSeat);
+    for (let position = enterPos; position <= toPosition; position += 1) {
       frames.push(ludoPieceCoords(homeSeat, position, yardIndex));
     }
     return frames;

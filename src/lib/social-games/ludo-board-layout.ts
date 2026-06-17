@@ -23,13 +23,22 @@ export const LUDO_PATH: ReadonlyArray<readonly [number, number]> = [
   [6, 0],
 ];
 
-/** Home columns (6 cells) leading into center — arrows point inward. */
+/** Home-column arms on the board cross (fixed geometry). */
 export const LUDO_HOME_COLUMNS: ReadonlyArray<readonly [number, number][]> = [
-  [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
-  [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
-  [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]],
-  [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
+  [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]], // 0 top — down
+  [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]], // 1 right — left
+  [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]], // 2 bottom — up
+  [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]], // 3 left — right
 ];
+
+/**
+ * Which arm each seat uses for the home stretch (seat 0=Red TL … 3=Blue BL).
+ * Top=Green, Right=Yellow, Bottom=Blue, Left=Red on the physical board.
+ */
+export const LUDO_SEAT_HOME_ARM: readonly number[] = [3, 0, 1, 2];
+
+/** Seat that owns each physical home arm (inverse of LUDO_SEAT_HOME_ARM). */
+export const LUDO_ARM_HOME_SEAT: readonly number[] = [1, 2, 3, 0];
 
 /** 2×2 seed slots in each corner base (4 seeds per side). */
 export const LUDO_YARDS: ReadonlyArray<readonly [number, number][]> = [
@@ -76,9 +85,23 @@ export function ludoCellKind(row: number, col: number): LudoCellKind {
   return "empty";
 }
 
+export function ludoHomeArmIndex(row: number, col: number): number | null {
+  for (let arm = 0; arm < LUDO_HOME_COLUMNS.length; arm += 1) {
+    if (LUDO_HOME_COLUMNS[arm]!.some(([r, c]) => r === row && c === col)) return arm;
+  }
+  return null;
+}
+
 export function ludoHomeColumnSeat(row: number, col: number): number | null {
-  for (let seat = 0; seat < LUDO_HOME_COLUMNS.length; seat += 1) {
-    if (LUDO_HOME_COLUMNS[seat]!.some(([r, c]) => r === row && c === col)) return seat;
+  const arm = ludoHomeArmIndex(row, col);
+  return arm == null ? null : LUDO_ARM_HOME_SEAT[arm]!;
+}
+
+/** Colored track entry square for each seat (where a seed first lands leaving home). */
+export function ludoPathStartSeat(row: number, col: number): number | null {
+  for (let seat = 0; seat < LUDO_ARM_HOME_SEAT.length; seat += 1) {
+    const cell = LUDO_PATH[ludoStartSquare(seat)];
+    if (cell && cell[0] === row && cell[1] === col) return seat;
   }
   return null;
 }
@@ -111,12 +134,14 @@ export function ludoHomeColumnArrow(
   col: number,
   seat: number,
 ): "up" | "down" | "left" | "right" | null {
-  const column = LUDO_HOME_COLUMNS[seat];
-  if (!column?.some(([r, c]) => r === row && c === col)) return null;
-  if (seat === 0) return "down";
-  if (seat === 1) return "left";
-  if (seat === 2) return "up";
-  if (seat === 3) return "right";
+  const arm = LUDO_SEAT_HOME_ARM[seat];
+  if (arm == null || !LUDO_HOME_COLUMNS[arm]!.some(([r, c]) => r === row && c === col)) {
+    return null;
+  }
+  if (arm === 0) return "down";
+  if (arm === 1) return "left";
+  if (arm === 2) return "up";
+  if (arm === 3) return "right";
   return null;
 }
 
@@ -140,7 +165,8 @@ export function ludoPieceCoords(
 
   if (rel >= LUDO_TRACK_LEN - LUDO_HOME_STRETCH) {
     const homeIdx = rel - (LUDO_TRACK_LEN - LUDO_HOME_STRETCH);
-    const cell = LUDO_HOME_COLUMNS[homeSeat]![homeIdx] ?? LUDO_HOME_COLUMNS[homeSeat]![0]!;
+    const arm = LUDO_SEAT_HOME_ARM[homeSeat]!;
+    const cell = LUDO_HOME_COLUMNS[arm]![homeIdx] ?? LUDO_HOME_COLUMNS[arm]![0]!;
     return { row: cell[0], col: cell[1] };
   }
 

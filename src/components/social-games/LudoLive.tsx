@@ -16,6 +16,7 @@ import {
   ludoCellKind,
   ludoHomeColumnArrow,
   ludoHomeColumnSeat,
+  ludoPathStartSeat,
   ludoPieceCoords,
   ludoYardSeat,
 } from "@/lib/social-games/ludo-board-layout";
@@ -83,6 +84,7 @@ function LudoDie({ value }: { value: number }) {
 function cellInlineStyle(row: number, col: number): CSSProperties | undefined {
   const yardSeat = ludoYardSeat(row, col);
   const homeSeat = ludoHomeColumnSeat(row, col);
+  const startSeat = ludoPathStartSeat(row, col);
   const baseSeat = ludoBaseZoneSeat(row, col);
   const kind = ludoCellKind(row, col);
 
@@ -91,6 +93,9 @@ function cellInlineStyle(row: number, col: number): CSSProperties | undefined {
   }
   if (homeSeat != null) {
     return { backgroundColor: LUDO_PLAYER_COLORS[homeSeat] };
+  }
+  if (startSeat != null) {
+    return { backgroundColor: LUDO_PLAYER_COLORS[startSeat] };
   }
   if (kind === "center") {
     return {

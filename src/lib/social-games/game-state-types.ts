@@ -47,10 +47,10 @@ export interface LudoState {
   playerSeats: Record<string, number[]>;
 }
 
-/** 2-player DM: red+yellow vs green+blue. */
+/** 2-player DM: blue+yellow (bottom) vs red+green (top). */
 export const LUDO_TWO_PLAYER_SEATS: ReadonlyArray<readonly [number, number]> = [
-  [0, 2],
-  [1, 3],
+  [3, 2],
+  [0, 1],
 ];
 
 /** Seeds in each corner base (always 4). */

@@ -43,6 +43,12 @@ export function ludoDiceSum(dice: LudoDiceRoll): number {
   return dice[0] + dice[1];
 }
 
+/** Red+green player: rotate board 180° so their colors sit at the bottom (facing them). */
+export function ludoFlipBoardForViewer(mySeats: number[]): boolean {
+  if (mySeats.length !== 2) return false;
+  return mySeats.every((seat) => seat === 0 || seat === 1);
+}
+
 function expandLegacyTwoPlayerPieces(
   existing: LudoPiece[],
   defaults: LudoPiece[],

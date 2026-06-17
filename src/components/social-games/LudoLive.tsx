@@ -21,7 +21,7 @@ import {
   ludoPieceCoords,
   ludoYardSeat,
 } from "@/lib/social-games/ludo-board-layout";
-import { ludoDiceSum, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
+import { ludoDiceSum, ludoFlipBoardForViewer, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
 
 function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | undefined) {
   if (!userId) return "Player";
@@ -187,6 +187,11 @@ export function LudoLive({
     return set;
   }, [activePlayers, game.playerSeats]);
 
+  const flipBoard = useMemo(() => {
+    if (game.mode !== "two_player" || !user?.id) return false;
+    return ludoFlipBoardForViewer(game.playerSeats[user.id] ?? []);
+  }, [game.mode, game.playerSeats, user?.id]);
+
   return (
     <Card className="p-4">
       <CardTitle className="mb-2 text-center text-base">
@@ -205,7 +210,9 @@ export function LudoLive({
       )}
 
       <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center">
-        <div className="rounded-xl border-4 border-neutral-700 bg-[#f5e6c8] p-1.5 shadow-xl">
+        <div
+          className={`rounded-xl border-4 border-neutral-700 bg-[#f5e6c8] p-1.5 shadow-xl transition-transform ${flipBoard ? "rotate-180" : ""}`}
+        >
           <div
             className="grid gap-px bg-neutral-500/40"
             style={{

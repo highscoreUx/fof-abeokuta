@@ -5,9 +5,10 @@ import type {
   WhotShape,
   WhotState,
 } from "@/lib/social-games/game-state-types";
-import type { SocialWhotSettings } from "@/lib/chat-game-whot-settings";
+import type { SocialWhotSettings, WhotRuleSettings } from "@/lib/chat-game-whot-settings";
+import { DEFAULT_SOCIAL_WHOT_SETTINGS, whotRuleSettings } from "@/lib/chat-game-whot-settings";
 import { buildWhotDeck } from "@/lib/social-games/whot-deck";
-import { canPlayWhotCard } from "@/lib/social-games/whot-rules";
+import { canPlayWhotCard, isWhotPickBlock } from "@/lib/social-games/whot-rules";
 
 export { canPlayWhotCard } from "@/lib/social-games/whot-rules";
 
@@ -100,10 +101,27 @@ function stackPickPenalty(
   return { kind, stack: 1 };
 }
 
+function applyPickPenalty(
+  state: WhotState,
+  card: WhotCard,
+  kind: WhotPickPenalty["kind"],
+  rules: WhotRuleSettings,
+): WhotState {
+  const blocking = isWhotPickBlock(card, state.pickPenalty);
+  const allowStacking = kind === "two" ? rules.pick2AllowStacking : rules.pick3AllowStacking;
+
+  if (blocking && !allowStacking) {
+    return { ...state, pickPenalty: null };
+  }
+
+  return { ...state, pickPenalty: stackPickPenalty(state.pickPenalty, kind) };
+}
+
 function applySpecialCardEffects(
   state: WhotState,
   userId: string,
   card: WhotCard,
+  rules: WhotRuleSettings,
 ): WhotState {
   if (card.shape === "whot") return state;
 
@@ -113,13 +131,17 @@ function applySpecialCardEffects(
       next = { ...next, holdOn: true };
       break;
     case 2:
-      next = { ...next, pickPenalty: stackPickPenalty(next.pickPenalty, "two") };
+      next = applyPickPenalty(next, card, "two", rules);
       break;
     case 5:
-      next = { ...next, pickPenalty: stackPickPenalty(next.pickPenalty, "three") };
+      if (rules.allowPick3) {
+        next = applyPickPenalty(next, card, "three", rules);
+      }
       break;
     case 8:
-      next = { ...next, pendingSkips: card.shape === "star" ? 2 : 1 };
+      if (rules.allowSuspension) {
+        next = { ...next, pendingSkips: card.shape === "star" ? 2 : 1 };
+      }
       break;
     case 14:
       next = applyGeneralMarket(next, userId);
@@ -140,19 +162,16 @@ export function advanceWhotPlayer(state: WhotState, currentUserId: string): stri
 export function resolveWhotTurnAfterPlay(
   state: WhotState,
   userId: string,
-  card: WhotCard,
 ): { state: WhotState; nextTurnUserId: string } {
-  let next = applySpecialCardEffects(state, userId, card);
-
-  if (next.holdOn) {
+  if (state.holdOn) {
     return {
-      state: { ...next, holdOn: false, pendingSkips: 0 },
+      state: { ...state, holdOn: false, pendingSkips: 0 },
       nextTurnUserId: userId,
     };
   }
 
-  const skips = next.pendingSkips;
-  next = { ...next, pendingSkips: 0 };
+  const skips = state.pendingSkips;
+  const next = { ...state, pendingSkips: 0 };
   return {
     state: next,
     nextTurnUserId: advanceWhotPlayer({ ...next, pendingSkips: skips }, userId),
@@ -200,15 +219,17 @@ export function applyWhotPlay(
   userId: string,
   cardId: string,
   chosenShape?: WhotShape,
-  settings?: Pick<SocialWhotSettings, "enforceLastCardCall" | "lastCardPenaltyCards">,
+  settings: SocialWhotSettings = DEFAULT_SOCIAL_WHOT_SETTINGS,
 ): { state: WhotState; winnerUserId: string | null; error?: string } {
+  const rules = whotRuleSettings(settings);
+
   const hand = state.hands[userId] ?? [];
   const cardIndex = hand.findIndex((c) => c.id === cardId);
   if (cardIndex < 0) return { state, winnerUserId: null, error: "Card not in hand." };
 
   const top = state.discard[0];
   const card = hand[cardIndex]!;
-  if (!canPlayWhotCard(card, top, state.currentShape, state.pickPenalty)) {
+  if (!canPlayWhotCard(card, top, state.currentShape, state.pickPenalty, rules)) {
     return { state, winnerUserId: null, error: "Cannot play that card." };
   }
 
@@ -230,6 +251,7 @@ export function applyWhotPlay(
     },
     userId,
     card,
+    rules,
   );
 
   if (nextHand.length === 0) {

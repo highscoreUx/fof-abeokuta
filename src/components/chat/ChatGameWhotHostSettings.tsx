@@ -157,6 +157,137 @@ export function ChatGameWhotHostSettings({
             </div>
           )}
 
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <p className="text-sm font-medium">Pick Two (always on)</p>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={draft.pick2AllowBlock}
+                disabled={busy}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    pick2AllowBlock: event.target.checked,
+                  }))
+                }
+              />
+              <span>
+                Allow blocking with another 2
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Off = the next player must draw (cannot play a 2).
+                </span>
+              </span>
+            </label>
+            {draft.pick2AllowBlock && (
+              <label className="flex items-start gap-2 pl-6 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={draft.pick2AllowStacking}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      pick2AllowStacking: event.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  Allow stacking
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Off = one block clears the penalty (no pick 4, 6…).
+                  </span>
+                </span>
+              </label>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <label className="flex items-start gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={draft.allowPick3}
+                disabled={busy}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    allowPick3: event.target.checked,
+                  }))
+                }
+              />
+              <span>Pick Three (5)</span>
+            </label>
+            {draft.allowPick3 && (
+              <>
+                <label className="flex items-start gap-2 pl-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={draft.pick3AllowBlock}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        pick3AllowBlock: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>
+                    Allow blocking with another 5
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Off = the next player must draw.
+                    </span>
+                  </span>
+                </label>
+                {draft.pick3AllowBlock && (
+                  <label className="flex items-start gap-2 pl-6 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={draft.pick3AllowStacking}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          pick3AllowStacking: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>
+                      Allow stacking
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Off = one block clears the penalty.
+                      </span>
+                    </span>
+                  </label>
+                )}
+              </>
+            )}
+          </div>
+
+          <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={draft.allowSuspension}
+              disabled={busy}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  allowSuspension: event.target.checked,
+                }))
+              }
+            />
+            <span>
+              Suspension (8)
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Star 8 skips the next two players. Off = 8 is a normal card.
+              </span>
+            </span>
+          </label>
+
           {lockedFormat && (
             <p className="text-xs text-muted-foreground">
               Timer and call rules apply immediately. Deal size applies on rematch.

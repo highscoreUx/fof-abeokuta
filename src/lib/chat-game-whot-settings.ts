@@ -7,6 +7,18 @@ export interface SocialWhotSettings {
   lastCardPenaltyCards: number;
   turnTimerEnabled: boolean;
   turnTimerSeconds: number;
+  /** Pick Two (2) is always active. If false, the next player must draw — cannot block with another 2. */
+  pick2AllowBlock: boolean;
+  /** Only when blocking is allowed. If false, one 2 block clears the penalty (no stacking). */
+  pick2AllowStacking: boolean;
+  /** Enable Pick Three (5) special rule. Off by default — 5 is a normal card. */
+  allowPick3: boolean;
+  /** Only when Pick Three is enabled. If false, the next player must draw — cannot block with a 5. */
+  pick3AllowBlock: boolean;
+  /** Only when Pick Three blocking is allowed. If false, one 5 block clears the penalty. */
+  pick3AllowStacking: boolean;
+  /** Enable Suspension (8) / Star 8 skip. Off by default — 8 is a normal card. */
+  allowSuspension: boolean;
 }
 
 export const DEFAULT_SOCIAL_WHOT_SETTINGS: SocialWhotSettings = {
@@ -15,6 +27,12 @@ export const DEFAULT_SOCIAL_WHOT_SETTINGS: SocialWhotSettings = {
   lastCardPenaltyCards: 2,
   turnTimerEnabled: false,
   turnTimerSeconds: 45,
+  pick2AllowBlock: true,
+  pick2AllowStacking: true,
+  allowPick3: false,
+  pick3AllowBlock: true,
+  pick3AllowStacking: true,
+  allowSuspension: false,
 };
 
 const CARDS_PER_PLAYER_MIN = 3;
@@ -55,5 +73,32 @@ export function parseSocialWhotSettings(raw: unknown): SocialWhotSettings {
     lastCardPenaltyCards,
     turnTimerEnabled: Boolean(value.turnTimerEnabled),
     turnTimerSeconds,
+    pick2AllowBlock: value.pick2AllowBlock !== false,
+    pick2AllowStacking: value.pick2AllowStacking !== false,
+    allowPick3: Boolean(value.allowPick3),
+    pick3AllowBlock: value.pick3AllowBlock !== false,
+    pick3AllowStacking: value.pick3AllowStacking !== false,
+    allowSuspension: Boolean(value.allowSuspension),
+  };
+}
+
+export type WhotRuleSettings = Pick<
+  SocialWhotSettings,
+  | "pick2AllowBlock"
+  | "pick2AllowStacking"
+  | "allowPick3"
+  | "pick3AllowBlock"
+  | "pick3AllowStacking"
+  | "allowSuspension"
+>;
+
+export function whotRuleSettings(settings: SocialWhotSettings): WhotRuleSettings {
+  return {
+    pick2AllowBlock: settings.pick2AllowBlock,
+    pick2AllowStacking: settings.pick2AllowStacking,
+    allowPick3: settings.allowPick3,
+    pick3AllowBlock: settings.pick3AllowBlock,
+    pick3AllowStacking: settings.pick3AllowStacking,
+    allowSuspension: settings.allowSuspension,
   };
 }

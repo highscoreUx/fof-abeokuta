@@ -214,6 +214,28 @@ export async function POST(
               typeof settings.turnTimerSeconds === "number"
                 ? settings.turnTimerSeconds
                 : undefined,
+            pick2AllowBlock:
+              typeof settings.pick2AllowBlock === "boolean"
+                ? settings.pick2AllowBlock
+                : undefined,
+            pick2AllowStacking:
+              typeof settings.pick2AllowStacking === "boolean"
+                ? settings.pick2AllowStacking
+                : undefined,
+            allowPick3:
+              typeof settings.allowPick3 === "boolean" ? settings.allowPick3 : undefined,
+            pick3AllowBlock:
+              typeof settings.pick3AllowBlock === "boolean"
+                ? settings.pick3AllowBlock
+                : undefined,
+            pick3AllowStacking:
+              typeof settings.pick3AllowStacking === "boolean"
+                ? settings.pick3AllowStacking
+                : undefined,
+            allowSuspension:
+              typeof settings.allowSuspension === "boolean"
+                ? settings.allowSuspension
+                : undefined,
           },
         });
         return NextResponse.json({ session });

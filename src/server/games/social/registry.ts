@@ -157,8 +157,6 @@ const whotHandler: SocialGameHandler = {
 
     const cardId = String(ctx.payload.cardId ?? "");
     const chosenShape = ctx.payload.shape as WhotShape | undefined;
-    const hand = s.hands[ctx.userId] ?? [];
-    const playedCard = hand.find((c) => c.id === cardId);
     const play = applyWhotPlay(s, ctx.userId, cardId, chosenShape, settings);
     if (play.error) {
       return { state: s, winnerUserId: null, nextTurnUserId: null, error: play.error };
@@ -171,8 +169,7 @@ const whotHandler: SocialGameHandler = {
       };
     }
 
-    const card = playedCard ?? play.state.discard[0]!;
-    const resolved = resolveWhotTurnAfterPlay(play.state, ctx.userId, card);
+    const resolved = resolveWhotTurnAfterPlay(play.state, ctx.userId);
     return {
       state: resolved.state,
       winnerUserId: null,

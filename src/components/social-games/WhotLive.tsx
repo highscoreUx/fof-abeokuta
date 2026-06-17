@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import type { SocialWhotSettings } from "@/lib/chat-game-whot-settings";
-import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
+import { DEFAULT_SOCIAL_WHOT_SETTINGS, whotRuleSettings } from "@/lib/chat-game-whot-settings";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import type { WhotShape } from "@/lib/social-games/game-state-types";
 import { prepareWhotStateForPlay } from "@/lib/social-games/whot-helpers";
@@ -80,11 +80,25 @@ export function WhotLive({
       ? WHOT_SHAPE_LABELS[game.currentShape]
       : null;
 
-  const pickLabel = game.pickPenalty
-    ? game.pickPenalty.kind === "two"
-      ? `Pick ${game.pickPenalty.stack * 2} — play a 2 or draw`
-      : `Pick ${game.pickPenalty.stack * 3} — play a 5 or draw`
-    : null;
+  const rules = useMemo(() => whotRuleSettings(whotSettings), [whotSettings]);
+
+  const pickLabel = useMemo(() => {
+    if (!game.pickPenalty) return null;
+    const count =
+      game.pickPenalty.stack * (game.pickPenalty.kind === "two" ? 2 : 3);
+    if (game.pickPenalty.kind === "two") {
+      if (!rules.pick2AllowBlock) return `Pick ${count} — draw only (blocking disabled)`;
+      if (!rules.pick2AllowStacking) {
+        return `Pick ${count} — block with a 2 (no stacking) or draw`;
+      }
+      return `Pick ${count} — play a 2 or draw`;
+    }
+    if (!rules.pick3AllowBlock) return `Pick ${count} — draw only (blocking disabled)`;
+    if (!rules.pick3AllowStacking) {
+      return `Pick ${count} — block with a 5 (no stacking) or draw`;
+    }
+    return `Pick ${count} — play a 5 or draw`;
+  }, [game.pickPenalty, rules]);
 
   const myCall = user?.id ? (game.calledLastCard[user.id] ?? null) : null;
   const showSemiCall = whotSettings.enforceLastCardCall && hand.length === 2 && myCall !== "semi";
@@ -179,7 +193,7 @@ export function WhotLive({
               const playable =
                 isMyTurn &&
                 !finished &&
-                canPlayWhotCard(card, top, game.currentShape, game.pickPenalty);
+                canPlayWhotCard(card, top, game.currentShape, game.pickPenalty, rules);
               return (
                 <button
                   key={card.id}

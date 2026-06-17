@@ -1,6 +1,12 @@
 import type { SocialJsonGameKind } from "@/lib/social-games/kinds";
 import { createChessState, applyChessMove, chessTurnColor } from "@/server/games/social/games/chess";
-import { createLudoState, rollLudoDice, applyLudoMove, nextLudoPlayer } from "@/server/games/social/games/ludo";
+import {
+  createLudoState,
+  rollLudoDice,
+  applyLudoMove,
+  nextLudoPlayer,
+  ludoIsDoubles,
+} from "@/server/games/social/games/ludo";
 import { createSudokuState, applySudokuCell } from "@/server/games/social/games/sudoku";
 import {
   createWhotState,
@@ -137,11 +143,15 @@ const ludoHandler: SocialGameHandler = {
     if (move.error) {
       return { state: s, winnerUserId: null, nextTurnUserId: ctx.userId, error: move.error };
     }
-    const rolledSix = s.dice === 6;
+
+    const doubles = s.dice != null && ludoIsDoubles(s.dice);
     const next = move.winnerUserId
       ? null
-      : nextLudoPlayer(move.state, ctx.userId, rolledSix);
-  return {
+      : doubles
+        ? ctx.userId
+        : nextLudoPlayer(move.state, ctx.userId);
+
+    return {
       state: { ...move.state, dice: null },
       winnerUserId: move.winnerUserId,
       nextTurnUserId: next,

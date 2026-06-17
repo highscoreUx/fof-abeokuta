@@ -1,12 +1,12 @@
-/** Classic 15×15 Ludo board layout for rendering server piece positions. */
+/** Classic 15×15 Ludo board — colors match standard Ludo (reference layout). */
 
 export const LUDO_GRID = 15;
 
+/** 52 outer-track cells, clockwise from red's entry. */
 export const LUDO_PLAYER_COLORS = ["#e53935", "#43a047", "#fdd835", "#1e88e5"] as const;
-
 export const LUDO_PLAYER_NAMES = ["Red", "Green", "Yellow", "Blue"] as const;
 
-/** 52 shared outer-track cells, clockwise from red's entry. */
+export { LUDO_SEEDS_PER_CORNER } from "@/lib/social-games/game-state-types";
 export const LUDO_PATH: ReadonlyArray<readonly [number, number]> = [
   [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
   [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
@@ -23,28 +23,20 @@ export const LUDO_PATH: ReadonlyArray<readonly [number, number]> = [
   [6, 0],
 ];
 
-/** Colored home columns (6 cells) leading into the center per seat. */
+/** Home columns (6 cells) leading into center — arrows point inward. */
 export const LUDO_HOME_COLUMNS: ReadonlyArray<readonly [number, number][]> = [
-  [
-    [7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6],
-  ],
-  [
-    [1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7],
-  ],
-  [
-    [7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8],
-  ],
-  [
-    [13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7],
-  ],
+  [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
+  [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
+  [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]],
+  [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
 ];
 
-/** Yard slots for 4 tokens per player (at home). */
+/** 2×2 seed slots in each corner base (4 seeds per side). */
 export const LUDO_YARDS: ReadonlyArray<readonly [number, number][]> = [
-  [[10, 1], [10, 3], [11, 1], [11, 3]],
-  [[1, 10], [1, 12], [3, 10], [3, 12]],
-  [[1, 1], [1, 3], [3, 1], [3, 3]],
-  [[10, 10], [10, 12], [12, 10], [12, 12]],
+  [[2, 2], [2, 3], [3, 2], [3, 3]],
+  [[2, 11], [2, 12], [3, 11], [3, 12]],
+  [[11, 11], [11, 12], [12, 11], [12, 12]],
+  [[11, 2], [11, 3], [12, 2], [12, 3]],
 ];
 
 export const LUDO_HOME = -1;
@@ -98,29 +90,49 @@ export function ludoYardSeat(row: number, col: number): number | null {
   return null;
 }
 
-/** Tint full corner bases (classic Ludo home areas). */
+export function ludoYardSlotIndex(row: number, col: number, homeSeat: number): number {
+  const slots = LUDO_YARDS[homeSeat] ?? [];
+  const index = slots.findIndex(([r, c]) => r === row && c === col);
+  return index >= 0 ? index : 0;
+}
+
+/** Corner bases: Red TL, Green TR, Yellow BR, Blue BL. */
 export function ludoBaseZoneSeat(row: number, col: number): number | null {
-  if (row >= 9 && col <= 5) return 0;
+  if (row <= 5 && col <= 5) return 0;
   if (row <= 5 && col >= 9) return 1;
-  if (row <= 5 && col <= 5) return 2;
-  if (row >= 9 && col >= 9) return 3;
+  if (row >= 9 && col >= 9) return 2;
+  if (row >= 9 && col <= 5) return 3;
   return null;
 }
 
-/** Map server position to board coordinates for a given seat. */
-export function ludoPieceCoords(
+/** Direction arrow on home-column cells (points toward center). */
+export function ludoHomeColumnArrow(
+  row: number,
+  col: number,
   seat: number,
+): "up" | "down" | "left" | "right" | null {
+  const column = LUDO_HOME_COLUMNS[seat];
+  if (!column?.some(([r, c]) => r === row && c === col)) return null;
+  if (seat === 0) return "down";
+  if (seat === 1) return "left";
+  if (seat === 2) return "up";
+  if (seat === 3) return "right";
+  return null;
+}
+
+export function ludoPieceCoords(
+  homeSeat: number,
   position: number,
-  pieceIndex: number,
+  yardIndex: number,
 ): { row: number; col: number } {
   if (position === LUDO_HOME) {
-    const slot = LUDO_YARDS[seat]![pieceIndex] ?? LUDO_YARDS[seat]![0]!;
+    const slot = LUDO_YARDS[homeSeat]![yardIndex] ?? LUDO_YARDS[homeSeat]![0]!;
     return { row: slot[0], col: slot[1] };
   }
 
-  const start = ludoStartSquare(seat);
+  const start = ludoStartSquare(homeSeat);
   const rel = position - start;
-  const finish = ludoFinishLine(seat);
+  const finish = ludoFinishLine(homeSeat);
 
   if (position >= finish || rel >= LUDO_TRACK_LEN) {
     return { row: 7, col: 7 };
@@ -128,7 +140,7 @@ export function ludoPieceCoords(
 
   if (rel >= LUDO_TRACK_LEN - LUDO_HOME_STRETCH) {
     const homeIdx = rel - (LUDO_TRACK_LEN - LUDO_HOME_STRETCH);
-    const cell = LUDO_HOME_COLUMNS[seat]![homeIdx] ?? LUDO_HOME_COLUMNS[seat]![0]!;
+    const cell = LUDO_HOME_COLUMNS[homeSeat]![homeIdx] ?? LUDO_HOME_COLUMNS[homeSeat]![0]!;
     return { row: cell[0], col: cell[1] };
   }
 

@@ -1,51 +1,86 @@
-export interface LudoPiece {
-  id: number;
-  position: number;
-}
-
-export interface LudoState {
-  pieces: Record<string, LudoPiece[]>;
-  dice: number | null;
-  playerOrder: string[];
-  lastRoll: number | null;
-}
+import type { LudoDiceRoll, LudoPiece, LudoState } from "@/lib/social-games/game-state-types";
+import { LUDO_SEEDS_PER_CORNER, LUDO_TWO_PLAYER_SEATS } from "@/lib/social-games/game-state-types";
 
 const HOME = -1;
 const TRACK_LEN = 52;
-const HOME_STRETCH = 6;
 
-function createPieces(): LudoPiece[] {
-  return [
-    { id: 0, position: HOME },
-    { id: 1, position: HOME },
-    { id: 2, position: HOME },
-    { id: 3, position: HOME },
-  ];
+function rollDie(): number {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+function cornersForPlayer(playerIndex: number, playerCount: number): number[] {
+  if (playerCount === 2) {
+    return [...LUDO_TWO_PLAYER_SEATS[playerIndex]!];
+  }
+  return [playerIndex];
+}
+
+function createPiecesForPlayer(playerIndex: number, playerCount: number): LudoPiece[] {
+  const corners = cornersForPlayer(playerIndex, playerCount);
+
+  if (playerCount === 2) {
+    const firstCorner: LudoPiece[] = Array.from({ length: LUDO_SEEDS_PER_CORNER }, (_, id) => ({
+      id,
+      position: HOME,
+      homeSeat: corners[0]!,
+    }));
+    const secondCorner: LudoPiece[] = Array.from({ length: LUDO_SEEDS_PER_CORNER }, (_, offset) => ({
+      id: LUDO_SEEDS_PER_CORNER + offset,
+      position: HOME,
+      homeSeat: corners[1]!,
+    }));
+    return [...firstCorner, ...secondCorner];
+  }
+
+  return Array.from({ length: LUDO_SEEDS_PER_CORNER }, (_, id) => ({
+    id,
+    position: HOME,
+    homeSeat: playerIndex,
+  }));
 }
 
 export function createLudoState(playerIds: string[]): LudoState {
+  const mode = playerIds.length === 2 ? "two_player" : "standard";
   const pieces: Record<string, LudoPiece[]> = {};
-  for (const id of playerIds) {
-    pieces[id] = createPieces();
-  }
+  const playerSeats: Record<string, number[]> = {};
+
+  playerIds.forEach((userId, index) => {
+    pieces[userId] = createPiecesForPlayer(index, playerIds.length);
+    playerSeats[userId] = cornersForPlayer(index, playerIds.length);
+  });
+
   return {
     pieces,
     dice: null,
     playerOrder: [...playerIds],
     lastRoll: null,
+    mode,
+    playerSeats,
   };
 }
 
-function seatIndex(state: LudoState, userId: string): number {
-  return state.playerOrder.indexOf(userId);
+function startSquare(homeSeat: number): number {
+  return homeSeat * 13;
 }
 
-function startSquare(seat: number): number {
-  return seat * 13;
+function finishLine(homeSeat: number): number {
+  return startSquare(homeSeat) + TRACK_LEN;
+}
+
+export function ludoDiceSum(dice: LudoDiceRoll): number {
+  return dice[0] + dice[1];
+}
+
+export function ludoHasSix(dice: LudoDiceRoll): boolean {
+  return dice[0] === 6 || dice[1] === 6;
+}
+
+export function ludoIsDoubles(dice: LudoDiceRoll): boolean {
+  return dice[0] === dice[1];
 }
 
 export function rollLudoDice(state: LudoState): LudoState {
-  const dice = Math.floor(Math.random() * 6) + 1;
+  const dice: LudoDiceRoll = [rollDie(), rollDie()];
   return { ...state, dice, lastRoll: dice };
 }
 
@@ -54,55 +89,63 @@ export function applyLudoMove(
   userId: string,
   pieceId: number,
 ): { state: LudoState; winnerUserId: string | null; error?: string } {
-  if (state.dice == null) return { state, winnerUserId: null, error: "Roll the dice first." };
+  if (state.dice == null) {
+    return { state, winnerUserId: null, error: "Roll the dice first." };
+  }
 
-  const seat = seatIndex(state, userId);
-  if (seat < 0) return { state, winnerUserId: null, error: "Not in game." };
+  const ownedSeats = state.playerSeats[userId];
+  if (!ownedSeats?.length) {
+    return { state, winnerUserId: null, error: "Not in game." };
+  }
 
   const pieces = state.pieces[userId] ?? [];
-  const piece = pieces.find((p) => p.id === pieceId);
+  const piece = pieces.find((entry) => entry.id === pieceId);
   if (!piece) return { state, winnerUserId: null, error: "Piece not found." };
+  if (!ownedSeats.includes(piece.homeSeat)) {
+    return { state, winnerUserId: null, error: "Invalid piece." };
+  }
 
   const dice = state.dice;
+  const steps = ludoDiceSum(dice);
   let nextPos = piece.position;
 
   if (piece.position === HOME) {
-    if (dice !== 6) return { state, winnerUserId: null, error: "Need a 6 to leave home." };
-    nextPos = startSquare(seat);
+    if (!ludoHasSix(dice)) {
+      return { state, winnerUserId: null, error: "Need a 6 on either die to leave home." };
+    }
+    nextPos = startSquare(piece.homeSeat);
   } else {
-    nextPos = piece.position + dice;
-    const finishLine = startSquare(seat) + TRACK_LEN;
-    if (nextPos > finishLine) {
+    nextPos = piece.position + steps;
+    if (nextPos > finishLine(piece.homeSeat)) {
       return { state, winnerUserId: null, error: "Move overshoots finish." };
     }
   }
 
-  const updatedPieces = pieces.map((p) =>
-    p.id === pieceId ? { ...p, position: nextPos } : p,
+  const updatedPieces = pieces.map((entry) =>
+    entry.id === pieceId ? { ...entry, position: nextPos } : entry,
   );
   const allPieces = { ...state.pieces, [userId]: updatedPieces };
 
-  const winnerUserId =
-    updatedPieces.every((p) => p.position >= startSquare(seat) + TRACK_LEN) ? userId : null;
+  const winnerUserId = updatedPieces.every((entry) => entry.position >= finishLine(entry.homeSeat))
+    ? userId
+    : null;
 
   return {
     state: {
       ...state,
       pieces: allPieces,
-      dice: dice === 6 ? null : state.dice,
     },
     winnerUserId,
   };
 }
 
-export function nextLudoPlayer(state: LudoState, currentUserId: string, rolledSix: boolean): string {
-  if (rolledSix) return currentUserId;
+export function nextLudoPlayer(state: LudoState, currentUserId: string): string {
   const idx = state.playerOrder.indexOf(currentUserId);
   return state.playerOrder[(idx + 1) % state.playerOrder.length]!;
 }
 
-export function ludoPieceHome(seat: number): number {
-  return startSquare(seat) + TRACK_LEN;
+export function ludoPieceHome(homeSeat: number): number {
+  return finishLine(homeSeat);
 }
 
-export { HOME, TRACK_LEN, HOME_STRETCH };
+export { HOME as LUDO_HOME, TRACK_LEN as LUDO_TRACK_LEN };

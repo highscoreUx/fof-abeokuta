@@ -249,6 +249,7 @@
       },
       "chatGame": {
         "maxPlayers": 4,
+        "dmMaxPlayers": 2,
         "teamMaxPlayers": 4,
         "joinPolicy": "open",
         "channels": ["DM", "TEAM"]
@@ -280,6 +281,7 @@
       },
       "chatGame": {
         "maxPlayers": 4,
+        "dmMaxPlayers": 2,
         "teamMaxPlayers": 4,
         "joinPolicy": "open",
         "channels": ["DM", "TEAM"]

@@ -752,6 +752,13 @@ function shouldAutoStartAfterJoin(
   if (session.kind === "spinner") {
     return session.channel === "DM" && playersAfterJoin >= 2;
   }
+  if (
+    session.channel === "DM" &&
+    (session.kind === "ludo" || session.kind === "whot") &&
+    playersAfterJoin >= 2
+  ) {
+    return true;
+  }
   return playersAfterJoin >= session.maxPlayers;
 }
 

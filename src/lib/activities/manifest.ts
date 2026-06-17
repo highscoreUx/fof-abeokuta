@@ -35,6 +35,7 @@ const activityManifestEntrySchema = z.object({
     .object({
       maxPlayers: z.number().int().positive(),
       teamMaxPlayers: z.number().int().positive().optional(),
+      dmMaxPlayers: z.number().int().positive().optional(),
       joinPolicy: z.enum(["invite_only", "open"]),
       channels: z.array(z.enum(["DM", "TEAM"])).default(["DM", "TEAM"]),
     })
@@ -159,7 +160,9 @@ export function getChatGameDefaults(
   const maxPlayers =
     channel === "TEAM" && chat?.teamMaxPlayers != null
       ? chat.teamMaxPlayers
-      : (chat?.maxPlayers ?? 2);
+      : channel === "DM" && chat?.dmMaxPlayers != null
+        ? chat.dmMaxPlayers
+        : (chat?.maxPlayers ?? 2);
 
   if (options?.openLobby) {
     return { joinPolicy: "open", maxPlayers };

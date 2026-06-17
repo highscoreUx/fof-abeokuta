@@ -10,14 +10,9 @@ import type { SocialChessSettings } from "@/lib/chat-game-chess-settings";
 import { DEFAULT_SOCIAL_CHESS_SETTINGS } from "@/lib/chat-game-chess-settings";
 import type { SocialJsonGameKind } from "@/lib/social-games/kinds";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
-import type {
-  ChessState,
-  LudoState,
-  SudokuState,
-  WhotCard,
-  WhotShape,
-  WhotState,
-} from "@/lib/social-games/game-state-types";
+import type { ChessState, SudokuState } from "@/lib/social-games/game-state-types";
+import { WhotLive } from "@/components/social-games/WhotLive";
+import { LudoLive } from "@/components/social-games/LudoLive";
 
 interface SocialGameMatchLiveProps {
   matchId: string;
@@ -40,8 +35,6 @@ const PIECE_SYMBOLS: Record<string, string> = {
   Q: "♕",
   K: "♔",
 };
-
-const WHOT_SHAPES: WhotShape[] = ["circle", "triangle", "cross", "square", "star"];
 
 function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | undefined) {
   if (!userId) return "Player";
@@ -325,153 +318,6 @@ function SudokuLive({
           <Button size="sm" variant="ghost" onClick={() => setCell(0)}>
             Clear
           </Button>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function WhotCardView({ card }: { card: WhotCard }) {
-  return (
-    <span className="inline-flex min-w-[3rem] flex-col items-center rounded border border-border bg-card px-2 py-1 text-xs">
-      <span className="capitalize">{card.shape}</span>
-      <span className="font-semibold">{card.number}</span>
-    </span>
-  );
-}
-
-function WhotLive({
-  snapshot,
-  sendMove,
-}: {
-  snapshot: SocialGameMatchSnapshot;
-  sendMove: (action: string, payload?: Record<string, unknown>) => void;
-}) {
-  const { user } = useAuth();
-  const game = snapshot.state as WhotState;
-  const hand = user?.id ? (game.hands[user.id] ?? []) : [];
-  const top = game.discard[0];
-  const isMyTurn = snapshot.currentTurnUserId === user?.id;
-  const finished = snapshot.status === "FINISHED";
-  const [pendingWhot, setPendingWhot] = useState<string | null>(null);
-
-  const playCard = (cardId: string, shape?: WhotShape) => {
-    sendMove("play", shape ? { cardId, shape } : { cardId });
-    setPendingWhot(null);
-  };
-
-  return (
-    <Card className="space-y-4 p-4">
-      <CardTitle className="text-base">
-        {finished
-          ? `${playerName(snapshot, snapshot.winnerUserId)} wins`
-          : isMyTurn
-            ? "Your turn"
-            : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`}
-      </CardTitle>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-muted-foreground">Top card:</span>
-        {top ? <WhotCardView card={top} /> : <span className="text-sm">—</span>}
-        {game.currentShape && (
-          <span className="text-sm text-muted-foreground capitalize">
-            Called shape: {game.currentShape}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {hand.map((card) => (
-          <button
-            key={card.id}
-            type="button"
-            disabled={!isMyTurn || finished}
-            onClick={() => {
-              if (card.shape === "whot") {
-                setPendingWhot(card.id);
-                return;
-              }
-              playCard(card.id);
-            }}
-            className="disabled:opacity-50"
-          >
-            <WhotCardView card={card} />
-          </button>
-        ))}
-      </div>
-      {pendingWhot && (
-        <div className="flex flex-wrap gap-2">
-          {WHOT_SHAPES.map((shape) => (
-            <Button key={shape} size="sm" variant="outline" onClick={() => playCard(pendingWhot, shape)}>
-              {shape}
-            </Button>
-          ))}
-        </div>
-      )}
-      {isMyTurn && !finished && (
-        <Button size="sm" variant="secondary" onClick={() => sendMove("draw")}>
-          Draw card
-        </Button>
-      )}
-    </Card>
-  );
-}
-
-function LudoLive({
-  snapshot,
-  sendMove,
-}: {
-  snapshot: SocialGameMatchSnapshot;
-  sendMove: (action: string, payload?: Record<string, unknown>) => void;
-}) {
-  const { user } = useAuth();
-  const game = snapshot.state as LudoState;
-  const myPieces = user?.id ? (game.pieces[user.id] ?? []) : [];
-  const isMyTurn = snapshot.currentTurnUserId === user?.id;
-  const finished = snapshot.status === "FINISHED";
-
-  return (
-    <Card className="space-y-4 p-4">
-      <CardTitle className="text-base">
-        {finished
-          ? `${playerName(snapshot, snapshot.winnerUserId)} wins`
-          : isMyTurn
-            ? "Your turn"
-            : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`}
-      </CardTitle>
-      <p className="text-sm text-muted-foreground">
-        Dice: {game.dice ?? "—"}
-        {game.lastRoll != null ? ` (rolled ${game.lastRoll})` : ""}
-      </p>
-      <div className="space-y-2">
-        {snapshot.players.map((player) => {
-          const pieces = game.pieces[player.userId] ?? [];
-          return (
-            <div key={player.userId} className="rounded border border-border p-2 text-sm">
-              <span className="font-medium">{player.firstName}</span>
-              <span className="ml-2 text-muted-foreground">
-                {pieces.map((piece) => `P${piece.id}:${piece.position}`).join(" · ")}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {isMyTurn && !finished && (
-        <div className="flex flex-wrap gap-2">
-          {game.dice == null ? (
-            <Button size="sm" onClick={() => sendMove("roll")}>
-              Roll dice
-            </Button>
-          ) : (
-            myPieces.map((piece) => (
-              <Button
-                key={piece.id}
-                size="sm"
-                variant="outline"
-                onClick={() => sendMove("move", { pieceId: piece.id })}
-              >
-                Move piece {piece.id + 1}
-              </Button>
-            ))
-          )}
         </div>
       )}
     </Card>

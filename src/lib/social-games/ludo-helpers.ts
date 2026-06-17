@@ -43,6 +43,39 @@ export function ludoDiceSum(dice: LudoDiceRoll): number {
   return dice[0] + dice[1];
 }
 
+export function ludoHasSix(dice: LudoDiceRoll): boolean {
+  return dice[0] === 6 || dice[1] === 6;
+}
+
+const LUDO_TRACK_LEN = 52;
+
+function ludoStartSquare(homeSeat: number): number {
+  return homeSeat * 13;
+}
+
+function ludoFinishLine(homeSeat: number): number {
+  return ludoStartSquare(homeSeat) + LUDO_TRACK_LEN;
+}
+
+export function ludoCanMovePiece(piece: LudoPiece, dice: LudoDiceRoll): boolean {
+  if (piece.position === HOME) {
+    return ludoHasSix(dice);
+  }
+  const nextPos = piece.position + ludoDiceSum(dice);
+  return nextPos <= ludoFinishLine(piece.homeSeat);
+}
+
+export function ludoHasLegalMove(state: LudoState, userId: string): boolean {
+  if (state.dice == null) return false;
+  const ownedSeats = state.playerSeats[userId];
+  if (!ownedSeats?.length) return false;
+  const pieces = state.pieces[userId] ?? [];
+  return pieces.some(
+    (piece) =>
+      ownedSeats.includes(piece.homeSeat) && ludoCanMovePiece(piece, state.dice!),
+  );
+}
+
 /** Red+green player: rotate board 180° so their colors sit at the bottom (facing them). */
 export function ludoFlipBoardForViewer(mySeats: number[]): boolean {
   if (mySeats.length !== 2) return false;

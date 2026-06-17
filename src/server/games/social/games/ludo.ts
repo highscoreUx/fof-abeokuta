@@ -1,5 +1,12 @@
 import type { LudoDiceRoll, LudoPiece, LudoState } from "@/lib/social-games/game-state-types";
 import { LUDO_SEEDS_PER_CORNER, LUDO_TWO_PLAYER_SEATS } from "@/lib/social-games/game-state-types";
+import {
+  ludoDiceSum,
+  ludoHasLegalMove,
+  ludoHasSix,
+} from "@/lib/social-games/ludo-helpers";
+
+export { ludoDiceSum, ludoHasLegalMove, ludoHasSix } from "@/lib/social-games/ludo-helpers";
 
 const HOME = -1;
 const TRACK_LEN = 52;
@@ -65,14 +72,6 @@ function startSquare(homeSeat: number): number {
 
 function finishLine(homeSeat: number): number {
   return startSquare(homeSeat) + TRACK_LEN;
-}
-
-export function ludoDiceSum(dice: LudoDiceRoll): number {
-  return dice[0] + dice[1];
-}
-
-export function ludoHasSix(dice: LudoDiceRoll): boolean {
-  return dice[0] === 6 || dice[1] === 6;
 }
 
 export function ludoIsDoubles(dice: LudoDiceRoll): boolean {

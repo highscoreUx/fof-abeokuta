@@ -21,7 +21,7 @@ import {
   ludoPieceCoords,
   ludoYardSeat,
 } from "@/lib/social-games/ludo-board-layout";
-import { ludoDiceSum, ludoFlipBoardForViewer, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
+import { ludoCanMovePiece, ludoDiceSum, ludoFlipBoardForViewer, ludoHasLegalMove, ludoYardSlotIndex, normalizeLudoState } from "@/lib/social-games/ludo-helpers";
 
 function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | undefined) {
   if (!userId) return "Player";
@@ -187,6 +187,11 @@ export function LudoLive({
     return set;
   }, [activePlayers, game.playerSeats]);
 
+  const myLegalMove = useMemo(
+    () => (user?.id && game.dice != null ? ludoHasLegalMove(game, user.id) : false),
+    [game, user?.id],
+  );
+
   const flipBoard = useMemo(() => {
     if (game.mode !== "two_player" || !user?.id) return false;
     return ludoFlipBoardForViewer(game.playerSeats[user.id] ?? []);
@@ -267,12 +272,14 @@ export function LudoLive({
                   {here.map((token, stackIndex) => {
                     const color = LUDO_PLAYER_COLORS[token.homeSeat]!;
                     const isMine = token.userId === user?.id;
+                    const piece = myPieces.find((entry) => entry.id === token.pieceId);
                     const canSelect =
                       isMyTurn &&
                       !finished &&
                       isMine &&
                       game.dice != null &&
-                      myPieces.some((piece) => piece.id === token.pieceId);
+                      piece != null &&
+                      ludoCanMovePiece(piece, game.dice);
 
                     return (
                       <button
@@ -306,7 +313,11 @@ export function LudoLive({
                 <LudoDie value={game.dice[1]} />
               </div>
               <p className="text-sm text-muted-foreground">
-                Total {ludoDiceSum(game.dice)} — tap a seed to move
+                {myLegalMove
+                  ? `Total ${ludoDiceSum(game.dice)} — tap a seed to move`
+                  : isMyTurn
+                    ? "No legal move — turn passes to opponent"
+                    : `Rolled ${ludoDiceSum(game.dice)}`}
               </p>
             </div>
           ) : (

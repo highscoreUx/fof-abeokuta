@@ -5,6 +5,7 @@ import {
   rollLudoDice,
   applyLudoMove,
   nextLudoPlayer,
+  ludoHasLegalMove,
   ludoIsDoubles,
 } from "@/server/games/social/games/ludo";
 import { createSudokuState, applySudokuCell } from "@/server/games/social/games/sudoku";
@@ -135,6 +136,13 @@ const ludoHandler: SocialGameHandler = {
         return { state: s, winnerUserId: null, nextTurnUserId: ctx.userId, error: "Already rolled." };
       }
       const rolled = rollLudoDice(s);
+      if (!ludoHasLegalMove(rolled, ctx.userId)) {
+        return {
+          state: { ...rolled, dice: null },
+          winnerUserId: null,
+          nextTurnUserId: nextLudoPlayer(rolled, ctx.userId),
+        };
+      }
       return { state: rolled, winnerUserId: null, nextTurnUserId: ctx.userId };
     }
 

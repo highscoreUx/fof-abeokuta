@@ -167,6 +167,7 @@ export async function applySocialGameMove(params: {
     payload: params.payload,
     playerIds,
     seatByUserId,
+    settings: (match.chatSession.settings as Record<string, unknown>) ?? {},
   });
 
   if (result.error) throw new Error(result.error);
@@ -203,6 +204,17 @@ export async function applySocialGameMove(params: {
     if (match.kind === "ludo") {
       const { syncSocialLudoTurnTimerAfterMove } = await import("@/server/games/socialLudoEngine");
       await syncSocialLudoTurnTimerAfterMove({
+        sessionId: match.chatSession.id,
+        matchId: match.id,
+        eventSlug: params.eventSlug,
+        previousTurnUserId: match.currentTurnUserId,
+        nextTurnUserId: finished ? null : result.nextTurnUserId,
+        finished,
+      });
+    }
+    if (match.kind === "whot") {
+      const { syncSocialWhotTurnTimerAfterMove } = await import("@/server/games/socialWhotEngine");
+      await syncSocialWhotTurnTimerAfterMove({
         sessionId: match.chatSession.id,
         matchId: match.id,
         eventSlug: params.eventSlug,
@@ -260,6 +272,17 @@ export async function startSocialJsonGameMatch(params: {
       const { parseSocialLudoSettings } = await import("@/lib/chat-game-ludo-settings");
       const settings = parseSocialLudoSettings(session.settings);
       await scheduleSocialLudoTurnTimer(io, {
+        sessionId: session.id,
+        matchId: match.id,
+        eventSlug: params.eventSlug,
+        settings,
+      });
+    }
+    if (session.kind === "whot") {
+      const { scheduleSocialWhotTurnTimer } = await import("@/server/games/socialWhotEngine");
+      const { parseSocialWhotSettings } = await import("@/lib/chat-game-whot-settings");
+      const settings = parseSocialWhotSettings(session.settings);
+      await scheduleSocialWhotTurnTimer(io, {
         sessionId: session.id,
         matchId: match.id,
         eventSlug: params.eventSlug,

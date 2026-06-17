@@ -19,15 +19,28 @@ export interface WhotCard {
   id: string;
   number: number;
   shape: WhotShape;
+  /** Star / Whot cards: scoring value printed inside the symbol (play uses `number`). */
+  scorePoints?: number;
 }
+
+export type WhotPickPenalty = { kind: "two" | "three"; stack: number };
+
+export type WhotLastCardCall = "semi" | "last";
 
 export interface WhotState {
   deck: WhotCard[];
   hands: Record<string, WhotCard[]>;
   discard: WhotCard[];
   currentShape: WhotShape | null;
-  drawStack: number;
   playerOrder: string[];
+  /** Stacked pick-two / pick-three awaiting the next player. */
+  pickPenalty: WhotPickPenalty | null;
+  /** Extra players to skip on the next turn advance (Suspension / Star 8). */
+  pendingSkips: number;
+  /** Same player plays again after Hold On (1). */
+  holdOn: boolean;
+  /** Tracks semi / last card announcements per player. */
+  calledLastCard: Record<string, WhotLastCardCall | null>;
 }
 
 export interface LudoPiece {

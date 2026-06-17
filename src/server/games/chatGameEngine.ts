@@ -33,8 +33,10 @@ import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
 import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
 import { buildSocialChessSessionState } from "@/server/games/socialChessEngine";
 import { buildSocialLudoSessionState } from "@/server/games/socialLudoEngine";
+import { buildSocialWhotSessionState } from "@/server/games/socialWhotEngine";
 import { DEFAULT_SOCIAL_CHESS_SETTINGS } from "@/lib/chat-game-chess-settings";
 import { DEFAULT_SOCIAL_LUDO_SETTINGS } from "@/lib/chat-game-ludo-settings";
+import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 import { startSocialJsonGameMatch } from "@/server/games/socialGameEngine";
 
@@ -464,6 +466,15 @@ export async function buildChatGameSessionSnapshot(
           socialMatch: session.socialMatch,
         })
       : null;
+  const socialWhot =
+    session.kind === "whot"
+      ? buildSocialWhotSessionState({
+          kind: session.kind,
+          settings: session.settings,
+          turnDeadlineAt: session.turnDeadlineAt,
+          socialMatch: session.socialMatch,
+        })
+      : null;
 
   return {
     sessionId: session.id,
@@ -490,6 +501,7 @@ export async function buildChatGameSessionSnapshot(
     ...(socialHangman ? { socialHangman } : {}),
     ...(socialChess ? { socialChess } : {}),
     ...(socialLudo ? { socialLudo } : {}),
+    ...(socialWhot ? { socialWhot } : {}),
   };
 }
 
@@ -1054,6 +1066,7 @@ export async function createDmSocialJsonSession(params: {
       status: "LOBBY",
       ...(params.kind === "chess" ? { settings: DEFAULT_SOCIAL_CHESS_SETTINGS as object } : {}),
       ...(params.kind === "ludo" ? { settings: DEFAULT_SOCIAL_LUDO_SETTINGS as object } : {}),
+      ...(params.kind === "whot" ? { settings: DEFAULT_SOCIAL_WHOT_SETTINGS as object } : {}),
       participants: {
         create: {
           userId: params.hostUserId,
@@ -1138,6 +1151,7 @@ export async function createTeamSocialJsonSession(params: {
       status: "LOBBY",
       ...(params.kind === "chess" ? { settings: DEFAULT_SOCIAL_CHESS_SETTINGS as object } : {}),
       ...(params.kind === "ludo" ? { settings: DEFAULT_SOCIAL_LUDO_SETTINGS as object } : {}),
+      ...(params.kind === "whot" ? { settings: DEFAULT_SOCIAL_WHOT_SETTINGS as object } : {}),
       participants: {
         create: {
           userId: params.hostUserId,

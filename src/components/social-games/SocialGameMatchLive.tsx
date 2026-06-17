@@ -10,6 +10,8 @@ import type { SocialChessSettings } from "@/lib/chat-game-chess-settings";
 import { DEFAULT_SOCIAL_CHESS_SETTINGS } from "@/lib/chat-game-chess-settings";
 import type { SocialLudoSettings } from "@/lib/chat-game-ludo-settings";
 import { DEFAULT_SOCIAL_LUDO_SETTINGS } from "@/lib/chat-game-ludo-settings";
+import type { SocialWhotSettings } from "@/lib/chat-game-whot-settings";
+import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
 import type { SocialJsonGameKind } from "@/lib/social-games/kinds";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import type { ChessState } from "@/lib/social-games/game-state-types";
@@ -23,6 +25,7 @@ interface SocialGameMatchLiveProps {
   sessionId?: string;
   chessSettings?: SocialChessSettings;
   ludoSettings?: SocialLudoSettings;
+  whotSettings?: SocialWhotSettings;
   turnDeadlineAt?: number | null;
 }
 
@@ -314,6 +317,7 @@ export function SocialGameMatchLive({
   sessionId,
   chessSettings,
   ludoSettings,
+  whotSettings,
   turnDeadlineAt,
 }: SocialGameMatchLiveProps) {
   const { state, sendMove } = useSocialGameState(matchId, sessionId);
@@ -330,7 +334,16 @@ export function SocialGameMatchLive({
     return <ChessLive snapshot={state} sendMove={sendMove} chessSettings={chessSettings} />;
   }
   if (kind === "sudoku") return <SudokuLive snapshot={state} sendMove={sendMove} />;
-  if (kind === "whot") return <WhotLive snapshot={state} sendMove={sendMove} />;
+  if (kind === "whot") {
+    return (
+      <WhotLive
+        snapshot={state}
+        sendMove={sendMove}
+        whotSettings={whotSettings ?? DEFAULT_SOCIAL_WHOT_SETTINGS}
+        turnDeadlineAt={turnDeadlineAt}
+      />
+    );
+  }
   if (kind === "ludo") {
     return (
       <LudoLive

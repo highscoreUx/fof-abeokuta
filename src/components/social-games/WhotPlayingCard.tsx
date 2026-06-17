@@ -73,7 +73,7 @@ export function WhotPlayingCard({
   }
 
   const color = WHOT_SHAPE_COLORS[card.shape];
-  const symbol = WHOT_SHAPE_LABELS[card.shape];
+  const isStar = card.shape === "star";
 
   return (
     <div
@@ -91,8 +91,17 @@ export function WhotPlayingCard({
       >
         {card.number}
       </span>
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full flex-col items-center justify-center">
         <WhotShapeIcon shape={card.shape} size={size === "sm" ? "sm" : "lg"} />
+        {isStar && card.scorePoints != null && (
+          <span
+            className="absolute text-[9px] font-bold text-neutral-600"
+            style={{ color }}
+            aria-hidden
+          >
+            {card.scorePoints}
+          </span>
+        )}
       </div>
       <span className="sr-only">
         {card.number} {card.shape}

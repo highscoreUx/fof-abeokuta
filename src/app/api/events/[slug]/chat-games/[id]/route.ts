@@ -13,6 +13,7 @@ import { updateSocialTttSettings } from "@/server/games/socialTttEngine";
 import { updateSocialHangmanSettings } from "@/server/games/socialHangmanEngine";
 import { updateSocialChessSettings } from "@/server/games/socialChessEngine";
 import { updateSocialLudoSettings } from "@/server/games/socialLudoEngine";
+import { updateSocialWhotSettings } from "@/server/games/socialWhotEngine";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -175,6 +176,36 @@ export async function POST(
           settings: {
             showAnimations:
               typeof settings.showAnimations === "boolean" ? settings.showAnimations : undefined,
+            turnTimerEnabled:
+              typeof settings.turnTimerEnabled === "boolean"
+                ? settings.turnTimerEnabled
+                : undefined,
+            turnTimerSeconds:
+              typeof settings.turnTimerSeconds === "number"
+                ? settings.turnTimerSeconds
+                : undefined,
+          },
+        });
+        return NextResponse.json({ session });
+      }
+
+      if (gameSession.kind === "whot") {
+        const session = await updateSocialWhotSettings({
+          sessionId: id,
+          eventId: ctx.event.id,
+          eventSlug: slug,
+          userId: ctx.auth.userId,
+          settings: {
+            cardsPerPlayer:
+              typeof settings.cardsPerPlayer === "number" ? settings.cardsPerPlayer : undefined,
+            enforceLastCardCall:
+              typeof settings.enforceLastCardCall === "boolean"
+                ? settings.enforceLastCardCall
+                : undefined,
+            lastCardPenaltyCards:
+              typeof settings.lastCardPenaltyCards === "number"
+                ? settings.lastCardPenaltyCards
+                : undefined,
             turnTimerEnabled:
               typeof settings.turnTimerEnabled === "boolean"
                 ? settings.turnTimerEnabled

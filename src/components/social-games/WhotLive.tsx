@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import type { SocialWhotSettings } from "@/lib/chat-game-whot-settings";
+import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
-import type { WhotShape, WhotState } from "@/lib/social-games/game-state-types";
+import type { WhotShape } from "@/lib/social-games/game-state-types";
+import { prepareWhotStateForPlay } from "@/lib/social-games/whot-helpers";
+import { canPlayWhotCard } from "@/lib/social-games/whot-rules";
 import {
   WhotCardBackStack,
   WhotPlayingCard,
@@ -19,26 +23,51 @@ function playerName(snapshot: SocialGameMatchSnapshot, userId: string | null | u
   return player?.firstName ?? "Player";
 }
 
+function formatTimer(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export function WhotLive({
   snapshot,
   sendMove,
+  whotSettings = DEFAULT_SOCIAL_WHOT_SETTINGS,
+  turnDeadlineAt,
 }: {
   snapshot: SocialGameMatchSnapshot;
   sendMove: (action: string, payload?: Record<string, unknown>) => void;
+  whotSettings?: SocialWhotSettings;
+  turnDeadlineAt?: number | null;
 }) {
   const { user } = useAuth();
-  const game = snapshot.state as WhotState;
+  const game = useMemo(
+    () => prepareWhotStateForPlay(snapshot.state, snapshot.players.map((p) => p.userId)),
+    [snapshot.state, snapshot.players],
+  );
   const hand = user?.id ? (game.hands[user.id] ?? []) : [];
   const top = game.discard[0];
   const isMyTurn = snapshot.currentTurnUserId === user?.id;
   const finished = snapshot.status === "FINISHED";
   const [pendingWhot, setPendingWhot] = useState<string | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
 
   const opponents = useMemo(
     () => snapshot.players.filter((player) => player.userId !== user?.id),
     [snapshot.players, user?.id],
   );
+
+  useEffect(() => {
+    if (!whotSettings.turnTimerEnabled || !turnDeadlineAt || finished) return;
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [whotSettings.turnTimerEnabled, turnDeadlineAt, finished]);
+
+  const secondsLeft =
+    whotSettings.turnTimerEnabled && turnDeadlineAt
+      ? Math.max(0, Math.ceil((turnDeadlineAt - now) / 1000))
+      : null;
 
   const playCard = (cardId: string, shape?: WhotShape) => {
     sendMove("play", shape ? { cardId, shape } : { cardId });
@@ -51,16 +80,36 @@ export function WhotLive({
       ? WHOT_SHAPE_LABELS[game.currentShape]
       : null;
 
+  const pickLabel = game.pickPenalty
+    ? game.pickPenalty.kind === "two"
+      ? `Pick ${game.pickPenalty.stack * 2} — play a 2 or draw`
+      : `Pick ${game.pickPenalty.stack * 3} — play a 5 or draw`
+    : null;
+
+  const myCall = user?.id ? (game.calledLastCard[user.id] ?? null) : null;
+  const showSemiCall = whotSettings.enforceLastCardCall && hand.length === 2 && myCall !== "semi";
+  const showLastCall = whotSettings.enforceLastCardCall && hand.length === 1 && myCall !== "last";
+
   return (
     <Card className="overflow-hidden border-0 bg-transparent p-0 shadow-none">
       <div className="rounded-2xl bg-gradient-to-b from-[#1b5e3b] to-[#0d3d24] p-4 shadow-inner sm:p-6">
-        <CardTitle className="mb-4 text-center text-base text-emerald-50">
+        <CardTitle className="mb-2 text-center text-base text-emerald-50">
           {finished
             ? `${playerName(snapshot, snapshot.winnerUserId)} wins!`
             : isMyTurn
               ? "Your turn — play a card or draw"
               : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`}
         </CardTitle>
+
+        {secondsLeft != null && isMyTurn && !finished && (
+          <p className="mb-3 text-center text-sm font-medium text-amber-200">
+            Time left: {formatTimer(secondsLeft)}
+          </p>
+        )}
+
+        {pickLabel && (
+          <p className="mb-3 text-center text-sm font-semibold text-amber-300">{pickLabel}</p>
+        )}
 
         {/* Opponents */}
         <div className="mb-6 flex flex-wrap justify-center gap-6">
@@ -89,9 +138,9 @@ export function WhotLive({
           })}
         </div>
 
-        {/* Table center: draw pile + discard */}
+        {/* Table center */}
         <div className="mb-6 flex items-end justify-center gap-8 sm:gap-12">
-          <WhotCardBackStack count={game.deck.length} label="Draw pile" />
+          <WhotCardBackStack count={game.deck.length} label="Market" />
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100/70">
               Play pile
@@ -123,34 +172,42 @@ export function WhotLive({
         {/* Player hand */}
         <div className="rounded-xl bg-black/20 p-3 sm:p-4">
           <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-emerald-100/70">
-            Your hand
+            Your hand · {hand.length} cards
           </p>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-            {hand.map((card, index) => (
-              <button
-                key={card.id}
-                type="button"
-                disabled={!isMyTurn || finished}
-                onClick={() => {
-                  setSelectedCardId(card.id);
-                  if (card.shape === "whot") {
-                    setPendingWhot(card.id);
-                    return;
-                  }
-                  playCard(card.id);
-                }}
-                className="transition hover:-translate-y-2 hover:scale-105 disabled:opacity-50 disabled:hover:translate-y-0"
-                style={{
-                  transform: `rotate(${(index - hand.length / 2) * 4}deg)`,
-                }}
-              >
-                <WhotPlayingCard
-                  card={card}
-                  size="md"
-                  selected={selectedCardId === card.id}
-                />
-              </button>
-            ))}
+            {hand.map((card, index) => {
+              const playable =
+                isMyTurn &&
+                !finished &&
+                canPlayWhotCard(card, top, game.currentShape, game.pickPenalty);
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  disabled={!isMyTurn || finished}
+                  onClick={() => {
+                    setSelectedCardId(card.id);
+                    if (card.shape === "whot") {
+                      setPendingWhot(card.id);
+                      return;
+                    }
+                    if (playable) playCard(card.id);
+                  }}
+                  className={`transition disabled:opacity-50 ${
+                    playable ? "hover:-translate-y-2 hover:scale-105" : "opacity-70"
+                  }`}
+                  style={{
+                    transform: `rotate(${(index - hand.length / 2) * 4}deg)`,
+                  }}
+                >
+                  <WhotPlayingCard
+                    card={card}
+                    size="md"
+                    selected={selectedCardId === card.id}
+                  />
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -159,7 +216,12 @@ export function WhotLive({
             <p className="text-center text-sm text-amber-100">Choose a shape for your Whot card</p>
             <WhotShapePicker onPick={(shape) => playCard(pendingWhot, shape)} />
             <div className="text-center">
-              <Button size="sm" variant="ghost" className="text-emerald-100" onClick={() => setPendingWhot(null)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-emerald-100"
+                onClick={() => setPendingWhot(null)}
+              >
                 Cancel
               </Button>
             </div>
@@ -167,13 +229,33 @@ export function WhotLive({
         )}
 
         {isMyTurn && !finished && !pendingWhot && (
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {showSemiCall && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-100"
+                onClick={() => sendMove("announce", { call: "semi" })}
+              >
+                Semi last card!
+              </Button>
+            )}
+            {showLastCall && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-100"
+                onClick={() => sendMove("announce", { call: "last" })}
+              >
+                Last card!
+              </Button>
+            )}
             <Button
               size="sm"
               className="bg-amber-500 text-black hover:bg-amber-400"
               onClick={() => sendMove("draw")}
             >
-              Draw from pile
+              {game.pickPenalty ? "Draw penalty" : "Draw from market"}
             </Button>
           </div>
         )}

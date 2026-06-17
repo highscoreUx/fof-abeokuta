@@ -13,6 +13,7 @@ import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettin
 import { ChatGameHangmanHostSettings } from "@/components/chat/ChatGameHangmanHostSettings";
 import { ChatGameChessHostSettings } from "@/components/chat/ChatGameChessHostSettings";
 import { ChatGameLudoHostSettings } from "@/components/chat/ChatGameLudoHostSettings";
+import { ChatGameWhotHostSettings } from "@/components/chat/ChatGameWhotHostSettings";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
@@ -100,7 +101,8 @@ export function ChatGameFocusView() {
     (session?.kind === "tic_tac_toe" ||
       session?.kind === "hangman" ||
       session?.kind === "chess" ||
-      session?.kind === "ludo") &&
+      session?.kind === "ludo" ||
+      session?.kind === "whot") &&
     (session?.status === "lobby" || session?.status === "live");
 
   const playerXName =
@@ -171,6 +173,13 @@ export function ChatGameFocusView() {
                         lockedFormat={session.status === "live"}
                       />
                     )}
+                    {isHost && session.kind === "whot" && (
+                      <ChatGameWhotHostSettings
+                        sessionId={session.sessionId}
+                        socialWhot={session.socialWhot}
+                        lockedFormat={session.status === "live"}
+                      />
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -233,7 +242,10 @@ export function ChatGameFocusView() {
                   sessionId={session.sessionId}
                   chessSettings={session.socialChess?.settings}
                   ludoSettings={session.socialLudo?.settings}
-                  turnDeadlineAt={session.socialLudo?.turnDeadlineAt}
+                  whotSettings={session.socialWhot?.settings}
+                  turnDeadlineAt={
+                    session.socialLudo?.turnDeadlineAt ?? session.socialWhot?.turnDeadlineAt
+                  }
                 />
               ) : (
                 <TicTacToeMatchLive

@@ -17,9 +17,13 @@ import {
   createWhotState,
   applyWhotPlay,
   applyWhotDraw,
-  nextWhotPlayer,
-  type WhotShape,
+  applyWhotAnnounce,
+  resolveWhotTurnAfterPlay,
+  advanceWhotPlayer,
 } from "@/server/games/social/games/whot";
+import { parseSocialWhotSettings } from "@/lib/chat-game-whot-settings";
+import type { WhotShape, WhotState } from "@/lib/social-games/game-state-types";
+import { prepareWhotStateForPlay } from "@/lib/social-games/whot-helpers";
 
 export interface SocialGameInitContext {
   playerIds: string[];
@@ -32,6 +36,7 @@ export interface SocialGameMoveContext {
   payload: Record<string, unknown>;
   playerIds: string[];
   seatByUserId: Record<string, string>;
+  settings: Record<string, unknown>;
 }
 
 export interface SocialGameMoveResult {
@@ -116,27 +121,63 @@ const sudokuHandler: SocialGameHandler = {
 };
 
 const whotHandler: SocialGameHandler = {
-  createInitialState: (ctx) => createWhotState(ctx.playerIds),
+  createInitialState: (ctx) => {
+    const settings = parseSocialWhotSettings(ctx.settings);
+    return createWhotState(ctx.playerIds, settings);
+  },
   getFirstTurnUserId: (_state, playerIds) => playerIds[0] ?? null,
   applyMove: (state, ctx) => {
-    const s = state as ReturnType<typeof createWhotState>;
+    const s = prepareWhotStateForPlay(state, ctx.playerIds);
+    const settings = parseSocialWhotSettings(ctx.settings);
+
+    if (ctx.action === "announce") {
+      const call = ctx.payload.call === "semi" ? "semi" : "last";
+      const announced = applyWhotAnnounce(s, ctx.userId, call);
+      if (announced.error) {
+        return { state: s, winnerUserId: null, nextTurnUserId: null, error: announced.error };
+      }
+      return { state: announced.state, winnerUserId: null, nextTurnUserId: ctx.userId };
+    }
+
     if (ctx.action === "draw") {
       const draw = applyWhotDraw(s, ctx.userId);
       if (draw.error) {
         return { state: s, winnerUserId: null, nextTurnUserId: null, error: draw.error };
       }
-      const next = nextWhotPlayer(draw.state, ctx.userId);
-      return { state: draw.state, winnerUserId: null, nextTurnUserId: next };
+      const nextTurnUserId = advanceWhotPlayer(
+        { ...draw.state, holdOn: false },
+        ctx.userId,
+      );
+      return {
+        state: draw.state,
+        winnerUserId: null,
+        nextTurnUserId,
+      };
     }
 
     const cardId = String(ctx.payload.cardId ?? "");
     const chosenShape = ctx.payload.shape as WhotShape | undefined;
-    const play = applyWhotPlay(s, ctx.userId, cardId, chosenShape);
+    const hand = s.hands[ctx.userId] ?? [];
+    const playedCard = hand.find((c) => c.id === cardId);
+    const play = applyWhotPlay(s, ctx.userId, cardId, chosenShape, settings);
     if (play.error) {
       return { state: s, winnerUserId: null, nextTurnUserId: null, error: play.error };
     }
-    const next = play.winnerUserId ? null : nextWhotPlayer(play.state, ctx.userId);
-    return { state: play.state, winnerUserId: play.winnerUserId, nextTurnUserId: next };
+    if (play.winnerUserId) {
+      return {
+        state: play.state,
+        winnerUserId: play.winnerUserId,
+        nextTurnUserId: null,
+      };
+    }
+
+    const card = playedCard ?? play.state.discard[0]!;
+    const resolved = resolveWhotTurnAfterPlay(play.state, ctx.userId, card);
+    return {
+      state: resolved.state,
+      winnerUserId: null,
+      nextTurnUserId: resolved.nextTurnUserId,
+    };
   },
 };
 

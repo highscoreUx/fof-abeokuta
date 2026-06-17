@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { LudoDieChoice } from "@/lib/social-games/game-state-types";
+import type { LudoDieChoice, LudoState } from "@/lib/social-games/game-state-types";
+import {
+  DEFAULT_SOCIAL_LUDO_SETTINGS,
+  type SocialLudoSettings,
+} from "@/lib/chat-game-ludo-settings";
+import {
+  LUDO_ANIMATION_STEP_MS,
+  ludoMoveAnimationFrames,
+} from "@/lib/social-games/ludo-move-animation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -154,19 +162,127 @@ interface BoardToken {
   col: number;
 }
 
+function piecePositionKey(userId: string, pieceId: number) {
+  return `${userId}-${pieceId}`;
+}
+
+function snapshotPiecePositions(game: LudoState) {
+  const map = new Map<
+    string,
+    { position: number; homeSeat: number; yardIndex: number }
+  >();
+  for (const [userId, pieces] of Object.entries(game.pieces)) {
+    for (const piece of pieces) {
+      map.set(piecePositionKey(userId, piece.id), {
+        position: piece.position,
+        homeSeat: piece.homeSeat,
+        yardIndex: ludoYardSlotIndex(piece),
+      });
+    }
+  }
+  return map;
+}
+
 export function LudoLive({
   snapshot,
   sendMove,
+  ludoSettings = DEFAULT_SOCIAL_LUDO_SETTINGS,
+  turnDeadlineAt = null,
 }: {
   snapshot: SocialGameMatchSnapshot;
   sendMove: (action: string, payload?: Record<string, unknown>) => void;
+  ludoSettings?: SocialLudoSettings;
+  turnDeadlineAt?: number | null;
 }) {
   const { user } = useAuth();
   const game = useMemo(() => normalizeLudoState(snapshot.state), [snapshot.state]);
   const [pendingPieceId, setPendingPieceId] = useState<number | null>(null);
+  const [animOverrides, setAnimOverrides] = useState<Record<string, { row: number; col: number }>>(
+    {},
+  );
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const prevPositionsRef = useRef<Map<string, { position: number; homeSeat: number; yardIndex: number }>>(
+    new Map(),
+  );
+  const positionsReadyRef = useRef(false);
   const myPieces = user?.id ? (game.pieces[user.id] ?? []) : [];
   const isMyTurn = snapshot.currentTurnUserId === user?.id;
   const finished = snapshot.status === "FINISHED";
+  const showAnimations = ludoSettings.showAnimations;
+
+  useEffect(() => {
+    positionsReadyRef.current = false;
+    prevPositionsRef.current = new Map();
+    setAnimOverrides({});
+    setIsAnimating(false);
+  }, [snapshot.matchId]);
+
+  useEffect(() => {
+    if (!ludoSettings.turnTimerEnabled || !turnDeadlineAt || finished) return;
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [ludoSettings.turnTimerEnabled, turnDeadlineAt, finished]);
+
+  useEffect(() => {
+    const current = snapshotPiecePositions(game);
+
+    if (!showAnimations) {
+      prevPositionsRef.current = current;
+      setAnimOverrides({});
+      setIsAnimating(false);
+      return;
+    }
+
+    if (!positionsReadyRef.current) {
+      prevPositionsRef.current = current;
+      positionsReadyRef.current = true;
+      return;
+    }
+
+    if (isAnimating) return;
+
+    let movedKey: string | null = null;
+    let fromPosition = 0;
+    let toPosition = 0;
+    let homeSeat = 0;
+    let yardIndex = 0;
+
+    for (const [key, curr] of current) {
+      const prev = prevPositionsRef.current.get(key);
+      if (prev && prev.position !== curr.position) {
+        movedKey = key;
+        fromPosition = prev.position;
+        toPosition = curr.position;
+        homeSeat = curr.homeSeat;
+        yardIndex = curr.yardIndex;
+        break;
+      }
+    }
+
+    prevPositionsRef.current = current;
+    if (!movedKey) return;
+
+    const frames = ludoMoveAnimationFrames(homeSeat, fromPosition, toPosition, yardIndex);
+    if (frames.length <= 1) return;
+
+    setIsAnimating(true);
+    let frameIndex = 0;
+    setAnimOverrides({ [movedKey]: frames[0]! });
+
+    const timer = setInterval(() => {
+      frameIndex += 1;
+      if (frameIndex >= frames.length) {
+        clearInterval(timer);
+        setAnimOverrides({});
+        setIsAnimating(false);
+        return;
+      }
+      setAnimOverrides({ [movedKey!]: frames[frameIndex]! });
+    }, LUDO_ANIMATION_STEP_MS);
+
+    return () => clearInterval(timer);
+  }, [game.pieces, showAnimations, isAnimating]);
 
   const tokens = useMemo(() => {
     const list: BoardToken[] = [];
@@ -174,7 +290,10 @@ export function LudoLive({
       const pieces = game.pieces[player.userId] ?? [];
       pieces.forEach((piece) => {
         const yardIndex = ludoYardSlotIndex(piece);
-        const { row, col } = ludoPieceCoords(piece.homeSeat, piece.position, yardIndex);
+        const key = piecePositionKey(player.userId, piece.id);
+        const override = animOverrides[key];
+        const { row, col } =
+          override ?? ludoPieceCoords(piece.homeSeat, piece.position, yardIndex);
         list.push({
           userId: player.userId,
           homeSeat: piece.homeSeat,
@@ -185,7 +304,7 @@ export function LudoLive({
       });
     }
     return list;
-  }, [snapshot.players, game.pieces]);
+  }, [snapshot.players, game.pieces, animOverrides]);
 
   const tokensAt = (row: number, col: number) =>
     tokens.filter((token) => token.row === row && token.col === col);
@@ -243,14 +362,19 @@ export function LudoLive({
   const autoPassKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id || !isMyTurn || finished || game.dice == null) return;
+    if (!user?.id || !isMyTurn || finished || game.dice == null || isAnimating) return;
     if (ludoHasLegalMove(game, user.id)) return;
 
     const key = `${game.dice[0]}-${game.dice[1]}-${snapshot.currentTurnUserId}`;
     if (autoPassKeyRef.current === key) return;
     autoPassKeyRef.current = key;
     sendMove("pass");
-  }, [user?.id, isMyTurn, finished, game, snapshot.currentTurnUserId, sendMove]);
+  }, [user?.id, isMyTurn, finished, game, snapshot.currentTurnUserId, sendMove, isAnimating]);
+
+  const turnSecondsLeft =
+    ludoSettings.turnTimerEnabled && turnDeadlineAt && !finished
+      ? Math.max(0, Math.ceil((turnDeadlineAt - now) / 1000))
+      : null;
 
   return (
     <Card className="p-4">
@@ -261,6 +385,12 @@ export function LudoLive({
             ? "Your turn"
             : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`}
       </CardTitle>
+
+      {turnSecondsLeft != null && (
+        <p className="mb-2 text-center text-xs text-muted-foreground">
+          {turnSecondsLeft}s left this turn
+        </p>
+      )}
 
       {game.mode === "two_player" && (
         <p className="mb-3 text-center text-xs text-muted-foreground">
@@ -331,6 +461,7 @@ export function LudoLive({
                     const canSelect =
                       isMyTurn &&
                       !finished &&
+                      !isAnimating &&
                       isMine &&
                       game.dice != null &&
                       piece != null &&
@@ -423,7 +554,12 @@ export function LudoLive({
           )}
 
           {isMyTurn && !finished && game.dice == null && (
-            <Button size="lg" className="w-full" onClick={() => sendMove("roll")}>
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={isAnimating}
+              onClick={() => sendMove("roll")}
+            >
               Roll dice
             </Button>
           )}

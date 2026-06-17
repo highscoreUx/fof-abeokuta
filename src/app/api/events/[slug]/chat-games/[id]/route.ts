@@ -12,6 +12,7 @@ import {
 import { updateSocialTttSettings } from "@/server/games/socialTttEngine";
 import { updateSocialHangmanSettings } from "@/server/games/socialHangmanEngine";
 import { updateSocialChessSettings } from "@/server/games/socialChessEngine";
+import { updateSocialLudoSettings } from "@/server/games/socialLudoEngine";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -152,6 +153,28 @@ export async function POST(
           settings: {
             showLegalMoves:
               typeof settings.showLegalMoves === "boolean" ? settings.showLegalMoves : undefined,
+            turnTimerEnabled:
+              typeof settings.turnTimerEnabled === "boolean"
+                ? settings.turnTimerEnabled
+                : undefined,
+            turnTimerSeconds:
+              typeof settings.turnTimerSeconds === "number"
+                ? settings.turnTimerSeconds
+                : undefined,
+          },
+        });
+        return NextResponse.json({ session });
+      }
+
+      if (gameSession.kind === "ludo") {
+        const session = await updateSocialLudoSettings({
+          sessionId: id,
+          eventId: ctx.event.id,
+          eventSlug: slug,
+          userId: ctx.auth.userId,
+          settings: {
+            showAnimations:
+              typeof settings.showAnimations === "boolean" ? settings.showAnimations : undefined,
             turnTimerEnabled:
               typeof settings.turnTimerEnabled === "boolean"
                 ? settings.turnTimerEnabled

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import type { SocialChessSettings } from "@/lib/chat-game-chess-settings";
 import { DEFAULT_SOCIAL_CHESS_SETTINGS } from "@/lib/chat-game-chess-settings";
+import type { SocialLudoSettings } from "@/lib/chat-game-ludo-settings";
+import { DEFAULT_SOCIAL_LUDO_SETTINGS } from "@/lib/chat-game-ludo-settings";
 import type { SocialJsonGameKind } from "@/lib/social-games/kinds";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import type { ChessState, SudokuState } from "@/lib/social-games/game-state-types";
@@ -19,6 +21,8 @@ interface SocialGameMatchLiveProps {
   kind: SocialJsonGameKind;
   sessionId?: string;
   chessSettings?: SocialChessSettings;
+  ludoSettings?: SocialLudoSettings;
+  turnDeadlineAt?: number | null;
 }
 
 const PIECE_SYMBOLS: Record<string, string> = {
@@ -356,7 +360,14 @@ function SudokuLive({
   );
 }
 
-export function SocialGameMatchLive({ matchId, kind, sessionId, chessSettings }: SocialGameMatchLiveProps) {
+export function SocialGameMatchLive({
+  matchId,
+  kind,
+  sessionId,
+  chessSettings,
+  ludoSettings,
+  turnDeadlineAt,
+}: SocialGameMatchLiveProps) {
   const { state, sendMove } = useSocialGameState(matchId, sessionId);
 
   if (!state) {
@@ -372,7 +383,16 @@ export function SocialGameMatchLive({ matchId, kind, sessionId, chessSettings }:
   }
   if (kind === "sudoku") return <SudokuLive snapshot={state} sendMove={sendMove} />;
   if (kind === "whot") return <WhotLive snapshot={state} sendMove={sendMove} />;
-  if (kind === "ludo") return <LudoLive snapshot={state} sendMove={sendMove} />;
+  if (kind === "ludo") {
+    return (
+      <LudoLive
+        snapshot={state}
+        sendMove={sendMove}
+        ludoSettings={ludoSettings ?? DEFAULT_SOCIAL_LUDO_SETTINGS}
+        turnDeadlineAt={turnDeadlineAt}
+      />
+    );
+  }
 
   return (
     <Card className="p-6 text-center">

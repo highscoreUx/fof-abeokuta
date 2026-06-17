@@ -12,6 +12,7 @@ import { ChatGameInvitePanel } from "@/components/chat/ChatGameInvitePanel";
 import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettings";
 import { ChatGameHangmanHostSettings } from "@/components/chat/ChatGameHangmanHostSettings";
 import { ChatGameChessHostSettings } from "@/components/chat/ChatGameChessHostSettings";
+import { ChatGameLudoHostSettings } from "@/components/chat/ChatGameLudoHostSettings";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
@@ -98,7 +99,8 @@ export function ChatGameFocusView() {
   const isSocialGameHeader =
     (session?.kind === "tic_tac_toe" ||
       session?.kind === "hangman" ||
-      session?.kind === "chess") &&
+      session?.kind === "chess" ||
+      session?.kind === "ludo") &&
     (session?.status === "lobby" || session?.status === "live");
 
   const playerXName =
@@ -159,6 +161,13 @@ export function ChatGameFocusView() {
                         socialChess={session.socialChess}
                         whitePlayerName={whitePlayerName}
                         blackPlayerName={blackPlayerName}
+                        lockedFormat={session.status === "live"}
+                      />
+                    )}
+                    {isHost && session.kind === "ludo" && (
+                      <ChatGameLudoHostSettings
+                        sessionId={session.sessionId}
+                        socialLudo={session.socialLudo}
                         lockedFormat={session.status === "live"}
                       />
                     )}
@@ -223,6 +232,8 @@ export function ChatGameFocusView() {
                   kind={session.kind}
                   sessionId={session.sessionId}
                   chessSettings={session.socialChess?.settings}
+                  ludoSettings={session.socialLudo?.settings}
+                  turnDeadlineAt={session.socialLudo?.turnDeadlineAt}
                 />
               ) : (
                 <TicTacToeMatchLive

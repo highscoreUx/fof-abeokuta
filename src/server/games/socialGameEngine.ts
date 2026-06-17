@@ -200,6 +200,17 @@ export async function applySocialGameMove(params: {
       const { completeSocialJsonGame } = await import("@/server/games/chatGameEngine");
       await completeSocialJsonGame(match.id, params.eventSlug);
     }
+    if (match.kind === "ludo") {
+      const { syncSocialLudoTurnTimerAfterMove } = await import("@/server/games/socialLudoEngine");
+      await syncSocialLudoTurnTimerAfterMove({
+        sessionId: match.chatSession.id,
+        matchId: match.id,
+        eventSlug: params.eventSlug,
+        previousTurnUserId: match.currentTurnUserId,
+        nextTurnUserId: finished ? null : result.nextTurnUserId,
+        finished,
+      });
+    }
   }
 
   return buildSocialGameSnapshot(match.id, params.userId);
@@ -244,6 +255,17 @@ export async function startSocialJsonGameMatch(params: {
     if (refreshed) await updateSessionMessage(params.eventSlug, refreshed);
     await broadcastChatGameSession(io, params.eventSlug, session.id);
     await broadcastSocialGameState(io, match.id, params.eventSlug);
+    if (session.kind === "ludo") {
+      const { scheduleSocialLudoTurnTimer } = await import("@/server/games/socialLudoEngine");
+      const { parseSocialLudoSettings } = await import("@/lib/chat-game-ludo-settings");
+      const settings = parseSocialLudoSettings(session.settings);
+      await scheduleSocialLudoTurnTimer(io, {
+        sessionId: session.id,
+        matchId: match.id,
+        eventSlug: params.eventSlug,
+        settings,
+      });
+    }
   }
 
   return match.id;

@@ -254,7 +254,7 @@ export function ChatPanel({
           ? "Send a private message..."
           : `Message Team ${room.letter ?? ""}...`;
 
-  const allowPrivateAction = !isPrivate && !isStaff && Boolean(onMessagePrivately);
+  const allowPrivateAction = !isPrivate && Boolean(onMessagePrivately);
   const gamePicker =
     isPrivate && peerId && dmGamesEnabled
       ? { channel: "DM" as const, peerUserId: peerId }

@@ -8,6 +8,10 @@ export const ACTIVITY_ENGINE_IDS = {
   tic_tac_toe: "tic_tac_toe",
   countdown: "countdown",
   hangman: "hangman",
+  chess: "chess",
+  ludo: "ludo",
+  whot: "whot",
+  sudoku: "sudoku",
 } as const;
 
 export type ActivityEngineId = (typeof ACTIVITY_ENGINE_IDS)[keyof typeof ACTIVITY_ENGINE_IDS];

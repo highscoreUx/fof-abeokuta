@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { TicTacToeMatchLive } from "@/components/tic-tac-toe/TicTacToeMatchLive";
 import { HangmanMatchLive } from "@/components/hangman/HangmanMatchLive";
 import { SpinnerLive } from "@/components/spinner/SpinnerLive";
+import { SocialGameMatchLive } from "@/components/social-games/SocialGameMatchLive";
 import { ChatGameInvitePanel } from "@/components/chat/ChatGameInvitePanel";
 import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettings";
 import { ChatGameHangmanHostSettings } from "@/components/chat/ChatGameHangmanHostSettings";
@@ -17,6 +18,7 @@ import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
 import { hasAdminShellAccess } from "@/lib/permissions";
 import type { ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 
 export function ChatGameFocusView() {
   const params = useParams<{ sessionId: string }>();
@@ -197,6 +199,12 @@ export function ChatGameFocusView() {
                   initialSessionId={session.matchId}
                   socialSessionId={session.sessionId}
                 />
+              ) : isSocialJsonGameKind(session.kind) ? (
+                <SocialGameMatchLive
+                  matchId={session.matchId}
+                  kind={session.kind}
+                  sessionId={session.sessionId}
+                />
               ) : (
                 <TicTacToeMatchLive
                   challengeId={session.challengeId}
@@ -210,7 +218,9 @@ export function ChatGameFocusView() {
                   <p className="text-sm text-muted-foreground">
                     {session.kind === "spinner" && session.channel === "TEAM"
                       ? "Waiting for teammates to join. The host can start when at least two players are in."
-                      : "Waiting for another player to join from the chat card."}
+                      : session.maxPlayers > 2
+                        ? `Waiting for players (${session.players.length}/${session.maxPlayers}). Join from the chat card.`
+                        : "Waiting for another player to join from the chat card."}
                   </p>
                   {session.kind !== "tic_tac_toe" && session.kind !== "hangman" && (
                     <div className="mt-4 flex justify-center">

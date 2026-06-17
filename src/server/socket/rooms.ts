@@ -37,3 +37,7 @@ export function countdownSessionRoom(sessionId: string) {
 export function ticTacToeMatchRoom(matchId: string) {
   return `ttt:${matchId}`;
 }
+
+export function socialGameMatchRoom(matchId: string) {
+  return `social-game:${matchId}`;
+}

@@ -37,6 +37,7 @@
     "amqplib": "^2.0.1",
     "axios": "^1.17.0",
     "bcrypt": "^6.0.0",
+    "chess.js": "^1.4.0",
     "dotenv": "^17.4.2",
     "grapesjs": "^0.23.2",
     "grapesjs-preset-webpage": "^1.0.3",

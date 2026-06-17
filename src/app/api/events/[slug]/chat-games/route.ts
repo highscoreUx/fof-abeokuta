@@ -4,10 +4,13 @@ import { jsonError } from "@/lib/auth/middleware";
 import { hasPermission } from "@/lib/permissions";
 import { isChatGameKind } from "@/lib/chat-game-types";
 import { isChatGameAllowedForChannel } from "@/lib/activities/manifest";
+import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 import {
   createDmHangmanSession,
+  createDmSocialJsonSession,
   createDmTicTacToeSession,
   createTeamHangmanSession,
+  createTeamSocialJsonSession,
   createTeamSpinnerSession,
   createTeamTicTacToeSession,
 } from "@/server/games/chatGameEngine";
@@ -45,17 +48,20 @@ export async function POST(
       const peerUserId = typeof body.peerUserId === "string" ? body.peerUserId : "";
       if (!peerUserId) return jsonError("peerUserId is required", "VALIDATION_ERROR", 400);
 
-      const create =
-        kind === "hangman"
-          ? createDmHangmanSession
-          : createDmTicTacToeSession;
-
-      const session = await create({
+      const base = {
         eventId: ctx.event.id,
         eventSlug: slug,
         hostUserId: ctx.auth.userId,
         peerUserId,
-      });
+      };
+
+      const session =
+        kind === "hangman"
+          ? await createDmHangmanSession(base)
+          : isSocialJsonGameKind(kind)
+            ? await createDmSocialJsonSession({ ...base, kind })
+            : await createDmTicTacToeSession(base);
+
       return NextResponse.json({ session });
     }
 
@@ -63,19 +69,22 @@ export async function POST(
       const teamId = typeof body.teamId === "string" ? body.teamId : "";
       if (!teamId) return jsonError("teamId is required", "VALIDATION_ERROR", 400);
 
-      const create =
-        kind === "hangman"
-          ? createTeamHangmanSession
-          : kind === "spinner"
-            ? createTeamSpinnerSession
-            : createTeamTicTacToeSession;
-
-      const session = await create({
+      const base = {
         eventId: ctx.event.id,
         eventSlug: slug,
         hostUserId: ctx.auth.userId,
         teamId,
-      });
+      };
+
+      const session =
+        kind === "hangman"
+          ? await createTeamHangmanSession(base)
+          : kind === "spinner"
+            ? await createTeamSpinnerSession(base)
+            : isSocialJsonGameKind(kind)
+              ? await createTeamSocialJsonSession({ ...base, kind })
+              : await createTeamTicTacToeSession(base);
+
       return NextResponse.json({ session });
     }
 

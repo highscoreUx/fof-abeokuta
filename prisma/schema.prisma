@@ -203,6 +203,7 @@ model Event {
   ticTacToeMatches    TicTacToeMatch[]
   hangmanChallenges   HangmanChallenge[]
   hangmanMatches      HangmanMatch[]
+  socialGameMatches   SocialGameMatch[]
   activityBrackets    ActivityBracket[]
   surveys         Survey[]
   eventActivities EventActivity[]
@@ -910,6 +911,8 @@ model ChatGameSession {
   hangmanMatch   HangmanMatch?         @relation(fields: [hangmanMatchId], references: [id])
   spinnerSessionId String?             @unique
   spinnerSession   SpinnerSession?     @relation(fields: [spinnerSessionId], references: [id])
+  socialMatchId    String?               @unique
+  socialMatch      SocialGameMatch?      @relation(fields: [socialMatchId], references: [id])
   invitedSpectatorIds Json             @default("[]")
   settings            Json             @default("{}")
   scoreX              Int              @default(0)
@@ -933,4 +936,21 @@ model ChatGameParticipant {
   joinedAt   DateTime        @default(now())
 
   @@unique([sessionId, userId])
+}
+
+model SocialGameMatch {
+  id                String            @id @default(cuid())
+  eventId           String
+  event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  kind              String
+  status            String            @default("WAITING")
+  state             Json              @default("{}")
+  winnerUserId      String?
+  currentTurnUserId String?
+  finishedAt        DateTime?
+  chatSession       ChatGameSession?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([eventId, kind, status])
 }

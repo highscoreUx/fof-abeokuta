@@ -8,6 +8,7 @@ import {
   spinnerSessionRoom,
   countdownSessionRoom,
   hangmanMatchRoom,
+  socialGameMatchRoom,
   staffRoom,
   teamRoom,
   ticTacToeMatchRoom,
@@ -46,6 +47,10 @@ import {
   setTttChampion,
   startTttMatch,
 } from "@/server/games/ticTacToeEngine";
+import {
+  applySocialGameMove,
+  buildSocialGameSnapshot,
+} from "@/server/games/socialGameEngine";
 import {
   castChatPollVote,
   createDirectChatMessage,
@@ -704,6 +709,34 @@ export function registerSocketHandlers(io: SocketIOServer) {
         });
       }
     });
+
+    socket.on("social-game:join", async (matchId: string) => {
+      if (typeof matchId !== "string" || !matchId) return;
+      socket.join(socialGameMatchRoom(matchId));
+      const snapshot = await buildSocialGameSnapshot(matchId, auth.userId);
+      if (snapshot) socket.emit("social-game:state", snapshot);
+    });
+
+    socket.on(
+      "social-game:move",
+      async (data: { matchId: string; action: string; payload?: Record<string, unknown> }) => {
+        try {
+          if (!data?.matchId || !data.action) return;
+          await applySocialGameMove({
+            matchId: data.matchId,
+            eventSlug: slug,
+            userId: auth.userId,
+            action: data.action,
+            payload: data.payload ?? {},
+          });
+        } catch (error) {
+          socket.emit("sync:toast", {
+            type: "error",
+            message: error instanceof Error ? error.message : "Invalid move",
+          });
+        }
+      },
+    );
 
     socket.on("spinner:session:end", async (sessionId: string) => {
       try {

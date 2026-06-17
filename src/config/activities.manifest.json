@@ -164,6 +164,126 @@
         "maxPlayers": 2,
         "joinPolicy": "invite_only"
       }
+    },
+    {
+      "slug": "chess",
+      "aliases": [],
+      "name": "Chess",
+      "socialDisplayName": "Chess",
+      "description": "Classic chess — take turns moving pieces until checkmate or draw.",
+      "engine": "chess",
+      "channels": ["social"],
+      "configurable": false,
+      "sortOrder": 7,
+      "permissions": {
+        "manage": "participant.activities",
+        "run": "participant.activities",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 2,
+        "joinPolicy": "invite_only"
+      }
+    },
+    {
+      "slug": "sudoku",
+      "aliases": [],
+      "name": "Sudoku",
+      "socialDisplayName": "Sudoku",
+      "description": "Race to complete the same Sudoku puzzle — first correct finish wins.",
+      "engine": "sudoku",
+      "channels": ["social"],
+      "configurable": false,
+      "sortOrder": 8,
+      "permissions": {
+        "manage": "participant.activities",
+        "run": "participant.activities",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 2,
+        "joinPolicy": "invite_only"
+      }
+    },
+    {
+      "slug": "ludo",
+      "aliases": [],
+      "name": "Ludo",
+      "socialDisplayName": "Ludo",
+      "description": "Roll the dice and race your pieces home — 2 to 4 players.",
+      "engine": "ludo",
+      "channels": ["social"],
+      "configurable": false,
+      "sortOrder": 9,
+      "permissions": {
+        "manage": "participant.activities",
+        "run": "participant.activities",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 4,
+        "teamMaxPlayers": 4,
+        "joinPolicy": "open",
+        "channels": ["DM", "TEAM"]
+      }
+    },
+    {
+      "slug": "whot",
+      "aliases": [],
+      "name": "Whot",
+      "socialDisplayName": "Whot",
+      "description": "Nigerian Whot card game — match numbers or shapes, 2 to 4 players.",
+      "engine": "whot",
+      "channels": ["social"],
+      "configurable": false,
+      "sortOrder": 10,
+      "permissions": {
+        "manage": "participant.activities",
+        "run": "participant.activities",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 4,
+        "teamMaxPlayers": 4,
+        "joinPolicy": "open",
+        "channels": ["DM", "TEAM"]
+      }
     }
   ]
 }

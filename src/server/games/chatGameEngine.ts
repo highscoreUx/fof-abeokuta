@@ -31,6 +31,8 @@ import { parseSocialTttSettings } from "@/lib/chat-game-ttt-settings";
 import { DEFAULT_SOCIAL_HANGMAN_SETTINGS, parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
 import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
 import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
+import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
+import { startSocialJsonGameMatch } from "@/server/games/socialGameEngine";
 
 const SOCIAL_CHALLENGE_TITLE = "__chat_social__";
 // Placeholder for the shared social challenge row; words come from the static word bank.
@@ -140,6 +142,7 @@ async function loadSession(sessionId: string) {
         },
       },
       spinnerSession: { select: { challengeId: true } },
+      socialMatch: { select: { id: true, kind: true, status: true, state: true } },
     },
   });
 }
@@ -196,7 +199,8 @@ function buildLobbyText(params: {
   const label = chatGameTitle(params.gameKind);
   if (params.status === "lobby") {
     if (params.players.length < params.maxPlayers) {
-      return `${params.hostFirstName} started ${label} — waiting for another player.`;
+      const needed = params.maxPlayers - params.players.length;
+      return `${params.hostFirstName} started ${label} — waiting for ${needed} more player${needed === 1 ? "" : "s"}.`;
     }
     return `${params.hostFirstName} started ${label} — ready to play.`;
   }
@@ -262,6 +266,20 @@ async function socialMatchResultSummary(
     return `${xName} vs ${oName} · ${winner?.account.firstName ?? "Winner"} wins`;
   }
 
+  if (session.socialMatchId) {
+    const match = await prisma.socialGameMatch.findUnique({
+      where: { id: session.socialMatchId },
+    });
+    if (!match || match.status !== "FINISHED") return null;
+    const players = session.participants.filter((participant) => participant.role === "player");
+    const names = players.map((participant) => participant.user.account.firstName).join(" vs ");
+    if (match.winnerUserId) {
+      const winner = players.find((participant) => participant.userId === match.winnerUserId);
+      return `${names} · ${winner?.user.account.firstName ?? "Winner"} wins`;
+    }
+    return `${names} · Draw`;
+  }
+
   return null;
 }
 
@@ -325,6 +343,7 @@ export function buildChatGameMessageBody(
   tttMatchId: string | null;
   hangmanMatchId: string | null;
   spinnerSessionId: string | null;
+  socialMatchId: string | null;
   participants: Array<{
     role: string;
     playerSlot: string | null;
@@ -348,7 +367,8 @@ export function buildChatGameMessageBody(
   ).length;
   const status = lobbyStatus(session.status);
   const gameKind = isChatGameKind(session.kind) ? session.kind : "tic_tac_toe";
-  const matchId = session.tttMatchId ?? session.hangmanMatchId ?? session.spinnerSessionId;
+  const matchId =
+    session.tttMatchId ?? session.hangmanMatchId ?? session.spinnerSessionId ?? session.socialMatchId;
 
   return {
     type: "chat_game",
@@ -393,8 +413,10 @@ export async function buildChatGameSessionSnapshot(
     session.tttMatch?.challengeId ??
     session.hangmanMatch?.challengeId ??
     session.spinnerSession?.challengeId ??
+    session.socialMatchId ??
     null;
-  const matchId = session.tttMatchId ?? session.hangmanMatchId ?? session.spinnerSessionId;
+  const matchId =
+    session.tttMatchId ?? session.hangmanMatchId ?? session.spinnerSessionId ?? session.socialMatchId;
   const socialTtt =
     session.kind === "tic_tac_toe"
       ? buildSocialTttSessionState({
@@ -690,9 +712,19 @@ async function userCanAccessSession(
 
 function nextOpenPlayerSlot(
   session: NonNullable<Awaited<ReturnType<typeof loadSession>>>,
-): "O" | null {
+): string | null {
   const players = session.participants.filter((participant) => participant.role === "player");
   if (players.length >= session.maxPlayers) return null;
+
+  if (isSocialJsonGameKind(session.kind)) {
+    const used = new Set(players.map((participant) => participant.playerSlot).filter(Boolean));
+    for (let seat = 0; seat < session.maxPlayers; seat += 1) {
+      const slot = String(seat);
+      if (!used.has(slot)) return slot;
+    }
+    return null;
+  }
+
   if (session.kind === "spinner") return "O";
   if (players.some((participant) => participant.playerSlot === "O")) return null;
   return "O";
@@ -728,6 +760,14 @@ async function startSocialGameForSession(
       eventId: params.eventId,
       eventSlug: params.eventSlug,
       hostUserId: session.hostUserId,
+    });
+    return;
+  }
+  if (isSocialJsonGameKind(session.kind)) {
+    await startSocialJsonGameMatch({
+      sessionId: session.id,
+      eventId: params.eventId,
+      eventSlug: params.eventSlug,
     });
     return;
   }
@@ -909,6 +949,14 @@ export async function completeSocialChatGameFromMatch(matchId: string, eventSlug
         participants: { include: { user: userWithAccount } },
         team: { select: { id: true, letter: true } },
       },
+    })) ??
+    (await prisma.chatGameSession.findFirst({
+      where: { socialMatchId: matchId },
+      include: {
+        host: userWithAccount,
+        participants: { include: { user: userWithAccount } },
+        team: { select: { id: true, letter: true } },
+      },
     }));
   if (!session) return;
 
@@ -922,6 +970,169 @@ export async function completeSocialChatGameFromMatch(matchId: string, eventSlug
 
   const io = tryGetIO();
   if (io) await broadcastChatGameSession(io, eventSlug, session.id);
+}
+
+export async function completeSocialJsonGame(matchId: string, eventSlug: string) {
+  return completeSocialChatGameFromMatch(matchId, eventSlug);
+}
+
+export async function createDmSocialJsonSession(params: {
+  eventId: string;
+  eventSlug: string;
+  hostUserId: string;
+  peerUserId: string;
+  kind: ChatGameKind;
+}) {
+  if (!isSocialJsonGameKind(params.kind)) {
+    throw new Error("Unsupported game type.");
+  }
+
+  await assertChatSocialGameAllowed(params.eventId, "DM");
+  if (params.hostUserId === params.peerUserId) {
+    throw new Error("Pick someone else to play with.");
+  }
+
+  const peer = await prisma.user.findFirst({
+    where: { id: params.peerUserId, eventId: params.eventId },
+    select: { id: true },
+  });
+  if (!peer) throw new Error("User not found.");
+
+  const activeLobby = await findActiveDmGameBetweenUsers(
+    params.eventId,
+    params.hostUserId,
+    params.peerUserId,
+  );
+  if (activeLobby) throw new Error("You already have an active game with this person.");
+
+  const dmDefaults = getChatGameDefaults(params.kind, { channel: "DM" });
+
+  const session = await prisma.chatGameSession.create({
+    data: {
+      eventId: params.eventId,
+      kind: params.kind,
+      source: "social",
+      hostUserId: params.hostUserId,
+      channel: "DM",
+      dmPeerUserId: params.peerUserId,
+      joinPolicy: dmDefaults.joinPolicy,
+      maxPlayers: dmDefaults.maxPlayers,
+      status: "LOBBY",
+      participants: {
+        create: {
+          userId: params.hostUserId,
+          role: "player",
+          playerSlot: "0",
+        },
+      },
+    },
+    include: {
+      host: userWithAccount,
+      participants: { include: { user: userWithAccount } },
+      team: { select: { id: true, letter: true } },
+    },
+  });
+
+  const lobbyBody = serializeChatGameMessage(buildChatGameMessageBody(session));
+  const chatMessage = await createDirectChatMessage(
+    params.eventId,
+    params.hostUserId,
+    params.peerUserId,
+    lobbyBody,
+  );
+
+  await prisma.chatGameSession.update({
+    where: { id: session.id },
+    data: { messageId: chatMessage.id },
+  });
+
+  const io = tryGetIO();
+  if (io) await broadcastChatGameSession(io, params.eventSlug, session.id);
+
+  return buildChatGameSessionSnapshot(session.id);
+}
+
+export async function createTeamSocialJsonSession(params: {
+  eventId: string;
+  eventSlug: string;
+  hostUserId: string;
+  teamId: string;
+  kind: ChatGameKind;
+}) {
+  if (!isSocialJsonGameKind(params.kind)) {
+    throw new Error("Unsupported game type.");
+  }
+
+  await assertChatSocialGameAllowed(params.eventId, "TEAM");
+
+  const host = await prisma.user.findFirst({
+    where: { id: params.hostUserId, eventId: params.eventId, teamId: params.teamId },
+    select: { id: true },
+  });
+  if (!host) throw new Error("You must be on this team to start a game.");
+
+  const team = await prisma.team.findFirst({
+    where: { id: params.teamId, eventId: params.eventId },
+    select: { id: true, letter: true },
+  });
+  if (!team) throw new Error("Team not found.");
+
+  const activeLobby = await prisma.chatGameSession.findFirst({
+    where: {
+      eventId: params.eventId,
+      channel: "TEAM",
+      teamId: params.teamId,
+      status: { in: ["LOBBY", "LIVE"] },
+    },
+  });
+  if (activeLobby) throw new Error("This team already has an active game.");
+
+  const teamDefaults = getChatGameDefaults(params.kind, { channel: "TEAM", openLobby: true });
+
+  const session = await prisma.chatGameSession.create({
+    data: {
+      eventId: params.eventId,
+      kind: params.kind,
+      source: "social",
+      hostUserId: params.hostUserId,
+      channel: "TEAM",
+      teamId: params.teamId,
+      joinPolicy: teamDefaults.joinPolicy,
+      maxPlayers: teamDefaults.maxPlayers,
+      status: "LOBBY",
+      participants: {
+        create: {
+          userId: params.hostUserId,
+          role: "player",
+          playerSlot: "0",
+        },
+      },
+    },
+    include: {
+      host: userWithAccount,
+      participants: { include: { user: userWithAccount } },
+      team: { select: { id: true, letter: true } },
+    },
+  });
+
+  const lobbyBody = serializeChatGameMessage(buildChatGameMessageBody(session));
+  const chatMessage = await createTeamChatMessage(
+    params.eventId,
+    params.eventSlug,
+    params.hostUserId,
+    params.teamId,
+    lobbyBody,
+  );
+
+  await prisma.chatGameSession.update({
+    where: { id: session.id },
+    data: { messageId: chatMessage.id },
+  });
+
+  const io = tryGetIO();
+  if (io) await broadcastChatGameSession(io, params.eventSlug, session.id);
+
+  return buildChatGameSessionSnapshot(session.id);
 }
 
 export async function createDmHangmanSession(params: {
@@ -1618,6 +1829,14 @@ export async function rematchSocialChatGame(params: {
       }))!;
     } else if (session.kind === "spinner") {
       throw new Error("Spinner is only available in team chat.");
+    } else if (isSocialJsonGameKind(session.kind)) {
+      snapshot = (await createDmSocialJsonSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        peerUserId,
+        kind: session.kind,
+      }))!;
     } else {
       snapshot = (await createDmTicTacToeSession({
         eventId: params.eventId,
@@ -1640,6 +1859,14 @@ export async function rematchSocialChatGame(params: {
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         teamId: session.teamId,
+      }))!;
+    } else if (isSocialJsonGameKind(session.kind)) {
+      snapshot = (await createTeamSocialJsonSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        teamId: session.teamId,
+        kind: session.kind,
       }))!;
     } else {
       snapshot = (await createTeamTicTacToeSession({

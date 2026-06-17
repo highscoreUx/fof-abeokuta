@@ -194,7 +194,7 @@ async function startNextSocialTttRound(
         },
       },
       spinnerSession: { select: { challengeId: true } },
-      socialMatch: { select: { id: true, kind: true, status: true, state: true } },
+      socialMatch: { select: { id: true, kind: true, status: true, state: true, currentTurnUserId: true } },
     },
   });
   if (refreshed) await updateSessionMessage(params.eventSlug, refreshed);

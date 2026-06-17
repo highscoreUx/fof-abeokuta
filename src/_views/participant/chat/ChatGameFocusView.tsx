@@ -11,6 +11,7 @@ import { SocialGameMatchLive } from "@/components/social-games/SocialGameMatchLi
 import { ChatGameInvitePanel } from "@/components/chat/ChatGameInvitePanel";
 import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettings";
 import { ChatGameHangmanHostSettings } from "@/components/chat/ChatGameHangmanHostSettings";
+import { ChatGameChessHostSettings } from "@/components/chat/ChatGameChessHostSettings";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
@@ -95,13 +96,21 @@ export function ChatGameFocusView() {
   );
   const isHost = user?.id === session?.hostUserId;
   const isSocialGameHeader =
-    (session?.kind === "tic_tac_toe" || session?.kind === "hangman") &&
+    (session?.kind === "tic_tac_toe" ||
+      session?.kind === "hangman" ||
+      session?.kind === "chess") &&
     (session?.status === "lobby" || session?.status === "live");
 
   const playerXName =
     session?.players.find((player) => player.slot === "X")?.firstName ?? "X";
   const playerOName =
     session?.players.find((player) => player.slot === "O")?.firstName ?? "O";
+  const whitePlayerName =
+    session?.players.find((player) => player.slot === "0" || player.slot === "X")?.firstName ??
+    "White";
+  const blackPlayerName =
+    session?.players.find((player) => player.slot === "1" || player.slot === "O")?.firstName ??
+    "Black";
 
   return (
     <PermissionGuard permission="participant.chat" allowAdminShell>
@@ -141,6 +150,15 @@ export function ChatGameFocusView() {
                         socialHangman={session.socialHangman}
                         playerXName={playerXName}
                         playerOName={playerOName}
+                        lockedFormat={session.status === "live"}
+                      />
+                    )}
+                    {isHost && session.kind === "chess" && (
+                      <ChatGameChessHostSettings
+                        sessionId={session.sessionId}
+                        socialChess={session.socialChess}
+                        whitePlayerName={whitePlayerName}
+                        blackPlayerName={blackPlayerName}
                         lockedFormat={session.status === "live"}
                       />
                     )}
@@ -204,6 +222,7 @@ export function ChatGameFocusView() {
                   matchId={session.matchId}
                   kind={session.kind}
                   sessionId={session.sessionId}
+                  chessSettings={session.socialChess?.settings}
                 />
               ) : (
                 <TicTacToeMatchLive

@@ -31,6 +31,8 @@ import { parseSocialTttSettings } from "@/lib/chat-game-ttt-settings";
 import { DEFAULT_SOCIAL_HANGMAN_SETTINGS, parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
 import { buildSocialTttSessionState } from "@/server/games/socialTttEngine";
 import { buildSocialHangmanSessionState } from "@/server/games/socialHangmanEngine";
+import { buildSocialChessSessionState } from "@/server/games/socialChessEngine";
+import { DEFAULT_SOCIAL_CHESS_SETTINGS } from "@/lib/chat-game-chess-settings";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 import { startSocialJsonGameMatch } from "@/server/games/socialGameEngine";
 
@@ -142,7 +144,7 @@ async function loadSession(sessionId: string) {
         },
       },
       spinnerSession: { select: { challengeId: true } },
-      socialMatch: { select: { id: true, kind: true, status: true, state: true } },
+      socialMatch: { select: { id: true, kind: true, status: true, state: true, currentTurnUserId: true } },
     },
   });
 }
@@ -170,7 +172,7 @@ function playerSummary(
     id: string;
     account: { firstName: string; lastName: string };
   },
-  slot?: "X" | "O",
+  slot?: "X" | "O" | string,
 ) {
   return {
     userId: user.id,
@@ -207,6 +209,13 @@ function buildLobbyText(params: {
   if (params.status === "live") return "Match is live.";
   if (params.status === "ended") return "Match finished.";
   return "Game update.";
+}
+
+function playerSlotForSummary(slot: string | null): "X" | "O" | string | undefined {
+  if (!slot) return undefined;
+  if (slot === "X" || slot === "O") return slot;
+  if (/^\d+$/.test(slot)) return slot;
+  return undefined;
 }
 
 async function findActiveDmGameBetweenUsers(
@@ -291,9 +300,7 @@ async function resolveChatGameText(
     .map((participant) =>
       playerSummary(
         participant.user,
-        participant.playerSlot === "X" || participant.playerSlot === "O"
-          ? participant.playerSlot
-          : undefined,
+        playerSlotForSummary(participant.playerSlot),
       ),
     );
   const status = lobbyStatus(session.status);
@@ -357,9 +364,7 @@ export function buildChatGameMessageBody(
     .map((participant) =>
       playerSummary(
         participant.user,
-        participant.playerSlot === "X" || participant.playerSlot === "O"
-          ? participant.playerSlot
-          : undefined,
+        playerSlotForSummary(participant.playerSlot),
       ),
     );
   const spectatorCount = session.participants.filter(
@@ -439,6 +444,15 @@ export async function buildChatGameSessionSnapshot(
           hangmanMatch: session.hangmanMatch,
         })
       : null;
+  const socialChess =
+    session.kind === "chess"
+      ? buildSocialChessSessionState({
+          kind: session.kind,
+          settings: session.settings,
+          turnDeadlineAt: session.turnDeadlineAt,
+          socialMatch: session.socialMatch,
+        })
+      : null;
 
   return {
     sessionId: session.id,
@@ -463,6 +477,7 @@ export async function buildChatGameSessionSnapshot(
     serverNow: Date.now(),
     ...(socialTtt ? { socialTtt } : {}),
     ...(socialHangman ? { socialHangman } : {}),
+    ...(socialChess ? { socialChess } : {}),
   };
 }
 
@@ -1018,6 +1033,7 @@ export async function createDmSocialJsonSession(params: {
       joinPolicy: dmDefaults.joinPolicy,
       maxPlayers: dmDefaults.maxPlayers,
       status: "LOBBY",
+      ...(params.kind === "chess" ? { settings: DEFAULT_SOCIAL_CHESS_SETTINGS as object } : {}),
       participants: {
         create: {
           userId: params.hostUserId,
@@ -1100,6 +1116,7 @@ export async function createTeamSocialJsonSession(params: {
       joinPolicy: teamDefaults.joinPolicy,
       maxPlayers: teamDefaults.maxPlayers,
       status: "LOBBY",
+      ...(params.kind === "chess" ? { settings: DEFAULT_SOCIAL_CHESS_SETTINGS as object } : {}),
       participants: {
         create: {
           userId: params.hostUserId,

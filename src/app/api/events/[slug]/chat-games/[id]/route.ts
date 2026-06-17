@@ -11,6 +11,7 @@ import {
 } from "@/server/games/chatGameEngine";
 import { updateSocialTttSettings } from "@/server/games/socialTttEngine";
 import { updateSocialHangmanSettings } from "@/server/games/socialHangmanEngine";
+import { updateSocialChessSettings } from "@/server/games/socialChessEngine";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -137,6 +138,28 @@ export async function POST(
                 : undefined,
             topicMode,
             topicId: topicId === null ? null : topicId,
+          },
+        });
+        return NextResponse.json({ session });
+      }
+
+      if (gameSession.kind === "chess") {
+        const session = await updateSocialChessSettings({
+          sessionId: id,
+          eventId: ctx.event.id,
+          eventSlug: slug,
+          userId: ctx.auth.userId,
+          settings: {
+            showLegalMoves:
+              typeof settings.showLegalMoves === "boolean" ? settings.showLegalMoves : undefined,
+            turnTimerEnabled:
+              typeof settings.turnTimerEnabled === "boolean"
+                ? settings.turnTimerEnabled
+                : undefined,
+            turnTimerSeconds:
+              typeof settings.turnTimerSeconds === "number"
+                ? settings.turnTimerSeconds
+                : undefined,
           },
         });
         return NextResponse.json({ session });

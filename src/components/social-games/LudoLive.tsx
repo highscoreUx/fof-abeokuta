@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import {
+  LUDO_CENTER_FINISH_WEDGES,
   LUDO_GRID,
   LUDO_HOME,
   LUDO_PLAYER_COLORS,
@@ -14,7 +15,6 @@ import {
   LUDO_YARDS,
   ludoBaseZoneSeat,
   ludoCellKind,
-  ludoCenterFinishBackground,
   ludoHomeColumnArrow,
   ludoHomeColumnSeat,
   ludoPathStartSeat,
@@ -82,6 +82,23 @@ function LudoDie({ value }: { value: number }) {
   );
 }
 
+function LudoCenterFinish() {
+  return (
+    <>
+      {LUDO_CENTER_FINISH_WEDGES.map((wedge) => (
+        <span
+          key={wedge.seat}
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundColor: LUDO_PLAYER_COLORS[wedge.seat],
+            clipPath: wedge.clipPath,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 function cellInlineStyle(row: number, col: number): CSSProperties | undefined {
   const yardSeat = ludoYardSeat(row, col);
   const homeSeat = ludoHomeColumnSeat(row, col);
@@ -99,7 +116,7 @@ function cellInlineStyle(row: number, col: number): CSSProperties | undefined {
     return { backgroundColor: LUDO_PLAYER_COLORS[startSeat] };
   }
   if (kind === "center-finish") {
-    return { background: ludoCenterFinishBackground() };
+    return { backgroundColor: "#ffffff" };
   }
   if (baseSeat != null && kind === "empty") {
     return { backgroundColor: `${LUDO_PLAYER_COLORS[baseSeat]}28` };
@@ -225,6 +242,8 @@ export function LudoLive({
                       )}
                     </>
                   )}
+
+                  {kind === "center-finish" && <LudoCenterFinish />}
 
                   {arrow && (
                     <span className="pointer-events-none text-[10px] font-bold text-white/90 drop-shadow">

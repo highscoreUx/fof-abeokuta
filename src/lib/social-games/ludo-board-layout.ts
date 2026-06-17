@@ -80,11 +80,16 @@ export function ludoIsCenterFinish(row: number, col: number): boolean {
   return row === 7 && col === 7;
 }
 
-/** Four triangles meeting at center — colors face the matching home arm. */
-export function ludoCenterFinishBackground(): string {
-  const [red, green, yellow, blue] = LUDO_PLAYER_COLORS;
-  return `conic-gradient(from 0deg, ${green} -45deg 45deg, ${yellow} 45deg 135deg, ${blue} 135deg 225deg, ${red} 225deg 315deg)`;
-}
+/** Four equal triangles in the finish cell — apex at center, base on each edge. */
+export const LUDO_CENTER_FINISH_WEDGES: ReadonlyArray<{
+  seat: number;
+  clipPath: string;
+}> = [
+  { seat: 1, clipPath: "polygon(50% 50%, 0% 0%, 100% 0%)" }, // top → green
+  { seat: 2, clipPath: "polygon(50% 50%, 100% 0%, 100% 100%)" }, // right → yellow
+  { seat: 3, clipPath: "polygon(50% 50%, 100% 100%, 0% 100%)" }, // bottom → blue
+  { seat: 0, clipPath: "polygon(50% 50%, 0% 100%, 0% 0%)" }, // left → red
+];
 
 export function ludoCellKind(row: number, col: number): LudoCellKind {
   if (ludoIsCenterFinish(row, col)) return "center-finish";

@@ -258,8 +258,11 @@ export function ChatGameFocusView() {
               <div className="space-y-4">
                 <div className="rounded-xl border border-border bg-card p-6 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {session.kind === "spinner" && session.channel === "TEAM"
-                      ? "Waiting for teammates to join. The host can start when at least two players are in."
+                    {session.kind === "spinner" &&
+                    (session.channel === "TEAM" ||
+                      session.channel === "GENERAL" ||
+                      session.channel === "STAFF")
+                      ? "Waiting for others to join. The host can start when at least two players are in."
                       : session.maxPlayers > 2
                         ? `Waiting for players (${session.players.length}/${session.maxPlayers}). Join from the chat card.`
                         : "Waiting for another player to join from the chat card."}

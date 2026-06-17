@@ -122,15 +122,21 @@ export function isChatGameKind(value: string): value is ChatGameKind {
   return chatGameKindSet.has(value);
 }
 
-export type ChatGameChannel = "DM" | "TEAM";
+export type ChatGameChannel = "DM" | "TEAM" | "GENERAL" | "STAFF";
 
 export function getChatGameChannels(kind: ChatGameKind): ChatGameChannel[] {
   const channels = getActivityManifestEntry(kind)?.chatGame?.channels;
   return channels?.length ? [...channels] : ["DM", "TEAM"];
 }
 
+/** Group lobby channels reuse each game's TEAM manifest entry. */
+function manifestChannelFor(channel: ChatGameChannel): "DM" | "TEAM" {
+  if (channel === "DM") return "DM";
+  return "TEAM";
+}
+
 export function isChatGameAllowedForChannel(kind: ChatGameKind, channel: ChatGameChannel): boolean {
-  return getChatGameChannels(kind).includes(channel);
+  return getChatGameChannels(kind).includes(manifestChannelFor(channel));
 }
 
 export function chatGameTitle(kind: ChatGameKind): string {
@@ -152,15 +158,16 @@ export function chatGameOptions(
 
 export function getChatGameDefaults(
   kind: ChatGameKind,
-  options?: { channel?: "DM" | "TEAM"; openLobby?: boolean },
+  options?: { channel?: ChatGameChannel; openLobby?: boolean },
 ): { joinPolicy: "invite_only" | "open"; maxPlayers: number } {
   const entry = getActivityManifestEntry(kind);
   const chat = entry?.chatGame;
   const channel = options?.channel ?? "DM";
+  const manifestChannel = manifestChannelFor(channel);
   const maxPlayers =
-    channel === "TEAM" && chat?.teamMaxPlayers != null
+    manifestChannel === "TEAM" && chat?.teamMaxPlayers != null
       ? chat.teamMaxPlayers
-      : channel === "DM" && chat?.dmMaxPlayers != null
+      : manifestChannel === "DM" && chat?.dmMaxPlayers != null
         ? chat.dmMaxPlayers
         : (chat?.maxPlayers ?? 2);
 

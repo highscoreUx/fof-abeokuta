@@ -9,6 +9,7 @@ import {
   createDmHangmanSession,
   createDmSocialJsonSession,
   createDmTicTacToeSession,
+  createOpenLobbyChatGameSession,
   createTeamHangmanSession,
   createTeamSocialJsonSession,
   createTeamSpinnerSession,
@@ -41,6 +42,13 @@ export async function POST(
 
   if (channel === "TEAM" && !isChatGameAllowedForChannel(kind, "TEAM")) {
     return jsonError("This game is not available in team chat.", "VALIDATION_ERROR", 400);
+  }
+
+  if (
+    (channel === "GENERAL" || channel === "STAFF") &&
+    !isChatGameAllowedForChannel(kind, channel)
+  ) {
+    return jsonError("This game is not available in this chat.", "VALIDATION_ERROR", 400);
   }
 
   try {
@@ -84,6 +92,26 @@ export async function POST(
             : isSocialJsonGameKind(kind)
               ? await createTeamSocialJsonSession({ ...base, kind })
               : await createTeamTicTacToeSession(base);
+
+      return NextResponse.json({ session });
+    }
+
+    if (channel === "GENERAL" || channel === "STAFF") {
+      const base = {
+        eventId: ctx.event.id,
+        eventSlug: slug,
+        hostUserId: ctx.auth.userId,
+        channel: channel as "GENERAL" | "STAFF",
+      };
+
+      const session =
+        kind === "hangman"
+          ? await createOpenLobbyChatGameSession({ ...base, kind: "hangman" })
+          : kind === "spinner"
+            ? await createOpenLobbyChatGameSession({ ...base, kind: "spinner" })
+            : isSocialJsonGameKind(kind)
+              ? await createOpenLobbyChatGameSession({ ...base, kind })
+              : await createOpenLobbyChatGameSession({ ...base, kind: "tic_tac_toe" });
 
       return NextResponse.json({ session });
     }

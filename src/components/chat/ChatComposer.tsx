@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatGameMenu, useChatGameStarter } from "@/components/chat/StartChatGameButton";
-import { chatGameOptions } from "@/lib/activities/manifest";
+import { chatGameOptions, type ChatGameChannel } from "@/lib/activities/manifest";
 import { cn } from "@/lib/cn";
 
 type PickerTab = "emoji" | "gif" | "sticker";
@@ -29,7 +29,7 @@ interface ChatComposerProps {
   disabled?: boolean;
   allowPolls?: boolean;
   gamePicker?: {
-    channel: "DM" | "TEAM";
+    channel: ChatGameChannel;
     peerUserId?: string;
     teamId?: string;
   };

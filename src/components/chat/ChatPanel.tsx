@@ -255,16 +255,17 @@ export function ChatPanel({
           : `Message Team ${room.letter ?? ""}...`;
 
   const allowPrivateAction = !isPrivate && Boolean(onMessagePrivately);
+  const groupGamesEnabled = teamGamesEnabled;
   const gamePicker =
     isPrivate && peerId && dmGamesEnabled
       ? { channel: "DM" as const, peerUserId: peerId }
-      : !isPrivate &&
-          !isStaff &&
-          !isGeneral &&
-          teamGamesEnabled &&
-          user?.teamId === room.id
-        ? { channel: "TEAM" as const, teamId: room.id }
-        : undefined;
+      : isGeneral && groupGamesEnabled
+        ? { channel: "GENERAL" as const }
+        : isStaff && groupGamesEnabled
+          ? { channel: "STAFF" as const }
+          : room.category === "team" && groupGamesEnabled && user?.teamId === room.id
+            ? { channel: "TEAM" as const, teamId: room.id }
+            : undefined;
   const typers = useChatTyping(room.id, isActive, draft);
 
   return (

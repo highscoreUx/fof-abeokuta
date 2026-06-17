@@ -3,13 +3,13 @@
 import { useCallback, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import type { ChatGameKind } from "@/lib/chat-game-types";
-import { chatGameOptions } from "@/lib/activities/manifest";
+import { chatGameOptions, type ChatGameChannel } from "@/lib/activities/manifest";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { toastError, toastSuccess } from "@/lib/toast";
 
 interface StartChatGameButtonProps {
-  channel: "DM" | "TEAM";
+  channel: ChatGameChannel;
   peerUserId?: string;
   teamId?: string;
   disabled?: boolean;
@@ -61,7 +61,7 @@ export function ChatGameMenu({
   onSelect,
 }: {
   className?: string;
-  channel: "DM" | "TEAM";
+  channel: ChatGameChannel;
   onSelect: (kind: ChatGameKind) => void;
 }) {
   const options = chatGameOptions(channel);

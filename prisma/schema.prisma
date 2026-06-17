@@ -90,6 +90,8 @@ enum ActivityBracketSlotState {
 enum ChatGameChannel {
   DM
   TEAM
+  GENERAL
+  STAFF
 }
 
 enum ChatGameSessionStatus {

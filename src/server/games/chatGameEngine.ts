@@ -1,5 +1,7 @@
 import type { Server as SocketIOServer } from "socket.io";
+import { canAccessStaffChat } from "@/lib/account-permissions";
 import { assertChatSocialGameAllowed } from "@/lib/chat-game-settings";
+import { resolveUserRolePermissions } from "@/lib/user-permissions";
 import { getChatGameDefaults, isChatGameAllowedForChannel } from "@/lib/activities/manifest";
 import {
   parseChatGameMessageBody,
@@ -12,8 +14,12 @@ import {
 } from "@/lib/chat-game-types";
 import {
   broadcastDirectMessage,
+  broadcastGlobalMessage,
+  broadcastStaffMessage,
   broadcastTeamMessage,
   createDirectChatMessage,
+  createGlobalChatMessage,
+  createStaffChatMessage,
   createTeamChatMessage,
   serializeChatMessageRecord,
 } from "@/lib/chat-messages-server";
@@ -533,6 +539,10 @@ export async function updateSessionMessage(
     broadcastDirectMessage(session.hostUserId, session.dmPeerUserId, serialized);
   } else if (session.channel === "TEAM" && session.team) {
     broadcastTeamMessage(eventSlug, session.team.letter, serialized);
+  } else if (session.channel === "GENERAL") {
+    broadcastGlobalMessage(eventSlug, serialized);
+  } else if (session.channel === "STAFF") {
+    broadcastStaffMessage(eventSlug, serialized);
   }
   return serialized;
 }
@@ -554,6 +564,9 @@ export async function broadcastChatGameSession(
   } else if (session?.channel === "TEAM" && session.team) {
     const { teamRoom } = await import("@/server/socket/rooms");
     io.to(teamRoom(eventSlug, session.team.letter)).emit("chat:game:state", snapshot);
+  } else if (session?.channel === "STAFF") {
+    const { staffRoom } = await import("@/server/socket/rooms");
+    io.to(staffRoom(eventSlug)).emit("chat:game:state", snapshot);
   }
 
   return snapshot;
@@ -726,6 +739,127 @@ export async function createTeamTicTacToeSession(params: {
   return buildChatGameSessionSnapshot(session.id);
 }
 
+type OpenLobbyChannel = "GENERAL" | "STAFF";
+
+function openLobbyChatLabel(channel: OpenLobbyChannel) {
+  return channel === "GENERAL" ? "general" : "staff";
+}
+
+function initialPlayerSlotForKind(kind: ChatGameKind): string {
+  if (isSocialJsonGameKind(kind)) return "0";
+  return "X";
+}
+
+async function assertOpenLobbyHostAccess(
+  eventId: string,
+  userId: string,
+  channel: OpenLobbyChannel,
+) {
+  await assertChatSocialGameAllowed(eventId, channel);
+  if (channel !== "STAFF") return;
+
+  const user = await prisma.user.findFirst({
+    where: { id: userId, eventId },
+    select: {
+      permissions: true,
+      account: { select: { permissions: true } },
+    },
+  });
+  if (!user) throw new Error("User not found.");
+  if (!canAccessStaffChat(resolveUserRolePermissions(user))) {
+    throw new Error("Staff chat only.");
+  }
+}
+
+async function postOpenLobbyChatMessage(
+  eventId: string,
+  eventSlug: string,
+  userId: string,
+  channel: OpenLobbyChannel,
+  body: string,
+) {
+  if (channel === "GENERAL") {
+    return createGlobalChatMessage(eventId, eventSlug, userId, body);
+  }
+  return createStaffChatMessage(eventId, eventSlug, userId, body);
+}
+
+export async function createOpenLobbyChatGameSession(params: {
+  eventId: string;
+  eventSlug: string;
+  hostUserId: string;
+  channel: OpenLobbyChannel;
+  kind: ChatGameKind;
+}) {
+  await assertOpenLobbyHostAccess(params.eventId, params.hostUserId, params.channel);
+
+  const activeLobby = await prisma.chatGameSession.findFirst({
+    where: {
+      eventId: params.eventId,
+      channel: params.channel,
+      status: { in: ["LOBBY", "LIVE"] },
+    },
+  });
+  if (activeLobby) {
+    throw new Error(
+      `There is already an active game in ${openLobbyChatLabel(params.channel)} chat.`,
+    );
+  }
+
+  const lobbyDefaults = getChatGameDefaults(params.kind, {
+    channel: params.channel,
+    openLobby: true,
+  });
+
+  const session = await prisma.chatGameSession.create({
+    data: {
+      eventId: params.eventId,
+      kind: params.kind,
+      source: "social",
+      hostUserId: params.hostUserId,
+      channel: params.channel,
+      joinPolicy: lobbyDefaults.joinPolicy,
+      maxPlayers: lobbyDefaults.maxPlayers,
+      status: "LOBBY",
+      ...(params.kind === "hangman" ? { settings: DEFAULT_SOCIAL_HANGMAN_SETTINGS as object } : {}),
+      ...(params.kind === "chess" ? { settings: DEFAULT_SOCIAL_CHESS_SETTINGS as object } : {}),
+      ...(params.kind === "ludo" ? { settings: DEFAULT_SOCIAL_LUDO_SETTINGS as object } : {}),
+      ...(params.kind === "whot" ? { settings: DEFAULT_SOCIAL_WHOT_SETTINGS as object } : {}),
+      participants: {
+        create: {
+          userId: params.hostUserId,
+          role: "player",
+          playerSlot: initialPlayerSlotForKind(params.kind),
+        },
+      },
+    },
+    include: {
+      host: userWithAccount,
+      participants: { include: { user: userWithAccount } },
+      team: { select: { id: true, letter: true } },
+    },
+  });
+
+  const lobbyBody = serializeChatGameMessage(buildChatGameMessageBody(session));
+  const chatMessage = await postOpenLobbyChatMessage(
+    params.eventId,
+    params.eventSlug,
+    params.hostUserId,
+    params.channel,
+    lobbyBody,
+  );
+
+  await prisma.chatGameSession.update({
+    where: { id: session.id },
+    data: { messageId: chatMessage.id },
+  });
+
+  const io = tryGetIO();
+  if (io) await broadcastChatGameSession(io, params.eventSlug, session.id);
+
+  return buildChatGameSessionSnapshot(session.id);
+}
+
 async function userCanAccessSession(
   session: NonNullable<Awaited<ReturnType<typeof loadSession>>>,
   userId: string,
@@ -745,6 +879,24 @@ async function userCanAccessSession(
       select: { id: true },
     });
     return Boolean(member);
+  }
+  if (session.channel === "GENERAL") {
+    const member = await prisma.user.findFirst({
+      where: { id: userId, eventId: session.eventId },
+      select: { id: true },
+    });
+    return Boolean(member);
+  }
+  if (session.channel === "STAFF") {
+    const user = await prisma.user.findFirst({
+      where: { id: userId, eventId: session.eventId },
+      select: {
+        permissions: true,
+        account: { select: { permissions: true } },
+      },
+    });
+    if (!user) return false;
+    return canAccessStaffChat(resolveUserRolePermissions(user));
   }
   return false;
 }
@@ -860,6 +1012,18 @@ export async function joinChatGameSession(params: {
       params.userId === session.hostUserId ||
       parseInvitedSpectatorIds(session.invitedSpectatorIds).includes(params.userId);
     if (!canAccessDm) throw new Error("You are not part of this conversation.");
+  }
+
+  if (session.channel === "STAFF" && !(await userCanAccessSession(session, params.userId))) {
+    throw new Error("Only staff can join this game.");
+  }
+
+  if (session.channel === "GENERAL") {
+    const inEvent = await prisma.user.findFirst({
+      where: { id: params.userId, eventId: params.eventId },
+      select: { id: true },
+    });
+    if (!inEvent) throw new Error("You must be part of this event to join.");
   }
 
   const playerCount = session.participants.filter((participant) => participant.role === "player")
@@ -1630,7 +1794,7 @@ export async function startChatGameSessionByHost(params: {
   if (session.status !== "LOBBY") {
     throw new Error("This game has already started.");
   }
-  if (session.kind !== "spinner" || session.channel !== "TEAM") {
+  if (session.kind !== "spinner" || !["TEAM", "GENERAL", "STAFF"].includes(session.channel)) {
     throw new Error("This game cannot be started manually.");
   }
 
@@ -1806,7 +1970,7 @@ async function seatRematchPlayers(params: {
       });
     } else if (
       params.kind === "spinner" &&
-      params.channel === "TEAM" &&
+      ["TEAM", "GENERAL", "STAFF"].includes(params.channel) &&
       session.status === "LOBBY" &&
       playerCount >= 2
     ) {
@@ -1926,6 +2090,40 @@ export async function rematchSocialChatGame(params: {
         eventSlug: params.eventSlug,
         hostUserId: params.userId,
         teamId: session.teamId,
+      }))!;
+    }
+  } else if (session.channel === "GENERAL" || session.channel === "STAFF") {
+    if (session.kind === "spinner") {
+      snapshot = (await createOpenLobbyChatGameSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        channel: session.channel,
+        kind: "spinner",
+      }))!;
+    } else if (session.kind === "hangman") {
+      snapshot = (await createOpenLobbyChatGameSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        channel: session.channel,
+        kind: "hangman",
+      }))!;
+    } else if (isSocialJsonGameKind(session.kind)) {
+      snapshot = (await createOpenLobbyChatGameSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        channel: session.channel,
+        kind: session.kind,
+      }))!;
+    } else {
+      snapshot = (await createOpenLobbyChatGameSession({
+        eventId: params.eventId,
+        eventSlug: params.eventSlug,
+        hostUserId: params.userId,
+        channel: session.channel,
+        kind: "tic_tac_toe",
       }))!;
     }
   } else {

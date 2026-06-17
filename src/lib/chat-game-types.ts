@@ -7,9 +7,10 @@ import {
   chatGameTitle,
   isChatGameKind,
   type ChatGameKind,
+  type ChatGameChannel,
 } from "@/lib/activities/manifest";
 
-export type { ChatGameKind };
+export type { ChatGameKind, ChatGameChannel };
 
 export type ChatGameLobbyStatus = "lobby" | "live" | "ended" | "cancelled";
 
@@ -51,7 +52,7 @@ export interface ChatGameSessionSnapshot {
   source: "social" | "official";
   hostUserId: string;
   hostFirstName: string;
-  channel: "DM" | "TEAM";
+  channel: ChatGameChannel;
   teamId: string | null;
   dmPeerUserId: string | null;
   messageId: string | null;

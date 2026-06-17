@@ -68,7 +68,7 @@ export async function setChatSocialGamesSettings(
 
 export async function assertChatSocialGameAllowed(
   eventId: string,
-  channel: "DM" | "TEAM",
+  channel: "DM" | "TEAM" | "GENERAL" | "STAFF",
 ): Promise<void> {
   const settings = await getChatSocialGamesSettings(eventId);
   if (!settings.enabled) {
@@ -77,7 +77,10 @@ export async function assertChatSocialGameAllowed(
   if (channel === "DM" && !settings.dmEnabled) {
     throw new Error("Direct message games are disabled for this event.");
   }
-  if (channel === "TEAM" && !settings.teamEnabled) {
-    throw new Error("Team chat games are disabled for this event.");
+  if (
+    (channel === "TEAM" || channel === "GENERAL" || channel === "STAFF") &&
+    !settings.teamEnabled
+  ) {
+    throw new Error("Group chat games are disabled for this event.");
   }
 }

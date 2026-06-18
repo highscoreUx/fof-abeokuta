@@ -1,10 +1,12 @@
 import { create } from "zustand";
+import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import type { ChatReplyRef } from "@/lib/chat-reply";
 import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
 
 /** Stable fallbacks for useSyncExternalStore selectors (never use inline `?? []`). */
 export const EMPTY_CHAT_MESSAGES: ChatMessage[] = [];
 export const EMPTY_CHAT_PARTICIPANTS: ChatParticipant[] = [];
+export const EMPTY_SEEN_MENTION_IDS: string[] = [];
 
 interface ChatStore {
   messagesByRoom: Record<string, ChatMessage[]>;
@@ -15,6 +17,8 @@ interface ChatStore {
   messagesLoaded: Record<string, boolean>;
   participantsLoaded: Record<string, boolean>;
   seenMentionIdsByRoom: Record<string, string[]>;
+  lastReadAtByRoom: Record<string, string>;
+  activeGameByRoom: Record<string, ChatGameSessionSnapshot | null>;
   rooms: ChatRoom[];
   roomsEventSlug: string | null;
   roomsLoaded: boolean;
@@ -33,6 +37,8 @@ interface ChatStore {
   markMessagesLoaded: (roomId: string) => void;
   markParticipantsLoaded: (roomId: string) => void;
   markMentionSeen: (roomId: string, messageId: string) => void;
+  markRoomRead: (roomId: string) => void;
+  setActiveGameForRoom: (roomId: string, session: ChatGameSessionSnapshot | null) => void;
   setRoomsForEvent: (eventSlug: string, rooms: ChatRoom[]) => void;
   setRoomsLoading: (loading: boolean) => void;
   addChatRoom: (room: ChatRoom) => void;
@@ -50,6 +56,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   messagesLoaded: {},
   participantsLoaded: {},
   seenMentionIdsByRoom: {},
+  lastReadAtByRoom: {},
+  activeGameByRoom: {},
   rooms: [],
   roomsEventSlug: null,
   roomsLoaded: false,
@@ -177,6 +185,19 @@ export const useChatStore = create<ChatStore>((set) => ({
         },
       };
     }),
+
+  markRoomRead: (roomId) =>
+    set((state) => ({
+      lastReadAtByRoom: {
+        ...state.lastReadAtByRoom,
+        [roomId]: new Date().toISOString(),
+      },
+    })),
+
+  setActiveGameForRoom: (roomId, session) =>
+    set((state) => ({
+      activeGameByRoom: { ...state.activeGameByRoom, [roomId]: session },
+    })),
 
   setRoomsForEvent: (eventSlug, rooms) =>
     set((state) => ({

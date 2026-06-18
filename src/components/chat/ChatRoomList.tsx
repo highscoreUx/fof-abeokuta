@@ -3,9 +3,18 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnseenMentionCount } from "@/hooks/useUnseenMentionCount";
-import type { ChatRoom, ChatRoomCategory } from "@/types/chat";
 import { ChatRoomListSkeleton } from "@/components/chat/ChatRoomListSkeleton";
+import {
+  countUnseenMessages,
+  findLatestGameHint,
+  formatRoomMessageTime,
+  gameHintFromBody,
+  lastRoomMessage,
+  roomPreviewText,
+} from "@/lib/chat-room-preview";
 import { cn } from "@/lib/cn";
+import { EMPTY_CHAT_MESSAGES, useChatStore } from "@/stores/chatStore";
+import type { ChatRoom, ChatRoomCategory } from "@/types/chat";
 
 type RoomFilter = "all" | ChatRoomCategory;
 
@@ -25,29 +34,137 @@ interface ChatRoomListProps {
   className?: string;
 }
 
-function ChatRoomMentionBadge({
+function ChatRoomRow({
   room,
-  activeRoomId,
+  active,
   username,
+  userId,
+  onSelect,
 }: {
   room: ChatRoom;
-  activeRoomId: string;
+  active: boolean;
   username?: string;
+  userId?: string;
+  onSelect: (roomId: string) => void;
 }) {
   const isPrivate = room.category === "private";
-  const isActive = room.id === activeRoomId;
-  const unseenCount = useUnseenMentionCount(room.id, username, isPrivate);
+  const messages = useChatStore((state) => state.messagesByRoom[room.id] ?? EMPTY_CHAT_MESSAGES);
+  const lastReadAt = useChatStore((state) => state.lastReadAtByRoom[room.id]);
+  const liveGame = useChatStore((state) => state.activeGameByRoom[room.id]);
+  const unseenMentions = useUnseenMentionCount(room.id, username, isPrivate);
+  const unseenMessages =
+    userId && !active ? countUnseenMessages(messages, userId, lastReadAt) : 0;
 
-  if (isPrivate || isActive || unseenCount === 0) return null;
+  const lastMessage = lastRoomMessage(messages);
+  const preview = roomPreviewText(lastMessage, userId);
+  const time = lastMessage ? formatRoomMessageTime(lastMessage.createdAt) : null;
+
+  const gameHint =
+    liveGame && userId
+      ? gameHintFromBody(
+          {
+            type: "chat_game",
+            sessionId: liveGame.sessionId,
+            gameKind: liveGame.kind,
+            title: liveGame.title,
+            status: liveGame.status,
+            hostUserId: liveGame.hostUserId,
+            hostFirstName: liveGame.hostFirstName,
+            joinPolicy: liveGame.joinPolicy,
+            maxPlayers: liveGame.maxPlayers,
+            players: liveGame.players,
+            spectatorCount: liveGame.spectatorCount,
+            matchId: liveGame.matchId ?? undefined,
+            text: liveGame.text,
+          },
+          userId,
+        )
+      : userId
+        ? findLatestGameHint(messages, userId)
+        : null;
+
+  const showGameBadge = gameHint?.actionable;
+  const gameBadgeLabel =
+    gameHint?.status === "live"
+      ? "Live"
+      : gameHint?.ready
+        ? "Ready"
+        : "Game";
 
   return (
-    <span
-      className="flex shrink-0 items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary"
-      aria-label={`${unseenCount} unread mention${unseenCount === 1 ? "" : "s"}`}
+    <button
+      type="button"
+      onClick={() => onSelect(room.id)}
+      className={cn(
+        "flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left transition",
+        active
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-foreground hover:bg-muted",
+      )}
     >
-      <span>@</span>
-      <span>{unseenCount}</span>
-    </span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="truncate text-xs font-semibold">{room.label}</span>
+        <div className="flex shrink-0 items-center gap-1">
+          {time && (
+            <span
+              className={cn(
+                "text-[10px] tabular-nums",
+                active ? "text-primary-foreground/80" : "text-muted-foreground",
+              )}
+            >
+              {time}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <p
+          className={cn(
+            "min-w-0 flex-1 truncate text-[11px]",
+            active ? "text-primary-foreground/85" : "text-muted-foreground",
+            unseenMessages > 0 && !active && "font-medium text-foreground",
+          )}
+        >
+          {preview}
+        </p>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {showGameBadge && !active && (
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                gameHint?.ready
+                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                  : gameHint?.status === "live"
+                    ? "bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                    : "bg-primary/15 text-primary",
+              )}
+              aria-label={`${gameBadgeLabel} game`}
+            >
+              🎮 {gameBadgeLabel}
+            </span>
+          )}
+          {!isPrivate && !active && unseenMentions > 0 && (
+            <span
+              className="flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+              aria-label={`${unseenMentions} unread mention${unseenMentions === 1 ? "" : "s"}`}
+            >
+              <span>@</span>
+              <span>{unseenMentions}</span>
+            </span>
+          )}
+          {unseenMessages > 0 && !active && (
+            <span
+              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+              aria-label={`${unseenMessages} unread message${unseenMessages === 1 ? "" : "s"}`}
+            >
+              {unseenMessages > 99 ? "99+" : unseenMessages}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -94,36 +211,23 @@ export function ChatRoomList({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 md:max-h-44 md:flex-none">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 md:max-h-none md:flex-none">
         {loading ? (
           <ChatRoomListSkeleton />
         ) : filteredRooms.length === 0 ? (
           <p className="px-2 py-4 text-xs text-muted-foreground">No chats in this category.</p>
         ) : (
           <div className="space-y-1">
-            {filteredRooms.map((room) => {
-              const active = room.id === activeRoomId;
-              return (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => onSelect(room.id)}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition",
-                    active
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-foreground hover:bg-muted",
-                  )}
-                >
-                  <span className="truncate">{room.label}</span>
-                  <ChatRoomMentionBadge
-                    room={room}
-                    activeRoomId={activeRoomId}
-                    username={user?.username}
-                  />
-                </button>
-              );
-            })}
+            {filteredRooms.map((room) => (
+              <ChatRoomRow
+                key={room.id}
+                room={room}
+                active={room.id === activeRoomId}
+                username={user?.username}
+                userId={user?.id}
+                onSelect={onSelect}
+              />
+            ))}
           </div>
         )}
       </div>

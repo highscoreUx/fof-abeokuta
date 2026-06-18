@@ -19,7 +19,12 @@ import { parseChatContent, serializeChatContent } from "@/lib/chat-content";
 import { findMessagesMentioningUser } from "@/lib/chat-mentions";
 import { createOptimisticChatMessage } from "@/lib/chat-optimistic";
 import { buildReplyRef } from "@/lib/chat-reply";
-import { EMPTY_CHAT_MESSAGES, EMPTY_CHAT_PARTICIPANTS, useChatStore } from "@/stores/chatStore";
+import {
+  EMPTY_CHAT_MESSAGES,
+  EMPTY_CHAT_PARTICIPANTS,
+  EMPTY_SEEN_MENTION_IDS,
+  useChatStore,
+} from "@/stores/chatStore";
 import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
 
 export type { ChatMessage, ChatRoom, ChatRoomCategory } from "@/types/chat";
@@ -51,7 +56,9 @@ export function ChatPanel({
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const seenMentionIds = useChatStore((s) => s.seenMentionIdsByRoom[room.id] ?? []);
+  const seenMentionIds = useChatStore(
+    (s) => s.seenMentionIdsByRoom[room.id] ?? EMPTY_SEEN_MENTION_IDS,
+  );
   const markMentionSeen = useChatStore((s) => s.markMentionSeen);
   const [dmGamesEnabled, setDmGamesEnabled] = useState(false);
   const [teamGamesEnabled, setTeamGamesEnabled] = useState(false);
@@ -73,6 +80,7 @@ export function ChatPanel({
   const setDraft = useChatStore((s) => s.setDraft);
   const setReplyTo = useChatStore((s) => s.setReplyTo);
   const markMessagesLoaded = useChatStore((s) => s.markMessagesLoaded);
+  const markRoomRead = useChatStore((s) => s.markRoomRead);
 
   const peerId = room.category === "private" ? parseDmRoomId(room.id) : null;
   const isGeneral = room.category === "general";
@@ -140,7 +148,8 @@ export function ChatPanel({
   useEffect(() => {
     if (!isActive) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isActive]);
+    markRoomRead(room.id);
+  }, [messages, isActive, markRoomRead, room.id]);
 
   useEffect(
     () => () => {

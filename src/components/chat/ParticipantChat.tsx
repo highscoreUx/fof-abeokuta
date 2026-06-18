@@ -7,6 +7,7 @@ import { ChatParticipants } from "@/components/chat/ChatParticipants";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
 import { ChatRoomListSkeleton } from "@/components/chat/ChatRoomListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
+import { useChatGameNotifications } from "@/hooks/useChatGameNotifications";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useChatRooms } from "@/hooks/useChatRooms";
 import { dmRoomId, parseDmRoomId } from "@/lib/chat-dm";
@@ -28,6 +29,9 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
   const addChatRoom = useChatStore((state) => state.addChatRoom);
   const setActiveRoomId = useChatStore((state) => state.setActiveRoomId);
   const setMobilePane = useChatStore((state) => state.setMobilePane);
+  const markRoomRead = useChatStore((state) => state.markRoomRead);
+
+  useChatGameNotifications(activeRoomId);
 
   const handleIncomingDm = useCallback(
     (message: ChatMessage, roomId: string) => {
@@ -63,6 +67,7 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
+    markRoomRead(roomId);
     setMobilePane("chat");
   };
 

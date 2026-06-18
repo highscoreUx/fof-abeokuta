@@ -19,6 +19,12 @@ export function messagePreview(body: string): string {
   if (content.type === "gif") return "GIF";
   if (content.type === "sticker") return content.label ?? "Sticker";
   if (content.type === "poll") return `Poll: ${content.poll.question}`.slice(0, PREVIEW_MAX);
+  if (content.type === "chat_game") {
+    const game = content.chatGame;
+    if (game.status === "live") return `🎮 ${game.title} is live`;
+    if (game.status === "lobby") return `🎮 ${game.title} — ${game.text}`.slice(0, PREVIEW_MAX);
+    return `🎮 ${game.title}`;
+  }
   return "Message";
 }
 

@@ -9,6 +9,7 @@ import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
 import type { ChatGameMessageBody, ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/toast";
 
 interface ChatGameCardProps {
@@ -97,6 +98,10 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const isHost = user?.id === local.hostUserId;
   const isPlayer = local.players.some((player) => player.userId === user?.id);
   const isFull = local.players.length >= local.maxPlayers;
+  const isReadyToPlay =
+    local.status === "lobby" &&
+    ((isFull && (isPlayer || isHost)) ||
+      (isHost && local.gameKind === "spinner" && local.players.length >= 2));
   const canJoin = local.status === "lobby" && !isPlayer && !isFull;
   const canHostStart =
     isHost &&
@@ -146,7 +151,9 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
 
   const statusLabel =
     local.status === "lobby"
-      ? "Waiting"
+      ? isReadyToPlay
+        ? "Ready"
+        : "Waiting"
       : local.status === "live"
         ? "Live"
         : local.status === "ended"
@@ -154,7 +161,26 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
           : "Cancelled";
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+    <div
+      className={cn(
+        "rounded-xl border p-4 transition",
+        isReadyToPlay
+          ? "border-emerald-500/50 bg-emerald-500/10 ring-2 ring-emerald-500/30"
+          : local.status === "live"
+            ? "border-amber-500/30 bg-amber-500/5"
+            : "border-primary/20 bg-primary/5",
+      )}
+    >
+      {isReadyToPlay && (
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+          Ready to play!
+        </p>
+      )}
+      {local.status === "live" && isPlayer && (
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+          Game is live — your turn may be waiting
+        </p>
+      )}
       <p className="text-xs font-semibold uppercase tracking-wide text-primary">
         {local.title} · {statusLabel}
       </p>
@@ -190,8 +216,11 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
         )}
         {(local.status === "live" || local.status === "lobby") && (isPlayer || isHost) && (
           <Link href={focusHref}>
-            <Button size="sm" variant={canJoin ? "secondary" : "primary"}>
-              {local.status === "live" ? "Play" : "Open lobby"}
+            <Button
+              size="sm"
+              variant={isReadyToPlay || local.status === "live" ? "primary" : "secondary"}
+            >
+              {local.status === "live" ? "Play now" : isReadyToPlay ? "Play now" : "Open lobby"}
             </Button>
           </Link>
         )}

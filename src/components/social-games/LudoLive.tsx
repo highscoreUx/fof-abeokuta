@@ -224,11 +224,13 @@ export function LudoLive({
   sendMove,
   ludoSettings = DEFAULT_SOCIAL_LUDO_SETTINGS,
   turnDeadlineAt = null,
+  movePending = false,
 }: {
   snapshot: SocialGameMatchSnapshot;
   sendMove: (action: string, payload?: Record<string, unknown>) => void;
   ludoSettings?: SocialLudoSettings;
   turnDeadlineAt?: number | null;
+  movePending?: boolean;
 }) {
   const { user } = useAuth();
   const game = useMemo(() => normalizeLudoState(snapshot.state), [snapshot.state]);
@@ -692,10 +694,10 @@ export function LudoLive({
             <Button
               size="lg"
               className="w-full"
-              disabled={isAnimating}
+              disabled={isAnimating || movePending}
               onClick={() => sendMove("roll")}
             >
-              Roll dice
+              {movePending ? "Rolling…" : "Roll dice"}
             </Button>
           )}
 

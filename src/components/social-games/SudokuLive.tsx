@@ -43,14 +43,21 @@ function cellHighlightClass({
   isPeer,
   isSameNumber,
   isConflict,
+  isPending,
   fixed,
 }: {
   isSelected: boolean;
   isPeer: boolean;
   isSameNumber: boolean;
   isConflict: boolean;
+  isPending?: boolean;
   fixed: boolean;
 }): string {
+  if (isPending) {
+    return fixed
+      ? "bg-primary/15 font-semibold text-foreground opacity-80"
+      : "bg-primary/10 font-medium text-foreground opacity-80";
+  }
   if (isConflict) {
     return fixed
       ? "bg-red-200 font-semibold text-red-900"
@@ -68,9 +75,11 @@ function cellHighlightClass({
 export function SudokuLive({
   snapshot,
   sendMove,
+  pendingCellIndex = null,
 }: {
   snapshot: SocialGameMatchSnapshot;
   sendMove: (action: string, payload?: Record<string, unknown>) => void;
+  pendingCellIndex?: number | null;
 }) {
   const { user } = useAuth();
   const game = snapshot.state as SudokuState;
@@ -291,6 +300,7 @@ export function SudokuLive({
             const isSameNumber =
               selectedValue != null && cell !== "0" && cell === selectedValue;
             const isConflict = conflicts.has(index);
+            const isPending = pendingCellIndex === index;
             const notes = cell === "0" ? (myPencils[index] ?? "") : "";
             const { row, col } = sudokuCellCoords(index);
 
@@ -308,6 +318,7 @@ export function SudokuLive({
                   isPeer,
                   isSameNumber,
                   isConflict,
+                  isPending,
                   fixed,
                 })}`}
               >

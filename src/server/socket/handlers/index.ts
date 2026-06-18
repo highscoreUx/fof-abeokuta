@@ -704,13 +704,22 @@ export function registerSocketHandlers(io: SocketIOServer) {
       },
     );
 
-    socket.on("hangman:guess", async (data: { matchId: string; letter: string }) => {
+    socket.on("hangman:guess", async (
+      data: { matchId: string; letter: string },
+      ack?: (response: { error?: string }) => void,
+    ) => {
       try {
         const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_HANGMAN);
-        if (!enabled) return;
-        if (!data?.matchId || !data.letter) return;
+        if (!enabled) {
+          ack?.({ error: "Activity disabled" });
+          return;
+        }
+        if (!data?.matchId || !data.letter) {
+          ack?.({ error: "Invalid guess" });
+          return;
+        }
 
-        await handleHangmanGuess(io, {
+        const snapshot = await handleHangmanGuess(io, {
           matchId: data.matchId,
           eventId: auth.eventId,
           eventSlug: slug,
@@ -718,11 +727,18 @@ export function registerSocketHandlers(io: SocketIOServer) {
           teamId: auth.teamId ?? null,
           letter: data.letter,
         });
+        if (!snapshot) {
+          ack?.({ error: "Invalid guess" });
+          return;
+        }
+        ack?.({});
       } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid guess";
         socket.emit("sync:toast", {
           type: "error",
-          message: error instanceof Error ? error.message : "Invalid guess",
+          message,
         });
+        ack?.({ error: message });
       }
     });
 
@@ -735,9 +751,15 @@ export function registerSocketHandlers(io: SocketIOServer) {
 
     socket.on(
       "social-game:move",
-      async (data: { matchId: string; action: string; payload?: Record<string, unknown> }) => {
+      async (
+        data: { matchId: string; action: string; payload?: Record<string, unknown> },
+        ack?: (response: { error?: string }) => void,
+      ) => {
         try {
-          if (!data?.matchId || !data.action) return;
+          if (!data?.matchId || !data.action) {
+            ack?.({ error: "Invalid move" });
+            return;
+          }
           await applySocialGameMove({
             matchId: data.matchId,
             eventSlug: slug,
@@ -745,11 +767,14 @@ export function registerSocketHandlers(io: SocketIOServer) {
             action: data.action,
             payload: data.payload ?? {},
           });
+          ack?.({});
         } catch (error) {
+          const message = error instanceof Error ? error.message : "Invalid move";
           socket.emit("sync:toast", {
             type: "error",
-            message: error instanceof Error ? error.message : "Invalid move",
+            message,
           });
+          ack?.({ error: message });
         }
       },
     );

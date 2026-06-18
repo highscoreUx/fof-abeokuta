@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,13 @@ import { HangmanWordDisplay } from "@/components/hangman/HangmanWordDisplay";
 import { HangmanFinishedResults } from "@/components/hangman/HangmanFinishedResults";
 import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
+import {
+  applyOptimisticHangmanGuess,
+  findPendingHangmanLetter,
+} from "@/lib/hangman/optimistic-guess";
 import type { HangmanMatchSnapshot } from "@/lib/hangman/types";
+import { emitSocketAck } from "@/lib/socket/emit-with-ack";
+import { toastError } from "@/lib/toast";
 import { getSocialHangmanRoundTopicLabel } from "@/lib/chat-game-hangman-settings";
 
 interface HangmanMatchLiveProps {
@@ -31,7 +37,16 @@ export function HangmanMatchLive({
   const socket = useSocket();
   const { user, isHydrated } = useAuth();
   const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
-  const [state, setState] = useState<HangmanMatchSnapshot | null>(null);
+  const [serverState, setServerState] = useState<HangmanMatchSnapshot | null>(null);
+  const [displayState, addOptimisticGuess] = useOptimistic(
+    serverState,
+    (current, letter: string) => {
+      if (!current) return current;
+      return applyOptimisticHangmanGuess(current, letter);
+    },
+  );
+  const [, startGuessTransition] = useTransition();
+  const state = displayState;
   const [now, setNow] = useState(() => Date.now());
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);
@@ -62,7 +77,7 @@ export function HangmanMatchLive({
   }, [state?.matchId, state?.state]);
 
   useEffect(() => {
-    setState(null);
+    setServerState(null);
     joinedMatchId.current = null;
   }, [initialMatchId]);
 
@@ -72,7 +87,7 @@ export function HangmanMatchLive({
     const onState = (snapshot: HangmanMatchSnapshot) => {
       if (snapshot.challengeId !== challengeId) return;
       if (snapshot.matchId !== initialMatchId) return;
-      setState(snapshot);
+      setServerState(snapshot);
     };
 
     socket.on("hangman:state", onState);
@@ -149,9 +164,28 @@ export function HangmanMatchLive({
   };
 
   const guessLetter = (letter: string) => {
-    if (!state) return;
-    socket?.emit("hangman:guess", { matchId: state.matchId, letter });
+    if (!serverState || !socket) return;
+
+    if (canVoteCouncil) {
+      socket.emit("hangman:guess", { matchId: serverState.matchId, letter });
+      return;
+    }
+
+    startGuessTransition(async () => {
+      addOptimisticGuess(letter);
+      try {
+        await emitSocketAck(socket, "hangman:guess", {
+          matchId: serverState.matchId,
+          letter,
+        });
+      } catch (error) {
+        toastError(error instanceof Error ? error.message : "Invalid guess");
+        throw error;
+      }
+    });
   };
+
+  const pendingLetter = findPendingHangmanLetter(serverState, displayState);
 
   if (!state) {
     return (
@@ -254,6 +288,7 @@ export function HangmanMatchLive({
                 guessedLetters={state.guessedLetters}
                 disabled={!canGuessChampion && !canVoteCouncil}
                 highlightLetter={myVote ?? null}
+                pendingLetter={pendingLetter}
                 onLetterClick={
                   canGuessChampion || canVoteCouncil ? guessLetter : undefined
                 }

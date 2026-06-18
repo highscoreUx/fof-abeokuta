@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Chess, type Square } from "chess.js";
-import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import type { SocialChessSettings } from "@/lib/chat-game-chess-settings";
 import { DEFAULT_SOCIAL_CHESS_SETTINGS } from "@/lib/chat-game-chess-settings";
@@ -15,9 +13,12 @@ import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
 import type { SocialJsonGameKind } from "@/lib/social-games/kinds";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
 import type { ChessState } from "@/lib/social-games/game-state-types";
+import { useSocialGameState } from "@/hooks/useSocialGameState";
 import { WhotLive } from "@/components/social-games/WhotLive";
 import { LudoLive } from "@/components/social-games/LudoLive";
 import { SudokuLive } from "@/components/social-games/SudokuLive";
+import { normalizeSudokuGrid } from "@/lib/social-games/sudoku-grid";
+import type { SudokuState } from "@/lib/social-games/game-state-types";
 
 interface SocialGameMatchLiveProps {
   matchId: string;
@@ -81,99 +82,71 @@ function pieceColor(piece: string | null): "w" | "b" | null {
   return piece === piece.toUpperCase() ? "w" : "b";
 }
 
-function useSocialGameState(matchId: string, sessionId?: string) {
-  const socket = useSocket();
-  const [state, setState] = useState<SocialGameMatchSnapshot | null>(null);
-  const joinedMatchId = useRef<string | null>(null);
+function findPendingSudokuCell(
+  server: SocialGameMatchSnapshot | null,
+  display: SocialGameMatchSnapshot | null,
+  userId: string | undefined,
+): number | null {
+  if (!server || !display || !userId) return null;
+  const serverGame = server.state as SudokuState;
+  const displayGame = display.state as SudokuState;
+  const puzzle = normalizeSudokuGrid(serverGame.puzzle);
+  const serverBoard = normalizeSudokuGrid(serverGame.boards[userId] ?? puzzle);
+  const displayBoard = normalizeSudokuGrid(displayGame.boards[userId] ?? puzzle);
+  for (let index = 0; index < 81; index++) {
+    if (serverBoard[index] !== displayBoard[index]) return index;
+  }
+  return null;
+}
 
-  const requestState = () => {
-    if (!socket || !matchId) return;
-    joinedMatchId.current = matchId;
-    socket.emit("social-game:join", matchId);
-  };
+function findPendingChessSquares(
+  server: SocialGameMatchSnapshot | null,
+  display: SocialGameMatchSnapshot | null,
+): Set<string> {
+  const pending = new Set<string>();
+  if (!server || !display) return pending;
 
-  useEffect(() => {
-    setState(null);
-    joinedMatchId.current = null;
-  }, [matchId]);
+  const serverFen = (server.state as ChessState).fen;
+  const displayFen = (display.state as ChessState).fen;
+  if (serverFen === displayFen) return pending;
 
-  useEffect(() => {
-    if (!socket || !matchId) return;
-
-    const onState = (snapshot: SocialGameMatchSnapshot) => {
-      if (snapshot.matchId !== matchId) return;
-      setState((prev) => {
-        if (
-          prev &&
-          prev.status === snapshot.status &&
-          prev.currentTurnUserId === snapshot.currentTurnUserId &&
-          JSON.stringify(prev.state) === JSON.stringify(snapshot.state)
-        ) {
-          return prev;
+  try {
+    const chess = new Chess(serverFen);
+    const displayBoard = parseFenBoard(displayFen);
+    const serverBoard = parseFenBoard(serverFen);
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        if (serverBoard[row]?.[col] !== displayBoard[row]?.[col]) {
+          pending.add(squareName(row, col));
         }
-        return snapshot;
-      });
-    };
+      }
+    }
+    void chess;
+  } catch {
+    return pending;
+  }
 
-    socket.on("social-game:state", onState);
-    return () => {
-      socket.off("social-game:state", onState);
-    };
-  }, [socket, matchId]);
-
-  useEffect(() => {
-    if (!socket || !matchId) return;
-    if (joinedMatchId.current === matchId) return;
-    requestState();
-  }, [socket, matchId]);
-
-  useEffect(() => {
-    if (!socket) return;
-    const onConnect = () => {
-      joinedMatchId.current = null;
-      requestState();
-    };
-    socket.on("connect", onConnect);
-    return () => {
-      socket.off("connect", onConnect);
-    };
-  }, [socket, matchId]);
-
-  useEffect(() => {
-    if (!socket || !sessionId) return;
-
-    const onChatState = (snapshot: { sessionId: string; status: string }) => {
-      if (snapshot.sessionId !== sessionId || snapshot.status !== "live") return;
-      joinedMatchId.current = null;
-      requestState();
-    };
-
-    socket.on("chat:game:state", onChatState);
-    return () => {
-      socket.off("chat:game:state", onChatState);
-    };
-  }, [socket, sessionId, matchId]);
-
-  const sendMove = (action: string, payload: Record<string, unknown> = {}) => {
-    if (!socket) return;
-    socket.emit("social-game:move", { matchId, action, payload });
-  };
-
-  return { state, sendMove };
+  return pending;
 }
 
 function ChessLive({
   snapshot,
+  serverSnapshot,
   sendMove,
   chessSettings = DEFAULT_SOCIAL_CHESS_SETTINGS,
 }: {
   snapshot: SocialGameMatchSnapshot;
+  serverSnapshot: SocialGameMatchSnapshot | null;
   sendMove: (action: string, payload?: Record<string, unknown>) => void;
   chessSettings?: SocialChessSettings;
 }) {
   const { user } = useAuth();
   const game = snapshot.state as ChessState;
   const board = useMemo(() => parseFenBoard(game.fen), [game.fen]);
+  const pendingSquares = useMemo(
+    () => findPendingChessSquares(serverSnapshot, snapshot),
+    [serverSnapshot, snapshot],
+  );
   const [selected, setSelected] = useState<string | null>(null);
 
   const mySeat = snapshot.players.find((player) => player.userId === user?.id)?.seat ?? null;
@@ -242,6 +215,7 @@ function ChessLive({
                 const square = squareName(rowIndex, colIndex);
                 const isSelected = selected === square;
                 const isLegalTarget = legalTargets.has(square);
+                const isPending = pendingSquares.has(square);
                 return (
                   <button
                     key={square}
@@ -252,7 +226,7 @@ function ChessLive({
                       dark ? "bg-muted" : "bg-card"
                     } ${isSelected ? "ring-2 ring-primary" : ""} ${
                       isLegalTarget ? "ring-2 ring-emerald-500/70" : ""
-                    }`}
+                    } ${isPending ? "bg-primary/15 opacity-80" : ""}`}
                   >
                     {piece ? PIECE_SYMBOLS[piece] ?? piece : ""}
                     {isLegalTarget && !piece && (
@@ -320,7 +294,15 @@ export function SocialGameMatchLive({
   whotSettings,
   turnDeadlineAt,
 }: SocialGameMatchLiveProps) {
-  const { state, sendMove } = useSocialGameState(matchId, sessionId);
+  const { user } = useAuth();
+  const { state, serverState, sendMove, movePending } = useSocialGameState(matchId, sessionId, {
+    whotSettings,
+  });
+
+  const pendingSudokuCell = useMemo(
+    () => findPendingSudokuCell(serverState, state, user?.id),
+    [serverState, state, user?.id],
+  );
 
   if (!state) {
     return (
@@ -331,9 +313,24 @@ export function SocialGameMatchLive({
   }
 
   if (kind === "chess") {
-    return <ChessLive snapshot={state} sendMove={sendMove} chessSettings={chessSettings} />;
+    return (
+      <ChessLive
+        snapshot={state}
+        serverSnapshot={serverState}
+        sendMove={sendMove}
+        chessSettings={chessSettings}
+      />
+    );
   }
-  if (kind === "sudoku") return <SudokuLive snapshot={state} sendMove={sendMove} />;
+  if (kind === "sudoku") {
+    return (
+      <SudokuLive
+        snapshot={state}
+        sendMove={sendMove}
+        pendingCellIndex={pendingSudokuCell}
+      />
+    );
+  }
   if (kind === "whot") {
     return (
       <WhotLive
@@ -351,6 +348,7 @@ export function SocialGameMatchLive({
         sendMove={sendMove}
         ludoSettings={ludoSettings ?? DEFAULT_SOCIAL_LUDO_SETTINGS}
         turnDeadlineAt={turnDeadlineAt}
+        movePending={movePending}
       />
     );
   }

@@ -1,5 +1,9 @@
 import { create } from "zustand";
 import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import {
+  readSeenMentionIdsByRoom,
+  writeSeenMentionIdsByRoom,
+} from "@/lib/chat-mention-seen-storage";
 import { sortChatParticipants } from "@/lib/chat-participants";
 import type { ChatReplyRef } from "@/lib/chat-reply";
 import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
@@ -39,7 +43,8 @@ interface ChatStore {
   setReplyTo: (roomId: string, reply: ChatReplyRef | null) => void;
   markMessagesLoaded: (roomId: string) => void;
   markParticipantsLoaded: (roomId: string) => void;
-  markMentionSeen: (roomId: string, messageId: string) => void;
+  hydrateSeenMentionIds: (eventSlug: string, userId: string) => void;
+  markMentionSeen: (roomId: string, messageId: string, context?: { eventSlug: string; userId: string }) => void;
   markRoomRead: (roomId: string) => void;
   setActiveGameForRoom: (roomId: string, session: ChatGameSessionSnapshot | null) => void;
   setRoomsForEvent: (eventSlug: string, rooms: ChatRoom[]) => void;
@@ -221,16 +226,36 @@ export const useChatStore = create<ChatStore>((set) => ({
       participantsLoaded: { ...state.participantsLoaded, [roomId]: true },
     })),
 
-  markMentionSeen: (roomId, messageId) =>
+  hydrateSeenMentionIds: (eventSlug, userId) =>
+    set((state) => {
+      const stored = readSeenMentionIdsByRoom(eventSlug, userId);
+      if (Object.keys(stored).length === 0) return state;
+
+      const merged: Record<string, string[]> = { ...state.seenMentionIdsByRoom };
+      for (const [roomId, ids] of Object.entries(stored)) {
+        const seen = new Set(merged[roomId] ?? []);
+        for (const id of ids) seen.add(id);
+        merged[roomId] = [...seen];
+      }
+
+      return { seenMentionIdsByRoom: merged };
+    }),
+
+  markMentionSeen: (roomId, messageId, context) =>
     set((state) => {
       const current = state.seenMentionIdsByRoom[roomId] ?? [];
       if (current.includes(messageId)) return state;
-      return {
-        seenMentionIdsByRoom: {
-          ...state.seenMentionIdsByRoom,
-          [roomId]: [...current, messageId],
-        },
+
+      const seenMentionIdsByRoom = {
+        ...state.seenMentionIdsByRoom,
+        [roomId]: [...current, messageId],
       };
+
+      if (context) {
+        writeSeenMentionIdsByRoom(context.eventSlug, context.userId, seenMentionIdsByRoom);
+      }
+
+      return { seenMentionIdsByRoom };
     }),
 
   markRoomRead: (roomId) =>

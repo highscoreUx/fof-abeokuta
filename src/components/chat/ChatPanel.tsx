@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
+import { useEventSlug } from "@/hooks/useEventSlug";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatMessageBubble } from "@/components/chat/ChatMessageBubble";
@@ -47,6 +48,7 @@ export function ChatPanel({
   className,
 }: ChatPanelProps) {
   const { api } = useEventApi();
+  const eventSlug = useEventSlug();
   const { user } = useAuth();
   const socket = useSocket();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -200,8 +202,12 @@ export function ChatPanel({
     const nextMessageId = unseenMentionIds[0];
     if (!nextMessageId) return;
     scrollToMessage(nextMessageId);
-    markMentionSeen(room.id, nextMessageId);
-  }, [markMentionSeen, room.id, scrollToMessage, unseenMentionIds]);
+    markMentionSeen(
+      room.id,
+      nextMessageId,
+      user?.id && eventSlug ? { eventSlug, userId: user.id } : undefined,
+    );
+  }, [eventSlug, markMentionSeen, room.id, scrollToMessage, unseenMentionIds, user?.id]);
 
   const registerMessageRef = useCallback((messageId: string, element: HTMLDivElement | null) => {
     if (element) {

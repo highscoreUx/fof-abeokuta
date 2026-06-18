@@ -290,21 +290,30 @@ export function registerSocketHandlers(io: SocketIOServer) {
 
     socket.on(
       "quiz:answer",
-      async (data: {
-        sessionId: string;
-        questionId: string;
-        answerIndex?: number;
-        answerValue?: Record<string, unknown>;
-      }) => {
+      async (
+        data: {
+          sessionId: string;
+          questionId: string;
+          answerIndex?: number;
+          answerValue?: Record<string, unknown>;
+        },
+        ack?: (response: { error?: string }) => void,
+      ) => {
       try {
         const session = await prisma.quizSession.findUnique({
           where: { id: data.sessionId },
           include: { quiz: true },
         });
-        if (!session || session.quiz.eventId !== auth.eventId) return;
+        if (!session || session.quiz.eventId !== auth.eventId) {
+          ack?.({ error: "Session not found" });
+          return;
+        }
 
         const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
-        if (!kahootEnabled) return;
+        if (!kahootEnabled) {
+          ack?.({ error: "Activity disabled" });
+          return;
+        }
 
         if (
           !userCanAccessActivityInstance(auth, {
@@ -313,6 +322,7 @@ export function registerSocketHandlers(io: SocketIOServer) {
           }) &&
           !socketCan(auth, "quiz.run")
         ) {
+          ack?.({ error: "Forbidden" });
           return;
         }
 
@@ -326,10 +336,13 @@ export function registerSocketHandlers(io: SocketIOServer) {
           payload,
         );
         socket.emit("quiz:answer:result", result);
+        ack?.({});
       } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to submit answer";
+        ack?.({ error: message });
         socket.emit("sync:toast", {
           type: "error",
-          message: error instanceof Error ? error.message : "Failed to submit answer",
+          message,
         });
       }
     },

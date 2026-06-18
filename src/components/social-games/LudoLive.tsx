@@ -240,6 +240,7 @@ export function LudoLive({
   );
   const [isAnimating, setIsAnimating] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [rollingDice, setRollingDice] = useState<[number, number] | null>(null);
   const prevPositionsRef = useRef<Map<string, { position: number; homeSeat: number; yardIndex: number }>>(
     new Map(),
   );
@@ -336,6 +337,22 @@ export function LudoLive({
   useEffect(() => () => stopPieceAnimation(false), []);
 
   useEffect(() => {
+    if (!movePending || game.dice != null || !isMyTurn || finished) {
+      setRollingDice(null);
+      return;
+    }
+    const tick = () => {
+      setRollingDice([
+        1 + Math.floor(Math.random() * 6),
+        1 + Math.floor(Math.random() * 6),
+      ]);
+    };
+    tick();
+    const interval = setInterval(tick, 120);
+    return () => clearInterval(interval);
+  }, [movePending, game.dice, isMyTurn, finished]);
+
+  useEffect(() => {
     if (!ludoSettings.turnTimerEnabled || !turnDeadlineAt || finished) return;
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
@@ -423,6 +440,8 @@ export function LudoLive({
   );
 
   const displayedRoll = game.dice ?? game.lastRoll;
+  const showRollingDice =
+    movePending && isMyTurn && game.dice == null && !finished && rollingDice != null;
   const rollIsActive = game.dice != null;
   const rollOwnerId = rollIsActive ? snapshot.currentTurnUserId : game.lastRollUserId;
   const diceUsed = ludoDiceUsed(game);
@@ -648,6 +667,14 @@ export function LudoLive({
                   Take out! That seed is done.
                 </p>
               )}
+            </div>
+          ) : showRollingDice ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-3">
+                <LudoDie value={rollingDice[0]} />
+                <LudoDie value={rollingDice[1]} />
+              </div>
+              <p className="text-center text-sm text-muted-foreground">Rolling…</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2">

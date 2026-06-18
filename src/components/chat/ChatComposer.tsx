@@ -42,6 +42,7 @@ interface ChatComposerProps {
     channel: ChatGameChannel;
     peerUserId?: string;
     teamId?: string;
+    room?: import("@/types/chat").ChatRoom;
   };
   replyTo?: ChatReplyRef | null;
   allowMentions?: boolean;
@@ -85,7 +86,14 @@ export function ChatComposer({
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { start: startChatGame, busy: startingChatGame } = useChatGameStarter(
-    gamePicker ?? { channel: "DM" },
+    gamePicker
+      ? {
+          channel: gamePicker.channel,
+          peerUserId: gamePicker.peerUserId,
+          teamId: gamePicker.teamId,
+          room: gamePicker.room,
+        }
+      : { channel: "DM" },
   );
 
   const mentionQuery = allowMentions

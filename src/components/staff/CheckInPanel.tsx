@@ -72,14 +72,34 @@ export function CheckInPanel() {
 
   const checkIn = async (user: UserRow) => {
     const needsEmail = user.needsEmail ?? !user.email;
+    const previousCheckedInAt = user.checkedInAt;
+    const optimisticUser: UserRow = {
+      ...user,
+      checkedInAt: new Date().toISOString(),
+      ...(needsEmail && emailInput.trim() ? { email: emailInput.trim(), needsEmail: false } : {}),
+    };
+
+    setUsers((prev) => prev.map((entry) => (entry.id === user.id ? optimisticUser : entry)));
+    if (selected?.id === user.id) setSelected(optimisticUser);
+
     try {
       const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, {
         method: "PATCH",
         body: JSON.stringify(needsEmail ? { email: emailInput.trim() } : {}),
       });
       setSelected((prev) => ({ ...(prev?.id === user.id ? prev : user), ...result.user }));
-      await search();
+      setUsers((prev) => prev.map((entry) => (entry.id === user.id ? result.user : entry)));
     } catch (err) {
+      setUsers((prev) =>
+        prev.map((entry) =>
+          entry.id === user.id ? { ...entry, checkedInAt: previousCheckedInAt } : entry,
+        ),
+      );
+      if (selected?.id === user.id) {
+        setSelected((prev) =>
+          prev ? { ...prev, checkedInAt: previousCheckedInAt } : null,
+        );
+      }
       toastError(
         "Failed to check in",
         err instanceof Error ? err.message : undefined,
@@ -88,9 +108,31 @@ export function CheckInPanel() {
   };
 
   const uncheckIn = async (user: UserRow) => {
-    const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, { method: "DELETE" });
-    setSelected((prev) => (prev ? { ...prev, ...result.user } : result.user));
-    await search();
+    const previousCheckedInAt = user.checkedInAt;
+    const optimisticUser: UserRow = { ...user, checkedInAt: null };
+    setUsers((prev) => prev.map((entry) => (entry.id === user.id ? optimisticUser : entry)));
+    if (selected?.id === user.id) setSelected(optimisticUser);
+
+    try {
+      const result = await api<{ user: UserRow }>(`/users/${user.id}/check-in`, { method: "DELETE" });
+      setSelected((prev) => (prev ? { ...prev, ...result.user } : result.user));
+      setUsers((prev) => prev.map((entry) => (entry.id === user.id ? result.user : entry)));
+    } catch (err) {
+      setUsers((prev) =>
+        prev.map((entry) =>
+          entry.id === user.id ? { ...entry, checkedInAt: previousCheckedInAt } : entry,
+        ),
+      );
+      if (selected?.id === user.id) {
+        setSelected((prev) =>
+          prev ? { ...prev, checkedInAt: previousCheckedInAt } : null,
+        );
+      }
+      toastError(
+        "Failed to undo check-in",
+        err instanceof Error ? err.message : undefined,
+      );
+    }
   };
 
   const selectedNeedsEmail = selected ? (selected.needsEmail ?? !selected.email) : false;

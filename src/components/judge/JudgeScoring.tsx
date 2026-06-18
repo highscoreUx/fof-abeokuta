@@ -29,7 +29,8 @@ export function JudgeScoring() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
-  const [saved, setSaved] = useState("");
+  const [savingKeys, setSavingKeys] = useState<Set<string>>(() => new Set());
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     Promise.all([
@@ -45,17 +46,32 @@ export function JudgeScoring() {
       }
       setScores(existing);
     });
-  }, [slug]);
+  }, [slug, api]);
 
   const saveScore = async (teamId: string, criterionId: string) => {
     const key = `${teamId}-${criterionId}`;
     const points = scores[key] ?? 0;
-    await api("/scores", {
-      method: "POST",
-      body: JSON.stringify({ teamId, criterionId, points }),
-    });
-    setSaved("Saved");
-    setTimeout(() => setSaved(""), 2000);
+    setSavingKeys((prev) => new Set(prev).add(key));
+    try {
+      await api("/scores", {
+        method: "POST",
+        body: JSON.stringify({ teamId, criterionId, points }),
+      });
+      setSavedKeys((prev) => new Set(prev).add(key));
+      setTimeout(() => {
+        setSavedKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }, 2000);
+    } finally {
+      setSavingKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
   };
 
   if (teams.length === 0) {
@@ -64,13 +80,14 @@ export function JudgeScoring() {
 
   return (
     <div className="space-y-6">
-      {saved && <p className="text-green-600">{saved}</p>}
       {teams.map((team) => (
         <Card key={team.id}>
           <CardTitle>Team {team.letter} — {team.name}</CardTitle>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {criteria.map((c) => {
               const key = `${team.id}-${c.id}`;
+              const saving = savingKeys.has(key);
+              const saved = savedKeys.has(key);
               return (
                 <div key={c.id} className="flex items-center gap-2">
                   <label className="flex-1 text-sm">{c.name} (max {c.maxPoints})</label>
@@ -79,12 +96,19 @@ export function JudgeScoring() {
                     min={0}
                     max={c.maxPoints}
                     value={scores[key] ?? ""}
+                    disabled={saving}
                     onChange={(e) =>
                       setScores((prev) => ({ ...prev, [key]: parseInt(e.target.value, 10) || 0 }))
                     }
                     className="w-20"
                   />
-                  <Button size="sm" onClick={() => saveScore(team.id, c.id)}>Save</Button>
+                  <Button
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => void saveScore(team.id, c.id)}
+                  >
+                    {saving ? "Saving…" : saved ? "Saved" : "Save"}
+                  </Button>
                 </div>
               );
             })}

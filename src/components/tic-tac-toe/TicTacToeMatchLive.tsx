@@ -14,8 +14,14 @@ import {
   applyOptimisticTttMove,
   findOptimisticPendingCellIndex,
 } from "@/lib/tic-tac-toe/optimistic-move";
+import { applyOptimisticTttCouncilVote } from "@/lib/tic-tac-toe/optimistic-council";
 import { toastError } from "@/lib/toast";
-import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
+import type { TicTacToeChampionInfo, TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
+
+type TttOptimisticAction =
+  | { type: "move"; cellIndex: number }
+  | { type: "council"; cellIndex: number; userId: string }
+  | { type: "champion"; teamId: string; champion: TicTacToeChampionInfo };
 
 interface TicTacToeMatchLiveProps {
   challengeId: string;
@@ -34,11 +40,21 @@ export function TicTacToeMatchLive({
   const { user, isHydrated } = useAuth();
   const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const [serverState, setServerState] = useState<TicTacToeMatchSnapshot | null>(null);
-  const [displayState, addOptimisticMove] = useOptimistic(
+  const [displayState, addOptimisticAction] = useOptimistic(
     serverState,
-    (current, cellIndex: number) => {
+    (current, action: TttOptimisticAction) => {
       if (!current) return current;
-      return applyOptimisticTttMove(current, cellIndex);
+      if (action.type === "move") return applyOptimisticTttMove(current, action.cellIndex);
+      if (action.type === "council") {
+        return applyOptimisticTttCouncilVote(current, action.userId, action.cellIndex);
+      }
+      if (action.type === "champion") {
+        const isX = current.teamX.id === action.teamId;
+        return isX
+          ? { ...current, championX: action.champion }
+          : { ...current, championO: action.champion };
+      }
+      return current;
     },
   );
   const [, startMoveTransition] = useTransition();
@@ -148,11 +164,20 @@ export function TicTacToeMatchLive({
   };
 
   const volunteerChampion = () => {
-    if (!state || !myTeamId) return;
-    socket?.emit("ttt:champion:set", {
-      matchId: state.matchId,
-      teamId: myTeamId,
-      championUserId: user?.id,
+    if (!state || !myTeamId || !user?.username) return;
+    const champion: TicTacToeChampionInfo = {
+      userId: user.id,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+    startMoveTransition(() => {
+      addOptimisticAction({ type: "champion", teamId: myTeamId, champion });
+      socket?.emit("ttt:champion:set", {
+        matchId: state.matchId,
+        teamId: myTeamId,
+        championUserId: user.id,
+      });
     });
   };
 
@@ -160,12 +185,16 @@ export function TicTacToeMatchLive({
     if (!serverState || !socket) return;
 
     if (canVoteCouncil) {
-      socket.emit("ttt:move", { matchId: serverState.matchId, cellIndex: index });
+      if (!user) return;
+      startMoveTransition(() => {
+        addOptimisticAction({ type: "council", cellIndex: index, userId: user.id });
+        socket.emit("ttt:move", { matchId: serverState.matchId, cellIndex: index });
+      });
       return;
     }
 
     startMoveTransition(async () => {
-      addOptimisticMove(index);
+      addOptimisticAction({ type: "move", cellIndex: index });
       try {
         await new Promise<void>((resolve, reject) => {
           socket

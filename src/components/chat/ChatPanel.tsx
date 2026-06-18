@@ -316,13 +316,13 @@ export function ChatPanel({
   const groupGamesEnabled = teamGamesEnabled;
   const gamePicker =
     isPrivate && peerId && dmGamesEnabled
-      ? { channel: "DM" as const, peerUserId: peerId }
+      ? { channel: "DM" as const, peerUserId: peerId, room }
       : isGeneral && groupGamesEnabled
-        ? { channel: "GENERAL" as const }
+        ? { channel: "GENERAL" as const, room }
         : isStaff && groupGamesEnabled
-          ? { channel: "STAFF" as const }
+          ? { channel: "STAFF" as const, room }
           : room.category === "team" && groupGamesEnabled && user?.teamId === room.id
-            ? { channel: "TEAM" as const, teamId: room.id }
+            ? { channel: "TEAM" as const, teamId: room.id, room }
             : undefined;
   const typers = useChatTyping(room.id, isActive, draft);
 

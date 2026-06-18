@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,13 @@ export function ChatGameInvitePanel({ sessionId, disabled = false }: ChatGameInv
   const { api } = useEventApi();
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<EventUserOption[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(() => new Set());
+  const [displayInvited, addOptimisticInvite] = useOptimistic(
+    invitedIds,
+    (current, userId: string) => new Set(current).add(userId),
+  );
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [, startInviteTransition] = useTransition();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -35,19 +41,24 @@ export function ChatGameInvitePanel({ sessionId, disabled = false }: ChatGameInv
     return () => clearTimeout(timer);
   }, [api, query]);
 
-  const invite = async (userId: string) => {
-    setBusy(true);
-    try {
-      await api(`/chat-games/${sessionId}`, {
-        method: "POST",
-        body: JSON.stringify({ action: "invite", inviteeUserIds: [userId] }),
-      });
-      toastSuccess("Spectator invited — they can watch from the game link.");
-    } catch (error) {
-      toastError(error instanceof Error ? error.message : "Could not invite spectator");
-    } finally {
-      setBusy(false);
-    }
+  const invite = (userId: string) => {
+    startInviteTransition(async () => {
+      setInvitingId(userId);
+      addOptimisticInvite(userId);
+      try {
+        await api(`/chat-games/${sessionId}`, {
+          method: "POST",
+          body: JSON.stringify({ action: "invite", inviteeUserIds: [userId] }),
+        });
+        setInvitedIds((prev) => new Set(prev).add(userId));
+        toastSuccess("Spectator invited — they can watch from the game link.");
+      } catch (error) {
+        toastError(error instanceof Error ? error.message : "Could not invite spectator");
+        throw error;
+      } finally {
+        setInvitingId(null);
+      }
+    });
   };
 
   return (
@@ -60,30 +71,34 @@ export function ChatGameInvitePanel({ sessionId, disabled = false }: ChatGameInv
         className="mt-3"
         placeholder="Search by name or username"
         value={query}
-        disabled={disabled || busy}
+        disabled={disabled || invitingId !== null}
         onChange={(event) => setQuery(event.target.value)}
       />
       {users.length > 0 && (
         <ul className="mt-2 space-y-1">
-          {users.map((user) => (
-            <li
-              key={user.id}
-              className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/50"
-            >
-              <span className="text-sm">
-                {user.firstName} {user.lastName}
-                <span className="text-muted-foreground"> @{user.username}</span>
-              </span>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={disabled || busy}
-                onClick={() => void invite(user.id)}
+          {users.map((user) => {
+            const invited = displayInvited.has(user.id);
+            const inviting = invitingId === user.id;
+            return (
+              <li
+                key={user.id}
+                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/50"
               >
-                Invite
-              </Button>
-            </li>
-          ))}
+                <span className="text-sm">
+                  {user.firstName} {user.lastName}
+                  <span className="text-muted-foreground"> @{user.username}</span>
+                </span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={disabled || invited || inviting}
+                  onClick={() => invite(user.id)}
+                >
+                  {invited ? "Invited" : inviting ? "Inviting…" : "Invite"}
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

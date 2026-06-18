@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   getServerSyncedRemainingMs,
 } from "@/lib/kahoot-ui";
 import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
+import { emitSocketAck } from "@/lib/socket/emit-with-ack";
 import { cn } from "@/lib/utils";
 import type { QuizAnswerResult, QuizStateSnapshot, TriviaAnswerPayload } from "@/types";
 
@@ -52,6 +53,8 @@ export function QuizPlayer() {
   const [state, setState] = useState<QuizStateSnapshot | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [displaySubmitted, addOptimisticSubmit] = useOptimistic(submitted, (_, next: boolean) => next);
+  const [, startSubmitTransition] = useTransition();
   const [answerResult, setAnswerResult] = useState<QuizAnswerResult | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>(
     searchParams.get("mode") === "spectate" ? "spectate" : null,
@@ -131,13 +134,20 @@ export function QuizPlayer() {
   }, [state]);
 
   const submitAnswer = (payload: TriviaAnswerPayload) => {
-    if (!socket || !state?.currentQuestion || submitted) return;
-    setSubmitted(true);
-    socket.emit("quiz:answer", {
-      sessionId: state.sessionId,
-      questionId: state.currentQuestion.id,
-      answerValue: payload,
-      answerIndex: payload.answerIndex,
+    if (!socket || !state?.currentQuestion || displaySubmitted) return;
+    const questionId = state.currentQuestion.id;
+    startSubmitTransition(async () => {
+      addOptimisticSubmit(true);
+      try {
+        await emitSocketAck(socket, "quiz:answer", {
+          sessionId: state.sessionId,
+          questionId,
+          answerValue: payload,
+          answerIndex: payload.answerIndex,
+        });
+      } catch {
+        throw new Error("Failed to submit answer");
+      }
     });
   };
 
@@ -267,7 +277,7 @@ export function QuizPlayer() {
 
       <KahootTimerBar remainingMs={remainingMs} totalMs={totalMs} />
 
-      {submitted && (
+      {displaySubmitted && (
         <p className="text-center text-sm font-medium text-muted-foreground">
           Answer locked in — waiting for others…
         </p>
@@ -279,7 +289,7 @@ export function QuizPlayer() {
         options={question.options}
         config={question.config ?? {}}
         mediaUrl={question.mediaUrl}
-        disabled={submitted}
+        disabled={displaySubmitted}
         onSubmit={submitAnswer}
       />
     </div>

@@ -23,6 +23,39 @@ import { hasAdminShellAccess } from "@/lib/permissions";
 import type { ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 
+function RematchButton({
+  sessionId,
+  onRematch,
+}: {
+  sessionId: string;
+  onRematch: (newSessionId: string) => void;
+}) {
+  const { api } = useEventApi();
+  const [pending, setPending] = useState(false);
+
+  const rematch = () => {
+    setPending(true);
+    void api<{ session: ChatGameSessionSnapshot }>(
+      `/chat-games/${encodeURIComponent(sessionId)}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ action: "rematch" }),
+      },
+    )
+      .then((data) => {
+        onRematch(data.session.sessionId);
+      })
+      .catch(() => undefined)
+      .finally(() => setPending(false));
+  };
+
+  return (
+    <Button size="sm" disabled={pending} onClick={rematch}>
+      {pending ? "Starting rematch…" : "Rematch"}
+    </Button>
+  );
+}
+
 export function ChatGameFocusView() {
   const params = useParams<{ sessionId: string }>();
   const sessionId = params.sessionId;
@@ -202,22 +235,12 @@ export function ChatGameFocusView() {
                 </Button>
                 {session.status === "ended" &&
                   session.players.some((player) => player.userId === user?.id) && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        void api<{ session: ChatGameSessionSnapshot }>(
-                          `/chat-games/${encodeURIComponent(sessionId)}`,
-                          {
-                            method: "POST",
-                            body: JSON.stringify({ action: "rematch" }),
-                          },
-                        ).then((data) => {
-                          router.replace(`${home}/game/${data.session.sessionId}`);
-                        });
-                      }}
-                    >
-                      Rematch
-                    </Button>
+                    <RematchButton
+                      sessionId={sessionId}
+                      onRematch={(newSessionId) =>
+                        router.replace(`${home}/game/${newSessionId}`)
+                      }
+                    />
                   )}
               </div>
             )}

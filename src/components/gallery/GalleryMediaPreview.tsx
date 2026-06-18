@@ -57,6 +57,25 @@ export function GalleryMediaPreview({
     (isReady && !loadError && !mediaLoaded && Boolean(isVideo ? fullSrc : mediaSrc));
 
   if (isProcessing) {
+    const localPreview = photo.thumbnailUrl ?? photo.url;
+    if (localPreview?.startsWith("blob:")) {
+      return (
+        <div className="relative h-full w-full" style={aspectStyle}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={localPreview}
+            alt={alt}
+            className="h-full w-full object-cover opacity-80"
+            decoding="async"
+          />
+          <GalleryShimmer
+            className="absolute inset-0 h-full w-full rounded-2xl"
+            label="Uploading…"
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="relative h-full w-full" style={aspectStyle}>
         <GalleryShimmer className="h-full w-full rounded-2xl" label="Processing upload" />

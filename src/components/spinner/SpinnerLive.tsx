@@ -116,8 +116,9 @@ export function SpinnerLive({
   };
 
   const spin = () => {
-    if (!state) return;
-    socket?.emit("spinner:spin", state.sessionId);
+    if (!state || !socket) return;
+    setWheelSpinning(true);
+    socket.emit("spinner:spin", state.sessionId);
   };
 
   const endSession = () => {

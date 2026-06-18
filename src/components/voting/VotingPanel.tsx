@@ -5,6 +5,8 @@ import { useSocket } from "@/hooks/useSocket";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
+import { toastError } from "@/lib/toast";
 
 interface Vote {
   id: string;
@@ -19,6 +21,8 @@ export function VotingPanel({ admin = false }: { admin?: boolean }) {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [newTitle, setNewTitle] = useState("");
   const [newOptions, setNewOptions] = useState("Option A, Option B, Option C");
+  const [optimisticBallots, setOptimisticBallots] = useState<Record<string, string>>({});
+  const [pendingBallots, setPendingBallots] = useState<Record<string, string>>({});
 
   const load = () => api<{ votes: Vote[] }>("/votes").then((d) => setVotes(d.votes));
 
@@ -61,10 +65,27 @@ export function VotingPanel({ admin = false }: { admin?: boolean }) {
   };
 
   const castBallot = async (voteId: string, selection: string) => {
-    await api(`/votes/${voteId}/ballot`, {
-      method: "POST",
-      body: JSON.stringify({ selections: [selection] }),
-    });
+    setOptimisticBallots((prev) => ({ ...prev, [voteId]: selection }));
+    setPendingBallots((prev) => ({ ...prev, [voteId]: selection }));
+    try {
+      await api(`/votes/${voteId}/ballot`, {
+        method: "POST",
+        body: JSON.stringify({ selections: [selection] }),
+      });
+    } catch (error) {
+      setOptimisticBallots((prev) => {
+        const next = { ...prev };
+        delete next[voteId];
+        return next;
+      });
+      toastError(error instanceof Error ? error.message : "Could not cast vote");
+    } finally {
+      setPendingBallots((prev) => {
+        const next = { ...prev };
+        delete next[voteId];
+        return next;
+      });
+    }
   };
 
   return (
@@ -106,16 +127,22 @@ export function VotingPanel({ admin = false }: { admin?: boolean }) {
           </div>
           {vote.open && (
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {vote.config.options.map((option) => (
-                <Button
-                  key={option}
-                  variant="secondary"
-                  onClick={() => castBallot(vote.id, option)}
-                  disabled={admin}
-                >
-                  {option}
-                </Button>
-              ))}
+              {vote.config.options.map((option) => {
+                const selected = optimisticBallots[vote.id] === option;
+                const pending = pendingBallots[vote.id] === option;
+                return (
+                  <Button
+                    key={option}
+                    variant={selected ? "primary" : "secondary"}
+                    className={cn(pending && "opacity-80")}
+                    onClick={() => castBallot(vote.id, option)}
+                    disabled={admin || Boolean(pendingBallots[vote.id])}
+                  >
+                    {option}
+                    {selected && " ✓"}
+                  </Button>
+                );
+              })}
             </div>
           )}
         </Card>

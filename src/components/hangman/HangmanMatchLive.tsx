@@ -16,7 +16,13 @@ import {
   applyOptimisticHangmanGuess,
   findPendingHangmanLetter,
 } from "@/lib/hangman/optimistic-guess";
-import type { HangmanMatchSnapshot } from "@/lib/hangman/types";
+import { applyOptimisticHangmanCouncilVote } from "@/lib/hangman/optimistic-council";
+import type { HangmanChampionInfo, HangmanMatchSnapshot } from "@/lib/hangman/types";
+
+type HangmanOptimisticAction =
+  | { type: "guess"; letter: string }
+  | { type: "council"; letter: string; userId: string }
+  | { type: "champion"; teamId: string; champion: HangmanChampionInfo };
 import { emitSocketAck } from "@/lib/socket/emit-with-ack";
 import { toastError } from "@/lib/toast";
 import { getSocialHangmanRoundTopicLabel } from "@/lib/chat-game-hangman-settings";
@@ -38,11 +44,21 @@ export function HangmanMatchLive({
   const { user, isHydrated } = useAuth();
   const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
   const [serverState, setServerState] = useState<HangmanMatchSnapshot | null>(null);
-  const [displayState, addOptimisticGuess] = useOptimistic(
+  const [displayState, addOptimisticAction] = useOptimistic(
     serverState,
-    (current, letter: string) => {
+    (current, action: HangmanOptimisticAction) => {
       if (!current) return current;
-      return applyOptimisticHangmanGuess(current, letter);
+      if (action.type === "guess") return applyOptimisticHangmanGuess(current, action.letter);
+      if (action.type === "council") {
+        return applyOptimisticHangmanCouncilVote(current, action.userId, action.letter);
+      }
+      if (action.type === "champion") {
+        const isX = current.teamX.id === action.teamId;
+        return isX
+          ? { ...current, championX: action.champion }
+          : { ...current, championO: action.champion };
+      }
+      return current;
     },
   );
   const [, startGuessTransition] = useTransition();
@@ -155,11 +171,20 @@ export function HangmanMatchLive({
   };
 
   const volunteerChampion = () => {
-    if (!state || !myTeamId || !user?.id) return;
-    socket?.emit("hangman:champion:set", {
-      matchId: state.matchId,
-      teamId: myTeamId,
-      championUserId: user.id,
+    if (!state || !myTeamId || !user?.username) return;
+    const champion: HangmanChampionInfo = {
+      userId: user.id,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+    startGuessTransition(() => {
+      addOptimisticAction({ type: "champion", teamId: myTeamId, champion });
+      socket?.emit("hangman:champion:set", {
+        matchId: state.matchId,
+        teamId: myTeamId,
+        championUserId: user.id,
+      });
     });
   };
 
@@ -167,12 +192,16 @@ export function HangmanMatchLive({
     if (!serverState || !socket) return;
 
     if (canVoteCouncil) {
-      socket.emit("hangman:guess", { matchId: serverState.matchId, letter });
+      if (!user?.id) return;
+      startGuessTransition(() => {
+        addOptimisticAction({ type: "council", letter, userId: user.id });
+        socket.emit("hangman:guess", { matchId: serverState.matchId, letter });
+      });
       return;
     }
 
     startGuessTransition(async () => {
-      addOptimisticGuess(letter);
+      addOptimisticAction({ type: "guess", letter });
       try {
         await emitSocketAck(socket, "hangman:guess", {
           matchId: serverState.matchId,

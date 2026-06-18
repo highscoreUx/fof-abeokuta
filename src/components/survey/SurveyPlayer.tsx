@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,8 +55,12 @@ export function SurveyPlayer() {
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, SurveyAnswerValue>>({});
-  const [saving, setSaving] = useState(false);
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(() => new Set());
+  const [optimisticSubmitted, addOptimisticSubmit] = useOptimistic(
+    submittedIds,
+    (current, surveyId: string) => new Set(current).add(surveyId),
+  );
+  const [isSubmitting, startSubmitTransition] = useTransition();
   const registeredSurveyIds = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -124,28 +128,29 @@ export function SurveyPlayer() {
 
   const submit = async () => {
     if (!active) return;
-    setSaving(true);
-    try {
-      await api(`/surveys/${active.id}/submit`, {
-        method: "POST",
-        body: JSON.stringify({
-          answers: active.questions.map((q) => ({
-            questionId: q.id,
-            value: answers[q.id] ?? {},
-          })),
-        }),
-      });
-      setSubmittedIds((prev) => new Set(prev).add(active.id));
-      toastSuccess("Response saved");
-      await load();
-    } catch (e) {
-      toastError(
-        "Failed to submit survey",
-        e instanceof Error ? e.message : undefined,
-      );
-    } finally {
-      setSaving(false);
-    }
+    startSubmitTransition(async () => {
+      addOptimisticSubmit(active.id);
+      try {
+        await api(`/surveys/${active.id}/submit`, {
+          method: "POST",
+          body: JSON.stringify({
+            answers: active.questions.map((q) => ({
+              questionId: q.id,
+              value: answers[q.id] ?? {},
+            })),
+          }),
+        });
+        setSubmittedIds((prev) => new Set(prev).add(active.id));
+        toastSuccess("Response saved");
+        await load();
+      } catch (e) {
+        toastError(
+          "Failed to submit survey",
+          e instanceof Error ? e.message : undefined,
+        );
+        throw e;
+      }
+    });
   };
 
   if (!active) {
@@ -183,6 +188,8 @@ export function SurveyPlayer() {
     );
   }
 
+  const activeSubmitted = optimisticSubmitted.has(active.id);
+
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
@@ -191,6 +198,11 @@ export function SurveyPlayer() {
           Back
         </Button>
       </div>
+      {activeSubmitted && (
+        <p className="mt-4 rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+          {isSubmitting ? "Submitting your response…" : "Response submitted — saving…"}
+        </p>
+      )}
       <div className="mt-6 space-y-6">
         {active.questions.map((q, i) => {
           const config = parseSurveyConfig(q.config);
@@ -275,8 +287,8 @@ export function SurveyPlayer() {
           );
         })}
       </div>
-      <Button className="mt-4" onClick={submit} disabled={saving}>
-        {saving ? "Saving…" : "Submit survey"}
+      <Button className="mt-4" onClick={submit} disabled={isSubmitting || activeSubmitted}>
+        {isSubmitting || activeSubmitted ? "Saving…" : "Submit survey"}
       </Button>
     </Card>
   );

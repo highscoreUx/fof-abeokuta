@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
+import {
+  applyOptimisticChatGameAction,
+  type ChatGameOptimisticAction,
+} from "@/lib/chat-game-optimistic";
 import type { ChatGameMessageBody, ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -40,15 +44,26 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const router = useRouter();
   const socket = useSocket();
   const { home } = useEventNav();
-  const [busy, setBusy] = useState(false);
-  const [local, setLocal] = useState(chatGame);
+  const [serverLocal, setServerLocal] = useState(chatGame);
+  const [displayLocal, addOptimisticAction] = useOptimistic(
+    serverLocal,
+    (current, action: ChatGameOptimisticAction) => {
+      if (!user) return current;
+      return applyOptimisticChatGameAction(current, action, user);
+    },
+  );
+  const [, startActionTransition] = useTransition();
+  const [rematchPending, setRematchPending] = useState(false);
+  const local = displayLocal;
   const sessionId = chatGame.sessionId;
+  const isPendingCard = sessionId.startsWith("pending-game-");
 
   const applySession = useCallback((session: ChatGameSessionSnapshot) => {
-    setLocal(snapshotToMessageBody(session));
+    setServerLocal(snapshotToMessageBody(session));
   }, []);
 
   const refreshSession = useCallback(async () => {
+    if (isPendingCard) return null;
     try {
       const data = await api<{ session: ChatGameSessionSnapshot }>(`/chat-games/${sessionId}`);
       if (data.session) applySession(data.session);
@@ -56,17 +71,17 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     } catch {
       return null;
     }
-  }, [api, sessionId, applySession]);
+  }, [api, sessionId, applySession, isPendingCard]);
 
   useEffect(() => {
-    setLocal(chatGame);
-    if (chatGame.status === "lobby" || chatGame.status === "live") {
+    setServerLocal(chatGame);
+    if (!isPendingCard && (chatGame.status === "lobby" || chatGame.status === "live")) {
       void refreshSession();
     }
-  }, [chatGame, refreshSession]);
+  }, [chatGame, refreshSession, isPendingCard]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || isPendingCard) return;
 
     const onState = (snapshot: ChatGameSessionSnapshot) => {
       if (snapshot.sessionId !== sessionId) return;
@@ -77,7 +92,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     return () => {
       socket.off("chat:game:state", onState);
     };
-  }, [socket, sessionId, applySession]);
+  }, [socket, sessionId, applySession, isPendingCard]);
 
   useEffect(() => {
     if (!socket || !user) return;
@@ -102,7 +117,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     local.status === "lobby" &&
     ((isFull && (isPlayer || isHost)) ||
       (isHost && local.gameKind === "spinner" && local.players.length >= 2));
-  const canJoin = local.status === "lobby" && !isPlayer && !isFull;
+  const canJoin = local.status === "lobby" && !isPlayer && !isFull && !isPendingCard;
   const canHostStart =
     isHost &&
     local.status === "lobby" &&
@@ -114,39 +129,61 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     !isPlayer && (local.status === "live" || (local.status === "lobby" && isFull));
   const focusHref = `${home}/game/${local.sessionId}`;
 
-  const postAction = async (action: string, asSpectator = false) => {
-    setBusy(true);
-    try {
-      const data = await api<{ session: ChatGameSessionSnapshot }>(
-        `/chat-games/${local.sessionId}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ action, asSpectator }),
-        },
-      );
-      if (data.session) applySession(data.session);
-      return data.session;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Action failed";
-      const refreshed = await refreshSession();
-      if (
-        refreshed &&
-        refreshed.status !== "lobby" &&
-        refreshed.status !== "live" &&
-        (message.includes("ended") || message.includes("finished") || message.includes("started"))
-      ) {
-        return refreshed;
-      }
-      toastError(message);
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  };
+  const postAction = useCallback(
+    (action: string, optimisticAction?: ChatGameOptimisticAction, asSpectator = false) => {
+      if (!user || isPendingCard) return Promise.resolve(null);
 
-  const rematch = async () => {
-    const session = await postAction("rematch");
-    if (session) router.replace(`${home}/game/${session.sessionId}`);
+      return new Promise<ChatGameSessionSnapshot | null>((resolve) => {
+        startActionTransition(async () => {
+          if (optimisticAction) addOptimisticAction(optimisticAction);
+          try {
+            const data = await api<{ session: ChatGameSessionSnapshot }>(
+              `/chat-games/${local.sessionId}`,
+              {
+                method: "POST",
+                body: JSON.stringify({ action, asSpectator }),
+              },
+            );
+            if (data.session) applySession(data.session);
+            resolve(data.session);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Action failed";
+            const refreshed = await refreshSession();
+            if (
+              refreshed &&
+              refreshed.status !== "lobby" &&
+              refreshed.status !== "live" &&
+              (message.includes("ended") ||
+                message.includes("finished") ||
+                message.includes("started"))
+            ) {
+              resolve(refreshed);
+              return;
+            }
+            toastError(message);
+            throw error;
+          }
+        });
+      });
+    },
+    [
+      user,
+      isPendingCard,
+      addOptimisticAction,
+      api,
+      local.sessionId,
+      applySession,
+      refreshSession,
+    ],
+  );
+
+  const rematch = () => {
+    setRematchPending(true);
+    void postAction("rematch")
+      .then((session) => {
+        if (session) router.replace(`${home}/game/${session.sessionId}`);
+      })
+      .finally(() => setRematchPending(false));
   };
 
   const statusLabel =
@@ -164,11 +201,12 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     <div
       className={cn(
         "rounded-xl border p-4 transition",
+        isPendingCard && "border-primary/30 bg-primary/5 opacity-90",
         isReadyToPlay
           ? "border-emerald-500/50 bg-emerald-500/10 ring-2 ring-emerald-500/30"
           : local.status === "live"
             ? "border-amber-500/30 bg-amber-500/5"
-            : "border-primary/20 bg-primary/5",
+            : !isPendingCard && "border-primary/20 bg-primary/5",
       )}
     >
       {isReadyToPlay && (
@@ -196,44 +234,45 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
 
       <div className="mt-3 flex flex-wrap gap-2">
         {canHostStart && (
-          <Button size="sm" disabled={busy} onClick={() => void postAction("start")}>
+          <Button
+            size="sm"
+            onClick={() => void postAction("start", { type: "start" })}
+          >
             Start game
           </Button>
         )}
         {canJoin && (
           <Button
             size="sm"
-            disabled={busy}
             onClick={() => {
-              void (async () => {
-                const session = await postAction("join");
+              void postAction("join", { type: "join" }).then((session) => {
                 if (session) router.push(`${home}/game/${session.sessionId}`);
-              })();
+              });
             }}
           >
             Join game
           </Button>
         )}
-        {(local.status === "live" || local.status === "lobby") && (isPlayer || isHost) && (
-          <Link href={focusHref}>
-            <Button
-              size="sm"
-              variant={isReadyToPlay || local.status === "live" ? "primary" : "secondary"}
-            >
-              {local.status === "live" ? "Play now" : isReadyToPlay ? "Play now" : "Open lobby"}
-            </Button>
-          </Link>
-        )}
+        {(local.status === "live" || local.status === "lobby") &&
+          (isPlayer || isHost) &&
+          !isPendingCard && (
+            <Link href={focusHref}>
+              <Button
+                size="sm"
+                variant={isReadyToPlay || local.status === "live" ? "primary" : "secondary"}
+              >
+                {local.status === "live" ? "Play now" : isReadyToPlay ? "Play now" : "Open lobby"}
+              </Button>
+            </Link>
+          )}
         {canSpectate && (
           <Button
             size="sm"
             variant="secondary"
-            disabled={busy}
             onClick={() => {
-              void (async () => {
-                await postAction("join", true);
+              void postAction("join", { type: "join", asSpectator: true }, true).then(() => {
                 router.push(focusHref);
-              })();
+              });
             }}
           >
             Watch
@@ -243,15 +282,14 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
           <Button
             size="sm"
             variant="ghost"
-            disabled={busy}
-            onClick={() => void postAction("cancel")}
+            onClick={() => void postAction("cancel", { type: "cancel" })}
           >
             Cancel
           </Button>
         )}
         {local.status === "ended" && isPlayer && (
-          <Button size="sm" disabled={busy} onClick={() => void rematch()}>
-            Rematch
+          <Button size="sm" disabled={rematchPending} onClick={rematch}>
+            {rematchPending ? "Starting rematch…" : "Rematch"}
           </Button>
         )}
         {local.status === "ended" && local.matchId && (

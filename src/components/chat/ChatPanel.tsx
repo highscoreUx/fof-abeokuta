@@ -51,7 +51,7 @@ export function ChatPanel({
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [mentionNavIndex, setMentionNavIndex] = useState(0);
+  const [seenMentionIds, setSeenMentionIds] = useState<Set<string>>(() => new Set());
   const [dmGamesEnabled, setDmGamesEnabled] = useState(false);
   const [teamGamesEnabled, setTeamGamesEnabled] = useState(false);
 
@@ -181,16 +181,25 @@ export function ChatPanel({
     return findMessagesMentioningUser(messages, user.username, (body) => parseChatContent(body));
   }, [isPrivate, messages, user?.username]);
 
+  const unseenMentionIds = useMemo(
+    () => mentionMessageIds.filter((messageId) => !seenMentionIds.has(messageId)),
+    [mentionMessageIds, seenMentionIds],
+  );
+
   useEffect(() => {
-    setMentionNavIndex(0);
-  }, [mentionMessageIds.length, room.id]);
+    setSeenMentionIds(new Set());
+  }, [room.id]);
 
   const goToNextMention = useCallback(() => {
-    if (mentionMessageIds.length === 0) return;
-    const messageId = mentionMessageIds[mentionNavIndex % mentionMessageIds.length];
-    scrollToMessage(messageId);
-    setMentionNavIndex((index) => (index + 1) % mentionMessageIds.length);
-  }, [mentionMessageIds, mentionNavIndex, scrollToMessage]);
+    const nextMessageId = unseenMentionIds[0];
+    if (!nextMessageId) return;
+    scrollToMessage(nextMessageId);
+    setSeenMentionIds((current) => {
+      const next = new Set(current);
+      next.add(nextMessageId);
+      return next;
+    });
+  }, [scrollToMessage, unseenMentionIds]);
 
   const registerMessageRef = useCallback((messageId: string, element: HTMLDivElement | null) => {
     if (element) {
@@ -353,16 +362,16 @@ export function ChatPanel({
               <p className="truncate text-sm text-muted-foreground">Direct message</p>
             )}
           </div>
-          {!isPrivate && mentionMessageIds.length > 0 && (
+          {!isPrivate && unseenMentionIds.length > 0 && (
             <button
               type="button"
               onClick={goToNextMention}
               className="flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/15"
-              aria-label={`Jump to mention ${(mentionNavIndex % mentionMessageIds.length) + 1} of ${mentionMessageIds.length}`}
+              aria-label={`Jump to next mention (${unseenMentionIds.length} remaining)`}
               title="Jump to next mention"
             >
               <span>@</span>
-              <span>{mentionMessageIds.length}</span>
+              <span>{unseenMentionIds.length}</span>
             </button>
           )}
         </div>

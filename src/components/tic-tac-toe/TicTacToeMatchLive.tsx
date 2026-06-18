@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useOptimistic, useTransition } from "react";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,11 @@ import { TicTacToeBoard } from "@/components/tic-tac-toe/TicTacToeBoard";
 import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
 import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
+import {
+  applyOptimisticTttMove,
+  findOptimisticPendingCellIndex,
+} from "@/lib/tic-tac-toe/optimistic-move";
+import { toastError } from "@/lib/toast";
 import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
 
 interface TicTacToeMatchLiveProps {
@@ -28,7 +33,16 @@ export function TicTacToeMatchLive({
   const socket = useSocket();
   const { user, isHydrated } = useAuth();
   const { registerCompleted } = useOptionalParticipantActivitiesRegistry();
-  const [state, setState] = useState<TicTacToeMatchSnapshot | null>(null);
+  const [serverState, setServerState] = useState<TicTacToeMatchSnapshot | null>(null);
+  const [displayState, addOptimisticMove] = useOptimistic(
+    serverState,
+    (current, cellIndex: number) => {
+      if (!current) return current;
+      return applyOptimisticTttMove(current, cellIndex);
+    },
+  );
+  const [, startMoveTransition] = useTransition();
+  const state = displayState;
   const [now, setNow] = useState(() => Date.now());
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);
@@ -59,7 +73,7 @@ export function TicTacToeMatchLive({
   }, [state?.matchId, state?.state]);
 
   useEffect(() => {
-    setState(null);
+    setServerState(null);
     joinedMatchId.current = null;
   }, [initialMatchId]);
 
@@ -69,7 +83,7 @@ export function TicTacToeMatchLive({
     const onState = (snapshot: TicTacToeMatchSnapshot) => {
       if (snapshot.challengeId !== challengeId) return;
       if (snapshot.matchId !== initialMatchId) return;
-      setState(snapshot);
+      setServerState(snapshot);
     };
 
     socket.on("ttt:state", onState);
@@ -143,9 +157,39 @@ export function TicTacToeMatchLive({
   };
 
   const playCell = (index: number) => {
-    if (!state) return;
-    socket?.emit("ttt:move", { matchId: state.matchId, cellIndex: index });
+    if (!serverState || !socket) return;
+
+    if (canVoteCouncil) {
+      socket.emit("ttt:move", { matchId: serverState.matchId, cellIndex: index });
+      return;
+    }
+
+    startMoveTransition(async () => {
+      addOptimisticMove(index);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          socket
+            .timeout(10000)
+            .emit(
+              "ttt:move",
+              { matchId: serverState.matchId, cellIndex: index },
+              (err: Error | null, response?: { error?: string }) => {
+                if (err || response?.error) {
+                  reject(new Error(response?.error ?? err?.message ?? "Invalid move"));
+                  return;
+                }
+                resolve();
+              },
+            );
+        });
+      } catch (error) {
+        toastError(error instanceof Error ? error.message : "Invalid move");
+        throw error;
+      }
+    });
   };
+
+  const pendingCellIndex = findOptimisticPendingCellIndex(serverState, displayState);
 
   if (!state) {
     return (
@@ -260,6 +304,7 @@ export function TicTacToeMatchLive({
           teamOColor={state.teamO.color}
           disabled={!canMoveChampion && !canVoteCouncil}
           highlightCell={myVote ?? null}
+          pendingCellIndex={pendingCellIndex}
           onCellClick={canMoveChampion || canVoteCouncil ? playCell : undefined}
         />
       </div>

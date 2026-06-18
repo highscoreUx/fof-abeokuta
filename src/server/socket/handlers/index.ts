@@ -602,13 +602,22 @@ export function registerSocketHandlers(io: SocketIOServer) {
       },
     );
 
-    socket.on("ttt:move", async (data: { matchId: string; cellIndex: number }) => {
+    socket.on("ttt:move", async (
+      data: { matchId: string; cellIndex: number },
+      ack?: (response: { error?: string }) => void,
+    ) => {
       try {
         const enabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_TIC_TAC_TOE);
-        if (!enabled) return;
-        if (!data?.matchId || typeof data.cellIndex !== "number") return;
+        if (!enabled) {
+          ack?.({ error: "Activity disabled" });
+          return;
+        }
+        if (!data?.matchId || typeof data.cellIndex !== "number") {
+          ack?.({ error: "Invalid move" });
+          return;
+        }
 
-        await handleTttMove(io, {
+        const snapshot = await handleTttMove(io, {
           matchId: data.matchId,
           eventId: auth.eventId,
           eventSlug: slug,
@@ -616,11 +625,18 @@ export function registerSocketHandlers(io: SocketIOServer) {
           teamId: auth.teamId ?? null,
           cellIndex: data.cellIndex,
         });
+        if (!snapshot) {
+          ack?.({ error: "Invalid move" });
+          return;
+        }
+        ack?.({});
       } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid move";
         socket.emit("sync:toast", {
           type: "error",
-          message: error instanceof Error ? error.message : "Invalid move",
+          message,
         });
+        ack?.({ error: message });
       }
     });
 

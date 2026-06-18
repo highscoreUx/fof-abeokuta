@@ -9,6 +9,7 @@ interface TicTacToeBoardProps {
   teamOColor?: string;
   disabled?: boolean;
   highlightCell?: number | null;
+  pendingCellIndex?: number | null;
   onCellClick?: (index: number) => void;
 }
 
@@ -19,6 +20,7 @@ export function TicTacToeBoard({
   teamOColor = "#dc2626",
   disabled = false,
   highlightCell = null,
+  pendingCellIndex = null,
   onCellClick,
 }: TicTacToeBoardProps) {
   return (
@@ -26,7 +28,8 @@ export function TicTacToeBoard({
       {board.map((cell, index) => {
         const isEmpty = cell === null;
         const color = cell === "X" ? teamXColor : cell === "O" ? teamOColor : undefined;
-        const canClick = !disabled && isEmpty && onCellClick;
+        const isPending = pendingCellIndex === index;
+        const canClick = !disabled && isEmpty && onCellClick && !isPending;
 
         return (
           <button
@@ -37,7 +40,9 @@ export function TicTacToeBoard({
             className={`flex aspect-square items-center justify-center rounded-xl border-2 text-3xl font-bold transition ${
               highlightCell === index
                 ? "border-primary bg-primary/10"
-                : "border-border bg-card"
+                : isPending
+                  ? "border-primary/40 bg-primary/10 opacity-80"
+                  : "border-border bg-card"
             } ${canClick ? "cursor-pointer hover:border-primary/50 hover:bg-primary/5" : "cursor-default"}`}
             style={color ? { color } : undefined}
             aria-label={cell ? `Cell ${index + 1}: ${cell}` : `Cell ${index + 1}: empty`}

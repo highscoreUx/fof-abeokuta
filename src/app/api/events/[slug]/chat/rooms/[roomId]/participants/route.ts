@@ -14,7 +14,7 @@ import { resolveUserPermissionList, resolveUserRolePermissions } from "@/lib/use
 const participantSelect = {
   id: true,
   permissions: true,
-  account: { select: { firstName: true, lastName: true, permissions: true } },
+  account: { select: { username: true, firstName: true, lastName: true, permissions: true } },
   team: { select: { letter: true } },
 } as const;
 
@@ -26,12 +26,13 @@ const participantOrderBy = [
 function mapParticipant(user: {
   id: string;
   permissions: unknown | null;
-  account: { firstName: string; lastName: string; permissions: unknown };
+  account: { username: string; firstName: string; lastName: string; permissions: unknown };
   team: { letter: string } | null;
 }) {
   const effectivePermissions = resolveUserPermissionList(user);
   return {
     id: user.id,
+    username: user.account.username,
     firstName: user.account.firstName,
     lastName: user.account.lastName,
     teamLetter: user.team?.letter ?? null,

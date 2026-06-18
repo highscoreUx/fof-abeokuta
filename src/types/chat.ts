@@ -22,6 +22,7 @@ export interface ChatRoom {
 
 export interface ChatParticipant {
   id: string;
+  username: string;
   firstName: string;
   lastName: string;
   teamLetter: string | null;

@@ -5,7 +5,9 @@ import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { ChatActivityCard } from "@/components/chat/ChatActivityCard";
 import { ChatGameCard } from "@/components/chat/ChatGameCard";
 import { ChatPollMessage } from "@/components/chat/ChatPollMessage";
+import type { ChatMention } from "@/lib/chat-mentions";
 import { parseChatContent } from "@/lib/chat-content";
+import { FormattedText } from "@/components/chat/FormattedText";
 import {
   formatMessageTime,
   nameColorForUser,
@@ -27,6 +29,7 @@ interface ChatMessageBubbleProps {
   isPending: boolean;
   highlighted?: boolean;
   hidePolls?: boolean;
+  currentUsername?: string;
   registerRef?: (element: HTMLDivElement | null) => void;
   onReply?: (message: ChatMessage) => void;
   onMessagePrivately?: (message: ChatMessage) => void;
@@ -149,21 +152,33 @@ function ReplyQuote({
 
 function TextMessageBody({
   text,
+  mentions,
+  currentUsername,
   time,
   isOwn,
   isPending,
 }: {
   text: string;
+  mentions?: ChatMention[];
+  currentUsername?: string;
   time: string;
   isOwn: boolean;
   isPending: boolean;
 }) {
+  const body = (
+    <FormattedText
+      text={text}
+      mentions={mentions}
+      currentUsername={currentUsername}
+      className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+    />
+  );
   const isShort = !text.includes("\n") && text.length <= 20;
 
   if (isShort) {
     return (
       <div className="flex items-end gap-2 text-[14.2px] leading-[19px] text-foreground">
-        <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</span>
+        {body}
         <MessageMeta
           time={time}
           isOwn={isOwn}
@@ -182,7 +197,7 @@ function TextMessageBody({
         isPending={isPending}
         className="float-right ml-2.5 mt-0.5 h-[15px] shrink-0 translate-y-px"
       />
-      <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{text}</span>
+      {body}
     </div>
   );
 }
@@ -216,6 +231,7 @@ export function ChatMessageBubble({
   isPending,
   highlighted = false,
   hidePolls = false,
+  currentUsername,
   registerRef,
   onReply,
   onMessagePrivately,
@@ -389,6 +405,8 @@ export function ChatMessageBubble({
             {isText ? (
               <TextMessageBody
                 text={content.text}
+                mentions={content.mentions}
+                currentUsername={currentUsername}
                 time={time}
                 isOwn={isOwn}
                 isPending={isPending}

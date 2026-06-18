@@ -1,4 +1,5 @@
 import { isValidReplyRef, type ChatReplyRef } from "@/lib/chat-reply";
+import { parseChatMentions, type ChatMention } from "@/lib/chat-mentions";
 import {
   isValidPollData,
   parsePollBody,
@@ -9,9 +10,9 @@ import {
 import { parseActivityChatBody, type ActivityChatBody } from "@/lib/activity-chat-types";
 import { parseChatGameMessageBody, type ChatGameMessageBody } from "@/lib/chat-game-types";
 
-export type { ChatPollData, ChatReplyRef };
+export type { ChatPollData, ChatReplyRef, ChatMention };
 export type ChatContent =
-  | { type: "text"; text: string; replyTo?: ChatReplyRef }
+  | { type: "text"; text: string; replyTo?: ChatReplyRef; mentions?: ChatMention[] }
   | { type: "gif"; url: string; alt?: string }
   | { type: "sticker"; id: string; url: string; label?: string }
   | { type: "poll"; poll: ChatPollData }
@@ -40,8 +41,13 @@ export function serializeChatContent(content: ChatContent): string {
   if (content.type === "text") {
     const text = content.text.trim();
     if (!text) return "";
-    if (content.replyTo) {
-      return JSON.stringify({ type: "text", text, replyTo: content.replyTo });
+    if (content.replyTo || (content.mentions && content.mentions.length > 0)) {
+      return JSON.stringify({
+        type: "text",
+        text,
+        ...(content.replyTo ? { replyTo: content.replyTo } : {}),
+        ...(content.mentions?.length ? { mentions: content.mentions } : {}),
+      });
     }
     return text;
   }
@@ -83,6 +89,7 @@ export function parseChatContent(body: string): ChatContent {
           type: "text",
           text: parsed.text,
           replyTo: isValidReplyRef(parsed.replyTo) ? parsed.replyTo : undefined,
+          mentions: parseChatMentions((parsed as { mentions?: unknown }).mentions),
         };
       }
     } catch {
@@ -129,9 +136,16 @@ export function normalizeChatPayload(input: unknown): string | null {
       const text = record.text.trim();
       if (!text) return null;
       const replyTo = isValidReplyRef(record.replyTo) ? record.replyTo : undefined;
-      return replyTo
-        ? JSON.stringify({ type: "text", text: text.slice(0, 2000), replyTo })
-        : text.slice(0, 2000);
+      const mentions = parseChatMentions(record.mentions);
+      if (replyTo || mentions?.length) {
+        return JSON.stringify({
+          type: "text",
+          text: text.slice(0, 2000),
+          ...(replyTo ? { replyTo } : {}),
+          ...(mentions?.length ? { mentions } : {}),
+        });
+      }
+      return text.slice(0, 2000);
     }
     if (record.type === "poll") {
       const source = record.poll && typeof record.poll === "object" ? record.poll : record;

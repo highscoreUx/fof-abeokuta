@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { getSocket, isSocketConnected, useSocket } from "@/hooks/useSocket";
@@ -15,11 +15,12 @@ import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { isSameMessageGroup } from "@/lib/chat-display";
 import { cn } from "@/lib/cn";
 import type { ChatContent } from "@/lib/chat-content";
-import { serializeChatContent } from "@/lib/chat-content";
+import { parseChatContent, serializeChatContent } from "@/lib/chat-content";
+import { findMessagesMentioningUser } from "@/lib/chat-mentions";
 import { createOptimisticChatMessage } from "@/lib/chat-optimistic";
 import { buildReplyRef } from "@/lib/chat-reply";
-import { EMPTY_CHAT_MESSAGES, useChatStore } from "@/stores/chatStore";
-import type { ChatMessage, ChatRoom } from "@/types/chat";
+import { EMPTY_CHAT_MESSAGES, EMPTY_CHAT_PARTICIPANTS, useChatStore } from "@/stores/chatStore";
+import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
 
 export type { ChatMessage, ChatRoom, ChatRoomCategory } from "@/types/chat";
 
@@ -50,6 +51,7 @@ export function ChatPanel({
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [mentionNavIndex, setMentionNavIndex] = useState(0);
   const [dmGamesEnabled, setDmGamesEnabled] = useState(false);
   const [teamGamesEnabled, setTeamGamesEnabled] = useState(false);
 
@@ -57,6 +59,12 @@ export function ChatPanel({
   const draft = useChatStore((s) => s.draftsByRoom[room.id] ?? "");
   const replyTo = useChatStore((s) => s.replyToByRoom[room.id] ?? null);
   const messagesLoaded = useChatStore((s) => s.messagesLoaded[room.id] ?? false);
+  const participants = useChatStore(
+    (s) => s.participantsByRoom[room.id] ?? EMPTY_CHAT_PARTICIPANTS,
+  );
+  const participantsLoaded = useChatStore((s) => s.participantsLoaded[room.id] ?? false);
+  const setParticipants = useChatStore((s) => s.setParticipants);
+  const markParticipantsLoaded = useChatStore((s) => s.markParticipantsLoaded);
   const setMessages = useChatStore((s) => s.setMessages);
   const appendMessage = useChatStore((s) => s.appendMessage);
   const upsertMessage = useChatStore((s) => s.upsertMessage);
@@ -90,6 +98,29 @@ export function ChatPanel({
         markMessagesLoaded(room.id);
       });
   }, [api, messagePath, room.id, messagesLoaded, setMessages, markMessagesLoaded]);
+
+  useEffect(() => {
+    if (isPrivate || participantsLoaded) return;
+
+    api<{ participants: ChatParticipant[] }>(
+      `/chat/rooms/${room.id}/participants`,
+    )
+      .then((data) => {
+        setParticipants(room.id, data.participants);
+        markParticipantsLoaded(room.id);
+      })
+      .catch(() => {
+        setParticipants(room.id, []);
+        markParticipantsLoaded(room.id);
+      });
+  }, [
+    api,
+    isPrivate,
+    participantsLoaded,
+    room.id,
+    setParticipants,
+    markParticipantsLoaded,
+  ]);
 
   useEffect(() => {
     api<{ settings: { enabled: boolean; dmEnabled: boolean; teamEnabled: boolean } }>(
@@ -144,6 +175,22 @@ export function ChatPanel({
       highlightTimeoutRef.current = null;
     }, 1400);
   }, []);
+
+  const mentionMessageIds = useMemo(() => {
+    if (!user?.username || isPrivate) return [];
+    return findMessagesMentioningUser(messages, user.username, (body) => parseChatContent(body));
+  }, [isPrivate, messages, user?.username]);
+
+  useEffect(() => {
+    setMentionNavIndex(0);
+  }, [mentionMessageIds.length, room.id]);
+
+  const goToNextMention = useCallback(() => {
+    if (mentionMessageIds.length === 0) return;
+    const messageId = mentionMessageIds[mentionNavIndex % mentionMessageIds.length];
+    scrollToMessage(messageId);
+    setMentionNavIndex((index) => (index + 1) % mentionMessageIds.length);
+  }, [mentionMessageIds, mentionNavIndex, scrollToMessage]);
 
   const registerMessageRef = useCallback((messageId: string, element: HTMLDivElement | null) => {
     if (element) {
@@ -306,6 +353,18 @@ export function ChatPanel({
               <p className="truncate text-sm text-muted-foreground">Direct message</p>
             )}
           </div>
+          {!isPrivate && mentionMessageIds.length > 0 && (
+            <button
+              type="button"
+              onClick={goToNextMention}
+              className="flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/15"
+              aria-label={`Jump to mention ${(mentionNavIndex % mentionMessageIds.length) + 1} of ${mentionMessageIds.length}`}
+              title="Jump to next mention"
+            >
+              <span>@</span>
+              <span>{mentionMessageIds.length}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -342,6 +401,7 @@ export function ChatPanel({
                 isPending={isPending}
                 highlighted={highlightedMessageId === m.id}
                 hidePolls={isPrivate}
+                currentUsername={user?.username}
                 registerRef={(element) => registerMessageRef(m.id, element)}
                 onReply={handleReply}
                 onMessagePrivately={allowPrivateAction && !isOwn ? onMessagePrivately : undefined}
@@ -360,6 +420,9 @@ export function ChatPanel({
           placeholder={placeholder}
           disabled={sending}
           allowPolls={!isPrivate}
+          allowMentions={!isPrivate}
+          mentionParticipants={participants}
+          currentUserId={user?.id}
           gamePicker={gamePicker}
           replyTo={replyTo}
           onDraftChange={(value) => setDraft(room.id, value)}

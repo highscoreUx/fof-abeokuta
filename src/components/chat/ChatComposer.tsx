@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatContent } from "@/lib/chat-content";
 import type { ChatReplyRef } from "@/lib/chat-reply";
 import {
@@ -15,11 +15,21 @@ import {
   POLL_MAX_OPTIONS,
   POLL_MIN_OPTIONS,
 } from "@/lib/chat-poll";
+import {
+  detectActiveMentionQuery,
+  extractMentionsFromText,
+  filterMentionCandidates,
+  insertMentionIntoText,
+} from "@/lib/chat-mentions";
+import { applyTextFormat, type ChatTextFormat } from "@/lib/chat-formatting";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChatFormatToolbar } from "@/components/chat/ChatFormatToolbar";
+import { ChatMentionMenu } from "@/components/chat/ChatMentionMenu";
 import { ChatGameMenu, useChatGameStarter } from "@/components/chat/StartChatGameButton";
 import { chatGameOptions, type ChatGameChannel } from "@/lib/activities/manifest";
 import { cn } from "@/lib/cn";
+import type { ChatParticipant } from "@/types/chat";
 
 type PickerTab = "emoji" | "gif" | "sticker";
 
@@ -34,6 +44,9 @@ interface ChatComposerProps {
     teamId?: string;
   };
   replyTo?: ChatReplyRef | null;
+  allowMentions?: boolean;
+  mentionParticipants?: ChatParticipant[];
+  currentUserId?: string;
   onDraftChange: (value: string) => void;
   onClearReply?: () => void;
   onScrollToReply?: (messageId: string) => void;
@@ -47,6 +60,9 @@ export function ChatComposer({
   allowPolls = true,
   gamePicker,
   replyTo = null,
+  allowMentions = false,
+  mentionParticipants = [],
+  currentUserId,
   onDraftChange,
   onClearReply,
   onScrollToReply,
@@ -61,9 +77,54 @@ export function ChatComposer({
   const [timedPoll, setTimedPoll] = useState(false);
   const [expiresInMinutes, setExpiresInMinutes] = useState("5");
   const [emojiCategory, setEmojiCategory] = useState<string>(CHAT_EMOJI_CATEGORIES[0].id);
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(
+    null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { start: startChatGame, busy: startingChatGame } = useChatGameStarter(
     gamePicker ?? { channel: "DM" },
+  );
+
+  const mentionQuery = allowMentions
+    ? detectActiveMentionQuery(draft, cursorPosition)
+    : null;
+
+  const mentionCandidates = mentionQuery
+    ? filterMentionCandidates(mentionParticipants, mentionQuery.query, currentUserId)
+    : [];
+
+  const showMentionMenu = Boolean(mentionQuery && mentionCandidates.length > 0);
+  const showFormatToolbar =
+    Boolean(selectionRange && selectionRange.end > selectionRange.start) && !showMentionMenu;
+
+  const syncSelection = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const { selectionStart, selectionEnd } = textarea;
+    setCursorPosition(selectionStart);
+    if (selectionEnd > selectionStart) {
+      setSelectionRange({ start: selectionStart, end: selectionEnd });
+    } else {
+      setSelectionRange(null);
+    }
+  }, []);
+
+  const applyDraftUpdate = useCallback(
+    (nextDraft: string, cursor?: number) => {
+      onDraftChange(nextDraft);
+      if (cursor == null) return;
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+        syncSelection();
+      });
+    },
+    [onDraftChange, syncSelection],
   );
 
   useEffect(() => {
@@ -71,6 +132,13 @@ export function ChatComposer({
       setShowPollBuilder(false);
     }
   }, [allowPolls]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+  }, [draft]);
 
   useEffect(() => {
     if (!picker && !gameMenuOpen) return;
@@ -89,19 +157,93 @@ export function ChatComposer({
   const sendText = async () => {
     const text = draft.trim();
     if (!text || disabled) return;
+    const mentions =
+      allowMentions && mentionParticipants.length > 0
+        ? extractMentionsFromText(text, mentionParticipants)
+        : undefined;
     const sent = await onSendContent({
       type: "text",
       text,
       ...(replyTo ? { replyTo } : {}),
+      ...(mentions?.length ? { mentions } : {}),
     });
     if (!sent) return;
     onDraftChange("");
     onClearReply?.();
     setPicker(null);
+    setSelectionRange(null);
+  };
+
+  const handleDraftChange = (value: string) => {
+    onDraftChange(value);
+    requestAnimationFrame(syncSelection);
+    setMentionActiveIndex(0);
+  };
+
+  const insertMention = (participant: ChatParticipant) => {
+    if (!mentionQuery) return;
+    const { start } = mentionQuery;
+    const end = cursorPosition;
+    const result = insertMentionIntoText(draft, start, end, participant.username);
+    applyDraftUpdate(result.text, result.cursor);
+    setMentionActiveIndex(0);
+  };
+
+  const applyFormat = (format: ChatTextFormat) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const { selectionStart, selectionEnd } = textarea;
+    if (selectionEnd <= selectionStart) return;
+
+    const result = applyTextFormat(draft, selectionStart, selectionEnd, format);
+    applyDraftUpdate(result.text, result.selectionEnd);
+    textarea.setSelectionRange(result.selectionStart, result.selectionEnd);
+    setSelectionRange({ start: result.selectionStart, end: result.selectionEnd });
+  };
+
+  const handleComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showMentionMenu) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setMentionActiveIndex((index) => (index + 1) % mentionCandidates.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setMentionActiveIndex(
+          (index) => (index - 1 + mentionCandidates.length) % mentionCandidates.length,
+        );
+        return;
+      }
+      if (event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        const participant = mentionCandidates[mentionActiveIndex];
+        if (participant) insertMention(participant);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMentionActiveIndex(0);
+        return;
+      }
+    }
+
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void sendText();
+    }
   };
 
   const insertEmoji = (emoji: string) => {
-    onDraftChange(draft + emoji);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      onDraftChange(draft + emoji);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const nextDraft = `${draft.slice(0, start)}${emoji}${draft.slice(end)}`;
+    applyDraftUpdate(nextDraft, start + emoji.length);
   };
 
   const sendGif = async (gif: (typeof CHAT_GIFS)[number]) => {
@@ -485,20 +627,47 @@ export function ChatComposer({
         )}
       </div>
 
+      {showFormatToolbar && (
+        <div className="absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2">
+          <ChatFormatToolbar onFormat={applyFormat} />
+        </div>
+      )}
+
+      {showMentionMenu && (
+        <div className="absolute bottom-full left-0 right-0 z-30 mb-2">
+          <ChatMentionMenu
+            candidates={mentionCandidates}
+            activeIndex={mentionActiveIndex}
+            onSelect={insertMention}
+            onHover={setMentionActiveIndex}
+          />
+        </div>
+      )}
+
       <div className="flex gap-2">
-        <Input
+        <textarea
+          ref={textareaRef}
           value={draft}
           disabled={disabled}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void sendText()}
+          rows={1}
+          onChange={(event) => handleDraftChange(event.target.value)}
+          onKeyDown={handleComposerKeyDown}
+          onSelect={syncSelection}
+          onKeyUp={syncSelection}
+          onMouseUp={syncSelection}
+          onBlur={() => {
+            window.setTimeout(() => setSelectionRange(null), 120);
+          }}
           placeholder={placeholder}
-          className="min-w-0 flex-1"
+          className={cn(
+            "min-h-10 max-h-32 min-w-0 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50",
+          )}
         />
         <Button
           onClick={() => void sendText()}
           disabled={disabled}
           size="sm"
-          className="shrink-0 sm:h-10 sm:px-4 sm:text-sm"
+          className="shrink-0 self-end sm:h-10 sm:px-4 sm:text-sm"
         >
           Send
         </Button>

@@ -100,7 +100,8 @@ export function ChatParticipants({ room, isActive, className }: ChatParticipants
                     {person.firstName} {person.lastName}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {person.teamLetter ? `Team ${person.teamLetter}` : person.roleName}
+                    @{person.username}
+                    {person.teamLetter ? ` · Team ${person.teamLetter}` : ` · ${person.roleName}`}
                   </p>
                 </div>
               </li>

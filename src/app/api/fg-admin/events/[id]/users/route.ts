@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { CommunityAudience } from "@/lib/community-audience";
 import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
+import { broadcastChatParticipantForUserId } from "@/lib/chat-participants-broadcast";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
@@ -88,6 +89,12 @@ export async function POST(
         "welcome",
         "/login",
       ));
+    }
+
+    try {
+      await broadcastChatParticipantForUserId(event.slug, event.id, user.id);
+    } catch {
+      // socket optional
     }
 
     return NextResponse.json(

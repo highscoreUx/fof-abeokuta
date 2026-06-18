@@ -8,6 +8,7 @@ import { serializeCheckInUser } from "@/lib/check-in";
 import { CheckInEmailError, resolveEmailForCheckIn } from "@/lib/check-in-email";
 import { pickUserProfile, userWithAccountInclude } from "@/lib/user-display";
 import { broadcastCheckInAnnouncement } from "@/lib/check-in-chat-broadcast";
+import { broadcastChatParticipantForUserId } from "@/lib/chat-participants-broadcast";
 import { enqueueCheckInWelcomeEmail } from "@/server/queue/publish";
 import { prisma } from "@/lib/prisma";
 import { assignTeams } from "@/lib/team-assign";
@@ -34,6 +35,8 @@ export async function PATCH(
   });
 
   if (!user) return jsonError("User not found", "NOT_FOUND", 404);
+
+  const previousTeamId = user.teamId;
 
   if (user.checkedInAt) {
     return NextResponse.json({
@@ -84,6 +87,9 @@ export async function PATCH(
   try {
     await emitCheckInUpdate(getIO(), slug, { ...updated, ...profile });
     await broadcastCheckInAnnouncement(slug, { ...updated, ...profile }, ctx.event.id);
+    await broadcastChatParticipantForUserId(slug, ctx.event.id, updated.id, {
+      previousTeamId,
+    });
   } catch {
     // socket optional
   }

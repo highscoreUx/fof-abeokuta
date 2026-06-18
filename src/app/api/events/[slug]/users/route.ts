@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
 import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
+import { broadcastChatParticipantForUserId } from "@/lib/chat-participants-broadcast";
 import { prisma } from "@/lib/prisma";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { createUserSchema } from "@/lib/validators/auth";
@@ -68,6 +69,12 @@ export async function POST(
         "welcome",
         `/${slug}/login`,
       ));
+    }
+
+    try {
+      await broadcastChatParticipantForUserId(slug, ctx.event.id, user.id);
+    } catch {
+      // socket optional
     }
 
     return NextResponse.json(

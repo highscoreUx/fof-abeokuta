@@ -7,6 +7,12 @@ import { dmRoomIdForMessage } from "@/lib/chat-dm";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { CHAT_SYSTEM_EVENT, type ChatSystemBroadcast } from "@/lib/chat-system";
 import { clearPendingChatGameMessages } from "@/lib/chat-pending-games";
+import {
+  CHAT_PARTICIPANTS_REMOVE_EVENT,
+  CHAT_PARTICIPANTS_UPSERT_EVENT,
+  type ChatParticipantsRemovePayload,
+  type ChatParticipantsUpsertPayload,
+} from "@/lib/chat-participants";
 import { useChatStore } from "@/stores/chatStore";
 import type { ChatMessage, ChatRoom } from "@/types/chat";
 
@@ -19,6 +25,8 @@ export function useChatRealtime(
   const upsertMessage = useChatStore((s) => s.upsertMessage);
   const removeMessage = useChatStore((s) => s.removeMessage);
   const setOnlineUserIds = useChatStore((s) => s.setOnlineUserIds);
+  const upsertParticipant = useChatStore((s) => s.upsertParticipant);
+  const removeParticipant = useChatStore((s) => s.removeParticipant);
 
   const upsertChatMessage = (roomId: string, msg: ChatMessage) => {
     const messages = useChatStore.getState().messagesByRoom[roomId] ?? [];
@@ -111,6 +119,16 @@ export function useChatRealtime(
       }
     };
 
+    const onParticipantsUpsert = (payload: ChatParticipantsUpsertPayload) => {
+      if (!payload?.roomId || !payload.participant?.id) return;
+      upsertParticipant(payload.roomId, payload.participant);
+    };
+
+    const onParticipantsRemove = (payload: ChatParticipantsRemovePayload) => {
+      if (!payload?.roomId || !payload.userId) return;
+      removeParticipant(payload.roomId, payload.userId);
+    };
+
     instance.on("global:message", onGlobal);
     instance.on("staff:message", onStaff);
     instance.on("team:message", onTeam);
@@ -119,6 +137,8 @@ export function useChatRealtime(
     instance.on(CHAT_SYSTEM_EVENT, onSystem);
     instance.on("presence:state", onPresenceState);
     instance.on("presence:update", onPresenceUpdate);
+    instance.on(CHAT_PARTICIPANTS_UPSERT_EVENT, onParticipantsUpsert);
+    instance.on(CHAT_PARTICIPANTS_REMOVE_EVENT, onParticipantsRemove);
 
     return () => {
       instance.off("global:message", onGlobal);
@@ -129,6 +149,8 @@ export function useChatRealtime(
       instance.off(CHAT_SYSTEM_EVENT, onSystem);
       instance.off("presence:state", onPresenceState);
       instance.off("presence:update", onPresenceUpdate);
+      instance.off(CHAT_PARTICIPANTS_UPSERT_EVENT, onParticipantsUpsert);
+      instance.off(CHAT_PARTICIPANTS_REMOVE_EVENT, onParticipantsRemove);
     };
   }, [
     socket,
@@ -139,6 +161,8 @@ export function useChatRealtime(
     removeMessage,
     upsertChatMessage,
     setOnlineUserIds,
+    upsertParticipant,
+    removeParticipant,
     user?.id,
     onIncomingDm,
   ]);

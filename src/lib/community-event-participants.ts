@@ -1,4 +1,5 @@
 import { buildAccountsOrderBy } from "@/lib/accounts-query";
+import { broadcastChatParticipantsForUserIds } from "@/lib/chat-participants-broadcast";
 import {
   isParticipantPermissions,
   isPlatformAdminPermissions,
@@ -101,6 +102,19 @@ export async function addCommunityMembersToEvent(eventId: string, accountIds: st
       }),
     ),
   );
+
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { slug: true } });
+  if (event) {
+    try {
+      await broadcastChatParticipantsForUserIds(
+        event.slug,
+        eventId,
+        users.map((user) => user.id),
+      );
+    } catch {
+      // socket optional
+    }
+  }
 
   return users.map((user) => serializeUserRow(user));
 }

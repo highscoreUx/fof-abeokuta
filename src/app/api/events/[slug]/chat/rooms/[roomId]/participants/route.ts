@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canAccessStaffChat } from "@/lib/account-permissions";
 import { requireEventContext } from "@/lib/auth/event-middleware";
 import { jsonError } from "@/lib/auth/middleware";
 import { parseDmRoomId } from "@/lib/chat-dm";
+import { mapUserToChatParticipant } from "@/lib/chat-participants-server";
 import { isTeamChatEnabled } from "@/lib/chat-settings";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
-import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
+import { canAccessStaffChat } from "@/lib/account-permissions";
 import { hasPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { isUserOnline } from "@/server/presence";
-import { resolveUserPermissionList, resolveUserRolePermissions } from "@/lib/user-permissions";
+import { resolveUserRolePermissions } from "@/lib/user-permissions";
 
 const participantSelect = {
   id: true,
@@ -22,24 +21,6 @@ const participantOrderBy = [
   { account: { lastName: "asc" as const } },
   { account: { firstName: "asc" as const } },
 ];
-
-function mapParticipant(user: {
-  id: string;
-  permissions: unknown | null;
-  account: { username: string; firstName: string; lastName: string; permissions: unknown };
-  team: { letter: string } | null;
-}) {
-  const effectivePermissions = resolveUserPermissionList(user);
-  return {
-    id: user.id,
-    username: user.account.username,
-    firstName: user.account.firstName,
-    lastName: user.account.lastName,
-    teamLetter: user.team?.letter ?? null,
-    roleName: getProfileLabelForPermissions(effectivePermissions),
-    online: isUserOnline(user.id),
-  };
-}
 
 export async function GET(
   request: NextRequest,
@@ -61,7 +42,7 @@ export async function GET(
     });
 
     return NextResponse.json({
-      participants: participants.map(mapParticipant),
+      participants: participants.map(mapUserToChatParticipant),
     });
   }
 
@@ -79,7 +60,7 @@ export async function GET(
     return NextResponse.json({
       participants: allUsers
         .filter((user) => canAccessStaffChat(resolveUserRolePermissions(user)))
-        .map(mapParticipant),
+        .map(mapUserToChatParticipant),
     });
   }
 
@@ -92,7 +73,7 @@ export async function GET(
     if (!peer) return jsonError("User not found", "NOT_FOUND", 404);
 
     return NextResponse.json({
-      participants: [mapParticipant(peer)],
+      participants: [mapUserToChatParticipant(peer)],
     });
   }
 
@@ -111,6 +92,6 @@ export async function GET(
   });
 
   return NextResponse.json({
-    participants: participants.map(mapParticipant),
+    participants: participants.map(mapUserToChatParticipant),
   });
 }

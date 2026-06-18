@@ -8,6 +8,7 @@ import { userImportRowSchema } from "@/lib/validators/auth";
 import { assignTeams, assignableTeamRoleSlugs, getTeamAssignSettings } from "@/lib/team-assign";
 import { isTeamingEnabled } from "@/lib/team-settings";
 import { deliverAccountCredentials } from "@/lib/account-credentials-notify";
+import { broadcastChatParticipantsForUserIds } from "@/lib/chat-participants-broadcast";
 import { createUserFromRow } from "@/lib/users";
 import { pickUserProfile } from "@/lib/user-display";
 import { jsonError } from "@/lib/auth/middleware";
@@ -46,6 +47,7 @@ export async function POST(
     emailQueued: boolean;
   }> = [];
   const createdAssigneeIds: string[] = [];
+  const createdUserIds: string[] = [];
   const errors: Array<{ row: number; error: string }> = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -90,6 +92,7 @@ export async function POST(
       if (isTeamAssignableMember(resolveUserRolePermissions(user), false)) {
         createdAssigneeIds.push(user.id);
       }
+      createdUserIds.push(user.id);
     } catch (error) {
       errors.push({
         row: i + 2,
@@ -108,6 +111,14 @@ export async function POST(
       onlyUnassigned: true,
       includeStaff: assignSettings.includeStaff,
     });
+  }
+
+  if (createdUserIds.length > 0) {
+    try {
+      await broadcastChatParticipantsForUserIds(slug, ctx.event.id, createdUserIds);
+    } catch {
+      // socket optional
+    }
   }
 
   void assignableSlugs;

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import { sortChatParticipants } from "@/lib/chat-participants";
 import type { ChatReplyRef } from "@/lib/chat-reply";
 import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
 
@@ -30,6 +31,8 @@ interface ChatStore {
   upsertMessage: (roomId: string, message: ChatMessage) => void;
   removeMessage: (roomId: string, messageId: string) => void;
   setParticipants: (roomId: string, participants: ChatParticipant[]) => void;
+  upsertParticipant: (roomId: string, participant: ChatParticipant) => void;
+  removeParticipant: (roomId: string, userId: string) => void;
   setOnlineUserIds: (userIds: string[]) => void;
   patchParticipantOnline: (userId: string, online: boolean) => void;
   setDraft: (roomId: string, draft: string) => void;
@@ -120,6 +123,50 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       participantsByRoom: { ...state.participantsByRoom, [roomId]: participants },
     })),
+
+  upsertParticipant: (roomId, participant) =>
+    set((state) => {
+      if (!state.participantsLoaded[roomId]) return state;
+
+      const current = state.participantsByRoom[roomId] ?? [];
+      const index = current.findIndex((person) => person.id === participant.id);
+      const online = Boolean(
+        participant.online ||
+          state.onlineUserIds[participant.id] ||
+          (index >= 0 && current[index]?.online),
+      );
+      const nextParticipant = { ...participant, online };
+
+      let nextList: ChatParticipant[];
+      if (index >= 0) {
+        nextList = [...current];
+        nextList[index] = nextParticipant;
+      } else {
+        nextList = [...current, nextParticipant];
+      }
+
+      return {
+        participantsByRoom: {
+          ...state.participantsByRoom,
+          [roomId]: sortChatParticipants(nextList),
+        },
+      };
+    }),
+
+  removeParticipant: (roomId, userId) =>
+    set((state) => {
+      if (!state.participantsLoaded[roomId]) return state;
+
+      const current = state.participantsByRoom[roomId] ?? [];
+      if (!current.some((person) => person.id === userId)) return state;
+
+      return {
+        participantsByRoom: {
+          ...state.participantsByRoom,
+          [roomId]: current.filter((person) => person.id !== userId),
+        },
+      };
+    }),
 
   setOnlineUserIds: (userIds) =>
     set((state) => {

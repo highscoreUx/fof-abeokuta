@@ -1,3 +1,4 @@
+import { broadcastChatParticipantsForUserIds } from "@/lib/chat-participants-broadcast";
 import { isTeamAssignableMember } from "@/lib/account-permissions";
 import { resolveUserRolePermissions } from "@/lib/user-permissions";
 import { isTeamingEnabled } from "@/lib/team-settings";
@@ -187,6 +188,8 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
     return [];
   }
 
+  const previousTeamIds = new Map(users.map((user) => [user.id, user.teamId]));
+
   const teamCounts = await loadExistingTeamCounts(
     eventId,
     teams,
@@ -249,10 +252,26 @@ export async function assignTeams(eventId: string, options: AssignOptions = {}) 
     }
   }
 
-  return prisma.user.findMany({
+  const updatedUsers = await prisma.user.findMany({
     where: { id: { in: users.map((u) => u.id) } },
     include: { team: true, account: true },
   });
+
+  const event = await prisma.event.findUnique({ where: { id: eventId }, select: { slug: true } });
+  if (event) {
+    try {
+      await broadcastChatParticipantsForUserIds(
+        event.slug,
+        eventId,
+        updatedUsers.map((user) => user.id),
+        previousTeamIds,
+      );
+    } catch {
+      // socket optional
+    }
+  }
+
+  return updatedUsers;
 }
 
 /** @deprecated Use assignTeams */

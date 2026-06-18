@@ -14,6 +14,7 @@ interface ChatStore {
   replyToByRoom: Record<string, ChatReplyRef | null>;
   messagesLoaded: Record<string, boolean>;
   participantsLoaded: Record<string, boolean>;
+  seenMentionIdsByRoom: Record<string, string[]>;
   rooms: ChatRoom[];
   roomsEventSlug: string | null;
   roomsLoaded: boolean;
@@ -31,6 +32,7 @@ interface ChatStore {
   setReplyTo: (roomId: string, reply: ChatReplyRef | null) => void;
   markMessagesLoaded: (roomId: string) => void;
   markParticipantsLoaded: (roomId: string) => void;
+  markMentionSeen: (roomId: string, messageId: string) => void;
   setRoomsForEvent: (eventSlug: string, rooms: ChatRoom[]) => void;
   setRoomsLoading: (loading: boolean) => void;
   addChatRoom: (room: ChatRoom) => void;
@@ -47,6 +49,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   replyToByRoom: {},
   messagesLoaded: {},
   participantsLoaded: {},
+  seenMentionIdsByRoom: {},
   rooms: [],
   roomsEventSlug: null,
   roomsLoaded: false,
@@ -162,6 +165,18 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       participantsLoaded: { ...state.participantsLoaded, [roomId]: true },
     })),
+
+  markMentionSeen: (roomId, messageId) =>
+    set((state) => {
+      const current = state.seenMentionIdsByRoom[roomId] ?? [];
+      if (current.includes(messageId)) return state;
+      return {
+        seenMentionIdsByRoom: {
+          ...state.seenMentionIdsByRoom,
+          [roomId]: [...current, messageId],
+        },
+      };
+    }),
 
   setRoomsForEvent: (eventSlug, rooms) =>
     set((state) => ({

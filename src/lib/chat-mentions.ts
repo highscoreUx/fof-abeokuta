@@ -137,3 +137,16 @@ export function findMessagesMentioningUser<T extends { id: string; body: string 
     })
     .map((message) => message.id);
 }
+
+export function countUnseenMentionsForRoom(
+  messages: Array<{ id: string; body: string }>,
+  username: string,
+  seenMessageIds: ReadonlySet<string> | readonly string[],
+  parseBody: (body: string) => { type: string; text?: string; mentions?: ChatMention[] },
+): number {
+  const seen =
+    seenMessageIds instanceof Set ? seenMessageIds : new Set(seenMessageIds);
+  return findMessagesMentioningUser(messages, username, parseBody).filter(
+    (messageId) => !seen.has(messageId),
+  ).length;
+}

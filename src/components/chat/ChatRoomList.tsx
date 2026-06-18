@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUnseenMentionCount } from "@/hooks/useUnseenMentionCount";
 import type { ChatRoom, ChatRoomCategory } from "@/types/chat";
 import { ChatRoomListSkeleton } from "@/components/chat/ChatRoomListSkeleton";
 import { cn } from "@/lib/cn";
@@ -23,6 +25,32 @@ interface ChatRoomListProps {
   className?: string;
 }
 
+function ChatRoomMentionBadge({
+  room,
+  activeRoomId,
+  username,
+}: {
+  room: ChatRoom;
+  activeRoomId: string;
+  username?: string;
+}) {
+  const isPrivate = room.category === "private";
+  const isActive = room.id === activeRoomId;
+  const unseenCount = useUnseenMentionCount(room.id, username, isPrivate);
+
+  if (isPrivate || isActive || unseenCount === 0) return null;
+
+  return (
+    <span
+      className="flex shrink-0 items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+      aria-label={`${unseenCount} unread mention${unseenCount === 1 ? "" : "s"}`}
+    >
+      <span>@</span>
+      <span>{unseenCount}</span>
+    </span>
+  );
+}
+
 export function ChatRoomList({
   rooms,
   activeRoomId,
@@ -30,6 +58,7 @@ export function ChatRoomList({
   onSelect,
   className,
 }: ChatRoomListProps) {
+  const { user } = useAuth();
   const [filter, setFilter] = useState<RoomFilter>("all");
 
   const filteredRooms = rooms.filter(
@@ -80,13 +109,18 @@ export function ChatRoomList({
                   type="button"
                   onClick={() => onSelect(room.id)}
                   className={cn(
-                    "w-full rounded-lg px-2.5 py-2 text-left text-xs font-medium transition",
+                    "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition",
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-foreground hover:bg-muted",
                   )}
                 >
-                  {room.label}
+                  <span className="truncate">{room.label}</span>
+                  <ChatRoomMentionBadge
+                    room={room}
+                    activeRoomId={activeRoomId}
+                    username={user?.username}
+                  />
                 </button>
               );
             })}

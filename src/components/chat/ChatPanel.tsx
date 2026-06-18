@@ -51,7 +51,8 @@ export function ChatPanel({
   const sendingRef = useRef(false);
   const [sending, setSending] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [seenMentionIds, setSeenMentionIds] = useState<Set<string>>(() => new Set());
+  const seenMentionIds = useChatStore((s) => s.seenMentionIdsByRoom[room.id] ?? []);
+  const markMentionSeen = useChatStore((s) => s.markMentionSeen);
   const [dmGamesEnabled, setDmGamesEnabled] = useState(false);
   const [teamGamesEnabled, setTeamGamesEnabled] = useState(false);
 
@@ -182,24 +183,16 @@ export function ChatPanel({
   }, [isPrivate, messages, user?.username]);
 
   const unseenMentionIds = useMemo(
-    () => mentionMessageIds.filter((messageId) => !seenMentionIds.has(messageId)),
+    () => mentionMessageIds.filter((messageId) => !seenMentionIds.includes(messageId)),
     [mentionMessageIds, seenMentionIds],
   );
-
-  useEffect(() => {
-    setSeenMentionIds(new Set());
-  }, [room.id]);
 
   const goToNextMention = useCallback(() => {
     const nextMessageId = unseenMentionIds[0];
     if (!nextMessageId) return;
     scrollToMessage(nextMessageId);
-    setSeenMentionIds((current) => {
-      const next = new Set(current);
-      next.add(nextMessageId);
-      return next;
-    });
-  }, [scrollToMessage, unseenMentionIds]);
+    markMentionSeen(room.id, nextMessageId);
+  }, [markMentionSeen, room.id, scrollToMessage, unseenMentionIds]);
 
   const registerMessageRef = useCallback((messageId: string, element: HTMLDivElement | null) => {
     if (element) {

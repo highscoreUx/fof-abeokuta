@@ -1,4 +1,5 @@
 import type { Server as SocketIOServer } from "socket.io";
+import { isChatSocialChallengeTitle } from "@/lib/chat-social-challenges";
 import { prisma } from "@/lib/prisma";
 import { postActivityChatMessage } from "@/lib/activity-chat-server";
 import type { SpinnerConfig, SpinnerStateSnapshot } from "@/lib/spinner/types";
@@ -56,7 +57,7 @@ export async function buildSpinnerSnapshot(sessionId: string): Promise<SpinnerSt
   const lastSpin = spinHistory.length > 0 ? spinHistory[spinHistory.length - 1] : null;
 
   const title =
-    session.challenge.title === "__chat_social__" ? "Spinner" : session.challenge.title;
+    isChatSocialChallengeTitle(session.challenge.title) ? "Spinner" : session.challenge.title;
   const playerUserIds = session.isSocial
     ? session.chatSession?.participants
         .filter((participant) => participant.role === "player")

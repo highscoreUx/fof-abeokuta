@@ -10,6 +10,7 @@ import {
 } from "@/lib/activities/event-activities";
 import { normalizeHangmanWord, parseHangmanWords } from "@/lib/hangman/types";
 import { hasPermission } from "@/lib/permissions";
+import { isChatSocialChallengeTitle } from "@/lib/chat-social-challenges";
 import {
   buildActivityBracketSnapshot,
   getBracketForChallenge,
@@ -46,6 +47,9 @@ export async function GET(
     },
   });
   if (!challenge) return jsonError("Activity not found", "NOT_FOUND", 404);
+  if (isChatSocialChallengeTitle(challenge.title)) {
+    return jsonError("Activity not found", "NOT_FOUND", 404);
+  }
 
   const bracketRecord = await getBracketForChallenge("hangman", challenge.id);
   const bracket = bracketRecord

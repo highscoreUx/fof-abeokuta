@@ -1,4 +1,5 @@
 import type { Server as SocketIOServer } from "socket.io";
+import { isChatSocialChallengeTitle } from "@/lib/chat-social-challenges";
 import { prisma } from "@/lib/prisma";
 import { postActivityChatMessage } from "@/lib/activity-chat-server";
 import {
@@ -122,7 +123,7 @@ export async function buildHangmanSnapshot(matchId: string): Promise<HangmanMatc
   const finished = match.state === "FINISHED";
   const bracket = match.isSocial ? null : await loadBracketMatchContext(match.bracketSlotId);
   const title =
-    match.challenge.title === "__chat_social__" ? "Hangman" : match.challenge.title;
+    isChatSocialChallengeTitle(match.challenge.title) ? "Hangman" : match.challenge.title;
 
   const playerX = match.playerX ? playerInfo(match.playerX) : null;
   const playerO = match.playerO ? playerInfo(match.playerO) : null;

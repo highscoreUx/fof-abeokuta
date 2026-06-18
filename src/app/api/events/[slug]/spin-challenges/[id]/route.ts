@@ -10,6 +10,7 @@ import {
 } from "@/lib/activities/event-activities";
 import { getActiveSpinnerSessionForChallenge } from "@/server/games/spinnerEngine";
 import { hasPermission } from "@/lib/permissions";
+import { isChatSocialChallengeTitle } from "@/lib/chat-social-challenges";
 
 function normalizeOptions(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -36,6 +37,9 @@ export async function GET(
     where: { id, eventId: ctx.event.id },
   });
   if (!challenge) return jsonError("Activity not found", "NOT_FOUND", 404);
+  if (isChatSocialChallengeTitle(challenge.title)) {
+    return jsonError("Activity not found", "NOT_FOUND", 404);
+  }
 
   const activeSession = await getActiveSpinnerSessionForChallenge(challenge.id);
 

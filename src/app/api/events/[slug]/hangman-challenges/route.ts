@@ -10,6 +10,10 @@ import {
 } from "@/lib/activities/event-activities";
 import { normalizeHangmanWord, parseHangmanWords } from "@/lib/hangman/types";
 import { hasPermission } from "@/lib/permissions";
+import {
+  isReservedActivityChallengeTitle,
+  officialActivityChallengesWhere,
+} from "@/lib/chat-social-challenges";
 import { getBracketForChallenge } from "@/server/games/activityBracketEngine";
 
 function normalizeWords(raw: unknown): string[] {
@@ -31,7 +35,7 @@ export async function GET(
   }
 
   const challenges = await prisma.hangmanChallenge.findMany({
-    where: { eventId: ctx.event.id },
+    where: officialActivityChallengesWhere(ctx.event.id),
     include: {
       matches: {
         where: { state: { in: ["WAITING", "ACTIVE"] } },
@@ -80,6 +84,9 @@ export async function POST(
 
   const body = await request.json();
   if (!body.title?.trim()) return jsonError("Title is required", "VALIDATION_ERROR", 400);
+  if (isReservedActivityChallengeTitle(body.title)) {
+    return jsonError("This title is reserved.", "VALIDATION_ERROR", 400);
+  }
 
   const scope = {
     allowGeneralParticipants: Boolean(body.allowGeneralParticipants),

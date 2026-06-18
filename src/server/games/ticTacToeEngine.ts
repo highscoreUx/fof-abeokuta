@@ -1,4 +1,5 @@
 import type { Server as SocketIOServer } from "socket.io";
+import { isChatSocialChallengeTitle } from "@/lib/chat-social-challenges";
 import { prisma } from "@/lib/prisma";
 import { postActivityChatMessage } from "@/lib/activity-chat-server";
 import {
@@ -132,7 +133,7 @@ export async function buildTttSnapshot(matchId: string): Promise<TicTacToeMatchS
         : { id: "", letter: "O", name: "Player O", color: "#3b82f6" };
 
   const displayTitle =
-    match.challenge.title === "__chat_social__" ? "X and O" : match.challenge.title;
+    isChatSocialChallengeTitle(match.challenge.title) ? "X and O" : match.challenge.title;
 
   const socialTtt = match.chatSession
     ? buildSocialTttSessionState({

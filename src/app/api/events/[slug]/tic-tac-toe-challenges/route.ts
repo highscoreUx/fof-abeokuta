@@ -9,6 +9,10 @@ import {
   validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
+import {
+  isReservedActivityChallengeTitle,
+  officialActivityChallengesWhere,
+} from "@/lib/chat-social-challenges";
 import { getBracketForChallenge } from "@/server/games/activityBracketEngine";
 
 export async function GET(
@@ -25,7 +29,7 @@ export async function GET(
   }
 
   const challenges = await prisma.ticTacToeChallenge.findMany({
-    where: { eventId: ctx.event.id },
+    where: officialActivityChallengesWhere(ctx.event.id),
     include: {
       matches: {
         where: { state: { in: ["WAITING", "ACTIVE"] } },
@@ -74,6 +78,9 @@ export async function POST(
 
   const body = await request.json();
   if (!body.title?.trim()) return jsonError("Title is required", "VALIDATION_ERROR", 400);
+  if (isReservedActivityChallengeTitle(body.title)) {
+    return jsonError("This title is reserved.", "VALIDATION_ERROR", 400);
+  }
 
   const scope = {
     allowGeneralParticipants: Boolean(body.allowGeneralParticipants),

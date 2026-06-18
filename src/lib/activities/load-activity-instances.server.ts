@@ -15,6 +15,7 @@ import {
   isActivityEnabledForEvent,
   loadEventActivities,
 } from "@/lib/activities/event-activities";
+import { officialActivityChallengesWhere } from "@/lib/chat-social-challenges";
 import { isTeamingEnabled } from "@/lib/team-settings";
 import { hasAnyPermission, hasPermission } from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions/catalog";
@@ -107,7 +108,7 @@ export async function loadActivityInstancesForAdmin(
       : Promise.resolve([]),
     canSpin && spinEnabled
       ? prisma.spinChallenge.findMany({
-          where: { eventId },
+          where: officialActivityChallengesWhere(eventId),
           orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
@@ -130,7 +131,7 @@ export async function loadActivityInstancesForAdmin(
       : Promise.resolve([]),
     canTtt && tttEnabled
       ? prisma.ticTacToeChallenge.findMany({
-          where: { eventId },
+          where: officialActivityChallengesWhere(eventId),
           include: {
             matches: {
               where: { state: { in: ["WAITING", "ACTIVE"] } },
@@ -150,7 +151,7 @@ export async function loadActivityInstancesForAdmin(
       : Promise.resolve([]),
     canHangman && hangmanEnabled
       ? prisma.hangmanChallenge.findMany({
-          where: { eventId },
+          where: officialActivityChallengesWhere(eventId),
           include: {
             matches: {
               where: { state: { in: ["WAITING", "ACTIVE"] } },

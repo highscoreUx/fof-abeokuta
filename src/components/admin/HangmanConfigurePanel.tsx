@@ -10,6 +10,7 @@ import { useEventApi } from "@/hooks/useEventApi";
 import { formatInstanceScope } from "@/lib/activities/catalog";
 import type { ActivityBracketSnapshot } from "@/lib/activity-bracket/types";
 import type { ActivityCompetitionFormat } from "@/lib/activity-bracket/types";
+import { formatTeamMatchLabel } from "@/lib/chat-social-challenges";
 import type { HangmanMode } from "@/lib/hangman/types";
 import { normalizeHangmanWord } from "@/lib/hangman/types";
 import { toastError } from "@/lib/toast";
@@ -23,8 +24,8 @@ interface TeamOption {
 interface HangmanMatchRow {
   id: string;
   state: string;
-  teamX: TeamOption;
-  teamO: TeamOption;
+  teamX: TeamOption | null;
+  teamO: TeamOption | null;
 }
 
 interface HangmanDetail {
@@ -364,9 +365,11 @@ export function HangmanConfigurePanel({ challengeId, onReload }: HangmanConfigur
           <div>
             <p className="mb-2 text-sm font-medium">Matches</p>
             <ul className="space-y-2 text-sm">
-              {challenge.matches.map((m) => (
+              {challenge.matches
+                .filter((match) => match.teamX && match.teamO)
+                .map((m) => (
                 <li key={m.id} className="rounded-lg border border-border px-3 py-2">
-                  Team {m.teamX.letter} vs Team {m.teamO.letter}
+                  {formatTeamMatchLabel(m.teamX, m.teamO)}
                   <span className="ml-2 text-muted-foreground">· {m.state}</span>
                 </li>
               ))}

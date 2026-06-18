@@ -9,6 +9,7 @@ import { BracketChampionshipSection } from "@/components/activity-bracket/Bracke
 import { TttGraceResults } from "@/components/tic-tac-toe/TttFinishedResults";
 import { useParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { completionGraceRemainingMs } from "@/lib/activities/completion-grace";
+import { formatTeamMatchLabel } from "@/lib/chat-social-challenges";
 import { Button } from "@/components/ui/button";
 
 interface TttChallengeRow {
@@ -24,8 +25,8 @@ interface TttChallengeRow {
 interface TttMatchRow {
   id: string;
   state: string;
-  teamX: { letter: string; name: string };
-  teamO: { letter: string; name: string };
+  teamX: { letter: string; name: string } | null;
+  teamO: { letter: string; name: string } | null;
 }
 
 const SOCKET_REFRESH_MS = 800;
@@ -143,7 +144,9 @@ export function TicTacToeActivitiesPanel() {
     liveChallenges.find((c) => c.id === focusId) ??
     liveChallenges[0];
 
-  const liveMatches = matches.filter((m) => m.state === "WAITING" || m.state === "ACTIVE");
+  const liveMatches = matches.filter(
+    (m) => (m.state === "WAITING" || m.state === "ACTIVE") && m.teamX && m.teamO,
+  );
 
   return (
     <div className="space-y-4">
@@ -186,7 +189,7 @@ export function TicTacToeActivitiesPanel() {
                       variant={m.id === selectedMatchId ? "primary" : "secondary"}
                       onClick={() => setSelectedMatchId(m.id)}
                     >
-                      {m.teamX.letter} vs {m.teamO.letter}
+                      {formatTeamMatchLabel(m.teamX, m.teamO)}
                       {m.state === "ACTIVE" ? " · Live" : ""}
                     </Button>
                   ))}

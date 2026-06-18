@@ -46,7 +46,7 @@ import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 import { startSocialJsonGameMatch } from "@/server/games/socialGameEngine";
 
-const SOCIAL_CHALLENGE_TITLE = "__chat_social__";
+import { CHAT_SOCIAL_CHALLENGE_TITLE } from "@/lib/chat-social-challenges";
 // Placeholder for the shared social challenge row; words come from the static word bank.
 const SOCIAL_HANGMAN_WORDS = ["FIGMA"];
 const SOCIAL_SPINNER_OPTIONS = [
@@ -69,14 +69,14 @@ const userWithAccount = {
 
 async function ensureSocialTttChallenge(eventId: string) {
   const existing = await prisma.ticTacToeChallenge.findFirst({
-    where: { eventId, title: SOCIAL_CHALLENGE_TITLE },
+    where: { eventId, title: CHAT_SOCIAL_CHALLENGE_TITLE },
   });
   if (existing) return existing;
 
   return prisma.ticTacToeChallenge.create({
     data: {
       eventId,
-      title: SOCIAL_CHALLENGE_TITLE,
+      title: CHAT_SOCIAL_CHALLENGE_TITLE,
       mode: "CHAMPION",
       competitionFormat: "SINGLE_MATCH",
       allowGeneralParticipants: true,
@@ -88,14 +88,14 @@ async function ensureSocialTttChallenge(eventId: string) {
 
 async function ensureSocialHangmanChallenge(eventId: string) {
   const existing = await prisma.hangmanChallenge.findFirst({
-    where: { eventId, title: SOCIAL_CHALLENGE_TITLE },
+    where: { eventId, title: CHAT_SOCIAL_CHALLENGE_TITLE },
   });
   if (existing) return existing;
 
   return prisma.hangmanChallenge.create({
     data: {
       eventId,
-      title: SOCIAL_CHALLENGE_TITLE,
+      title: CHAT_SOCIAL_CHALLENGE_TITLE,
       mode: "CHAMPION",
       competitionFormat: "SINGLE_MATCH",
       allowGeneralParticipants: true,
@@ -107,14 +107,14 @@ async function ensureSocialHangmanChallenge(eventId: string) {
 
 async function ensureSocialSpinnerChallenge(eventId: string) {
   const existing = await prisma.spinChallenge.findFirst({
-    where: { eventId, title: SOCIAL_CHALLENGE_TITLE },
+    where: { eventId, title: CHAT_SOCIAL_CHALLENGE_TITLE },
   });
   if (existing) return existing;
 
   return prisma.spinChallenge.create({
     data: {
       eventId,
-      title: SOCIAL_CHALLENGE_TITLE,
+      title: CHAT_SOCIAL_CHALLENGE_TITLE,
       config: { options: SOCIAL_SPINNER_OPTIONS },
       participationMode: "CONCURRENT",
       allowGeneralParticipants: true,

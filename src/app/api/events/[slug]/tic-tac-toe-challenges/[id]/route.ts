@@ -9,6 +9,7 @@ import {
   validateActivityInstanceScope,
 } from "@/lib/activities/event-activities";
 import { hasPermission } from "@/lib/permissions";
+import { isChatSocialChallengeTitle } from "@/lib/chat-social-challenges";
 import {
   buildActivityBracketSnapshot,
   getBracketForChallenge,
@@ -40,6 +41,9 @@ export async function GET(
     },
   });
   if (!challenge) return jsonError("Activity not found", "NOT_FOUND", 404);
+  if (isChatSocialChallengeTitle(challenge.title)) {
+    return jsonError("Activity not found", "NOT_FOUND", 404);
+  }
 
   const bracketRecord = await getBracketForChallenge("tic_tac_toe", challenge.id);
   const bracket = bracketRecord

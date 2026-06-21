@@ -17,6 +17,7 @@ import { useSocialGameState } from "@/hooks/useSocialGameState";
 import { WhotLive } from "@/components/social-games/WhotLive";
 import { LudoLive } from "@/components/social-games/LudoLive";
 import { SudokuLive } from "@/components/social-games/SudokuLive";
+import { EightBallLive } from "@/components/social-games/EightBallLive";
 import { ChatGameResultHero } from "@/components/chat/ChatGameResultHero";
 import { normalizeSudokuGrid } from "@/lib/social-games/sudoku-grid";
 import type { SudokuState } from "@/lib/social-games/game-state-types";
@@ -364,6 +365,14 @@ export function SocialGameMatchLive({
           movePending={movePending}
           chessSettings={chessSettings}
         />
+      </div>
+    );
+  }
+  if (kind === "eight_ball") {
+    return (
+      <div className="space-y-4">
+        {finishedHero}
+        <EightBallLive snapshot={state} sendMove={sendMove} movePending={movePending} />
       </div>
     );
   }

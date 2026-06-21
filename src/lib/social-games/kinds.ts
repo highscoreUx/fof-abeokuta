@@ -6,6 +6,7 @@ export const SOCIAL_JSON_GAME_KINDS = [
   "ludo",
   "whot",
   "sudoku",
+  "eight_ball",
 ] as const satisfies readonly ChatGameKind[];
 
 export type SocialJsonGameKind = (typeof SOCIAL_JSON_GAME_KINDS)[number];
@@ -19,4 +20,5 @@ export const SOCIAL_JSON_GAME_LABELS: Record<SocialJsonGameKind, string> = {
   ludo: "Ludo",
   whot: "Whot",
   sudoku: "Sudoku",
+  eight_ball: "8 Ball",
 };

@@ -13,6 +13,8 @@ export interface SudokuState {
   startedAt: number;
 }
 
+export type { EightBallState, EightBallBall, EightBallGroup, EightBallSpin } from "@/lib/social-games/eight-ball-types";
+
 export type WhotShape = "circle" | "triangle" | "cross" | "square" | "star" | "whot";
 
 export interface WhotCard {

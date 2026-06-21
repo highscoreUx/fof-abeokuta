@@ -14,6 +14,10 @@ import { prepareLudoStateForPlay } from "@/lib/social-games/ludo-helpers";
 import type { LudoState } from "@/lib/social-games/game-state-types";
 import { createSudokuState, applySudokuCell, applySudokuPencil } from "@/server/games/social/games/sudoku";
 import {
+  createEightBallGameState,
+  applyEightBallMove,
+} from "@/server/games/social/games/eight_ball";
+import {
   createWhotState,
   applyWhotPlay,
   applyWhotDraw,
@@ -252,11 +256,33 @@ const ludoHandler: SocialGameHandler = {
   },
 };
 
+const eightBallHandler: SocialGameHandler = {
+  createInitialState: (ctx) => createEightBallGameState(ctx.playerIds),
+  getFirstTurnUserId: (_state, playerIds) => playerIds[0] ?? null,
+  applyMove: (state, ctx) => {
+    const result = applyEightBallMove(
+      state as ReturnType<typeof createEightBallGameState>,
+      ctx.userId,
+      ctx.action,
+      ctx.payload,
+    );
+    if (result.error) {
+      return { state, winnerUserId: null, nextTurnUserId: null, error: result.error };
+    }
+    return {
+      state: result.state,
+      winnerUserId: result.winnerUserId,
+      nextTurnUserId: result.nextTurnUserId,
+    };
+  },
+};
+
 export const SOCIAL_GAME_HANDLERS: Record<SocialJsonGameKind, SocialGameHandler> = {
   chess: chessHandler,
   sudoku: sudokuHandler,
   whot: whotHandler,
   ludo: ludoHandler,
+  eight_ball: eightBallHandler,
 };
 
 export function getSocialGameHandler(kind: string): SocialGameHandler | null {

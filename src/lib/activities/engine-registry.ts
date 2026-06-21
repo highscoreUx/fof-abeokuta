@@ -12,6 +12,7 @@ export const ACTIVITY_ENGINE_IDS = {
   ludo: "ludo",
   whot: "whot",
   sudoku: "sudoku",
+  eight_ball: "eight_ball",
 } as const;
 
 export type ActivityEngineId = (typeof ACTIVITY_ENGINE_IDS)[keyof typeof ACTIVITY_ENGINE_IDS];

@@ -105,7 +105,8 @@ export function ChatGameFocusView() {
       session?.kind === "hangman" ||
       session?.kind === "chess" ||
       session?.kind === "ludo" ||
-      session?.kind === "whot") &&
+      session?.kind === "whot" ||
+      session?.kind === "eight_ball") &&
     (session?.status === "lobby" || session?.status === "live");
 
   const playerXName =

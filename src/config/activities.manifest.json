@@ -286,6 +286,35 @@
         "joinPolicy": "open",
         "channels": ["DM", "TEAM"]
       }
+    },
+    {
+      "slug": "eight_ball",
+      "aliases": ["8_ball", "8ball"],
+      "name": "8 Ball",
+      "socialDisplayName": "8 Ball",
+      "description": "Classic 8-ball pool — pocket your group, then sink the 8 to win.",
+      "engine": "eight_ball",
+      "channels": ["social"],
+      "configurable": false,
+      "sortOrder": 11,
+      "permissions": {
+        "manage": "participant.activities",
+        "run": "participant.activities",
+        "participant": "participant.activities"
+      },
+      "defaultEventActivity": {
+        "enabled": true,
+        "allowGeneral": false,
+        "allowGroup": true,
+        "allowStaff": false
+      },
+      "createForm": {
+        "scopeMode": "flexible"
+      },
+      "chatGame": {
+        "maxPlayers": 2,
+        "joinPolicy": "invite_only"
+      }
     }
   ]
 }

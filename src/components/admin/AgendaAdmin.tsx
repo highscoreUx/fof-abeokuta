@@ -5,6 +5,11 @@ import { AgendaItemModal } from "@/components/admin/AgendaItemModal";
 import { ChangeAgendaTemplateModal } from "@/components/admin/ChangeAgendaTemplateModal";
 import { AgendaList } from "@/components/agenda/AgendaList";
 import { AgendaListSkeleton } from "@/components/agenda/AgendaListSkeleton";
+import {
+  AgendaMobileHeader,
+  AgendaNativeList,
+  AgendaNativeSkeleton,
+} from "@/components/agenda/AgendaNativeList";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { useEventApi } from "@/hooks/useEventApi";
 import { Button } from "@/components/ui/button";
@@ -92,39 +97,68 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
   const templateName =
     AGENDA_TEMPLATES.find((entry) => entry.id === template)?.name ?? "Notebook";
 
+  const listProps = {
+    items,
+    presentItemId,
+    onEdit: openEdit,
+    onDelete: remove,
+    onSetPresent: setPresent,
+    onClearPresent: clearPresent,
+  };
+
   if (loading) {
-    return <AgendaListSkeleton showHeader={!embedded} />;
+    return (
+      <>
+        <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+          <AgendaMobileHeader
+            event={event}
+            onAdd={openAdd}
+          />
+          <AgendaNativeSkeleton />
+        </div>
+        <div className="hidden lg:block">
+          <AgendaListSkeleton showHeader={!embedded} />
+        </div>
+      </>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {!embedded && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Event schedule ({items.length})
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">Template: {templateName}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setTemplateOpen(true)}>
-              Change template
-            </Button>
-            <Button onClick={openAdd}>Add agenda item</Button>
-          </div>
+    <>
+      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+        <AgendaMobileHeader
+          event={event}
+          onAdd={openAdd}
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+          <AgendaNativeList {...listProps} />
         </div>
-      )}
+      </div>
 
-      <AgendaList
-        template={template}
-        items={items}
-        event={event}
-        presentItemId={presentItemId}
-        onEdit={openEdit}
-        onDelete={remove}
-        onSetPresent={setPresent}
-        onClearPresent={clearPresent}
-      />
+      <div className="hidden space-y-6 lg:block">
+        {!embedded && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Event schedule ({items.length})
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">Template: {templateName}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setTemplateOpen(true)}>
+                Change template
+              </Button>
+              <Button onClick={openAdd}>Add agenda item</Button>
+            </div>
+          </div>
+        )}
+
+        <AgendaList
+          template={template}
+          event={event}
+          {...listProps}
+        />
+      </div>
 
       <AgendaItemModal
         open={formOpen}
@@ -138,6 +172,6 @@ export function AgendaAdmin({ embedded = false, onRegisterOpenAdd }: AgendaAdmin
         currentTemplate={template}
         onSaved={setTemplate}
       />
-    </div>
+    </>
   );
 }

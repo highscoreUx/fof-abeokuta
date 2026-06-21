@@ -13,6 +13,7 @@ interface AgendaItemActionsProps {
   onClearPresent?: (item: AgendaListItem) => void;
   className?: string;
   size?: "sm" | "xs";
+  variant?: "desktop" | "mobile";
 }
 
 export function AgendaItemActions({
@@ -24,17 +25,25 @@ export function AgendaItemActions({
   onClearPresent,
   className,
   size = "sm",
+  variant = "desktop",
 }: AgendaItemActionsProps) {
   if (!onEdit && !onDelete && !onSetPresent && !onClearPresent) return null;
 
   const buttonClass = cn(
-    "opacity-0 transition group-hover:opacity-100",
-    size === "xs" && "h-auto px-2 py-1 text-xs",
-    size === "sm" && "shrink-0",
+    variant === "desktop" && "opacity-0 transition group-hover:opacity-100",
+    variant === "mobile" && "h-7 px-2 text-[11px]",
+    size === "xs" && variant === "desktop" && "h-auto px-2 py-1 text-xs",
+    size === "sm" && variant === "desktop" && "shrink-0",
   );
 
   return (
-    <div className={cn("flex shrink-0 items-center gap-0.5", className)}>
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-0.5",
+        variant === "mobile" && "flex-col items-end gap-0.5",
+        className,
+      )}
+    >
       {onSetPresent && !isPresent && (
         <Button
           variant="ghost"

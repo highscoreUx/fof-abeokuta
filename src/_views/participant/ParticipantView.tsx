@@ -16,6 +16,11 @@ import { useHasPermission } from "@/hooks/useHasPermission";
 import { canManageAgenda, hasAdminShellAccess, hasPermission } from "@/lib/permissions";
 import { AgendaList } from "@/components/agenda/AgendaList";
 import { AgendaListSkeleton } from "@/components/agenda/AgendaListSkeleton";
+import {
+  AgendaMobileHeader,
+  AgendaNativeList,
+  AgendaNativeSkeleton,
+} from "@/components/agenda/AgendaNativeList";
 import type { AgendaEventMeta, AgendaListItem } from "@/components/agenda/types";
 import { DEFAULT_AGENDA_TEMPLATE, type AgendaTemplateId } from "@/lib/agenda-templates";
 import { cn } from "@/lib/cn";
@@ -131,15 +136,16 @@ export function ParticipantView() {
         mobileBottomTabs={mobileBottomTabs}
         activeBottomTab={tab}
         hideMobileTitle
-        hideMobileHeader={tab === "chat"}
+        hideMobileHeader={tab === "chat" || tab === "agenda"}
         hideMobileBottomTabs={inChatThread}
-        mobileEdgeToEdge={tab === "chat"}
+        mobileEdgeToEdge={tab === "chat" || tab === "agenda"}
       >
         <div
           className={cn(
-            tab === "chat"
-              ? "flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]"
+            tab === "chat" || tab === "agenda"
+              ? "flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden lg:h-auto lg:max-h-none"
               : "w-full space-y-4 px-1 lg:space-y-6 lg:px-0",
+            tab === "chat" && "lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]",
             inChatThread && "h-[100dvh] max-h-[100dvh] lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]",
           )}
         >
@@ -167,18 +173,6 @@ export function ParticipantView() {
               />
             )}
           </div>
-
-          {/* Mobile agenda header */}
-          {tab === "agenda" && (
-            <div className="flex items-center justify-between gap-3 px-1 lg:hidden">
-              <h2 className="text-[28px] font-bold tracking-tight text-foreground">Agenda</h2>
-              {manageAgenda && (
-                <Button size="sm" onClick={() => openAddAgenda?.()}>
-                  Add item
-                </Button>
-              )}
-            </div>
-          )}
 
           {/* Mobile gallery header */}
           {tab === "gallery" && canViewGallery && (
@@ -212,27 +206,49 @@ export function ParticipantView() {
 
           {tab === "agenda" &&
             (manageAgenda ? (
-              <AgendaAdmin embedded onRegisterOpenAdd={registerOpenAddAgenda} />
-            ) : agendaLoading ? (
-              <Card>
-                <CardHeader className="mb-4 hidden lg:block">
-                  <CardTitle>Agenda</CardTitle>
-                </CardHeader>
-                <AgendaListSkeleton />
-              </Card>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:flex-none">
+                <AgendaAdmin embedded onRegisterOpenAdd={registerOpenAddAgenda} />
+              </div>
             ) : (
-              <Card>
-                <CardHeader className="mb-4 hidden lg:block">
-                  <CardTitle>Agenda</CardTitle>
-                </CardHeader>
-                <AgendaList
-                  template={template}
-                  items={agenda}
-                  event={event}
-                  presentItemId={presentItemId}
-                  emptyMessage="Agenda will appear here when published."
-                />
-              </Card>
+              <>
+                <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+                  <AgendaMobileHeader event={event} />
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+                    {agendaLoading ? (
+                      <AgendaNativeSkeleton />
+                    ) : (
+                      <AgendaNativeList
+                        items={agenda}
+                        presentItemId={presentItemId}
+                        emptyMessage="Agenda will appear here when published."
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="hidden lg:block">
+                  {agendaLoading ? (
+                    <Card>
+                      <CardHeader className="mb-4">
+                        <CardTitle>Agenda</CardTitle>
+                      </CardHeader>
+                      <AgendaListSkeleton />
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardHeader className="mb-4">
+                        <CardTitle>Agenda</CardTitle>
+                      </CardHeader>
+                      <AgendaList
+                        template={template}
+                        items={agenda}
+                        event={event}
+                        presentItemId={presentItemId}
+                        emptyMessage="Agenda will appear here when published."
+                      />
+                    </Card>
+                  )}
+                </div>
+              </>
             ))}
         </div>
       </AppShell>

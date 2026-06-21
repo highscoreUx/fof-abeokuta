@@ -24,6 +24,7 @@ import { buildReplyRef } from "@/lib/chat-reply";
 import {
   EMPTY_CHAT_MESSAGES,
   EMPTY_CHAT_PARTICIPANTS,
+  EMPTY_FAILED_MESSAGE_IDS,
   EMPTY_SEEN_MENTION_IDS,
   useChatStore,
 } from "@/stores/chatStore";
@@ -77,7 +78,11 @@ export function ChatPanel({
   const setMessages = useChatStore((s) => s.setMessages);
   const appendMessage = useChatStore((s) => s.appendMessage);
   const upsertMessage = useChatStore((s) => s.upsertMessage);
-  const removeMessage = useChatStore((s) => s.removeMessage);
+  const markMessageFailed = useChatStore((s) => s.markMessageFailed);
+  const unmarkMessageFailed = useChatStore((s) => s.unmarkMessageFailed);
+  const failedMessageIds = useChatStore(
+    (s) => s.failedMessageIdsByRoom[room.id] ?? EMPTY_FAILED_MESSAGE_IDS,
+  );
   const setDraft = useChatStore((s) => s.setDraft);
   const setReplyTo = useChatStore((s) => s.setReplyTo);
   const markMessagesLoaded = useChatStore((s) => s.markMessagesLoaded);
@@ -226,29 +231,15 @@ export function ChatPanel({
         upsertMessage(room.id, data.message);
         return true;
       } catch {
-        removeMessage(room.id, optimisticId);
+        markMessageFailed(room.id, optimisticId);
         return false;
       }
     },
-    [api, messagePath, removeMessage, room.id, upsertMessage],
+    [api, markMessageFailed, messagePath, room.id, upsertMessage],
   );
 
-  const sendContent = useCallback(
-    async (content: ChatContent): Promise<boolean> => {
-      if (!user) return false;
-      if (isPrivate && !peerId) return false;
-      if (isPrivate && content.type === "poll") return false;
-
-      const payload = serializeChatContent(content);
-      if (!payload) return false;
-
-      const optimistic = createOptimisticChatMessage(payload, user, room);
-      appendMessage(room.id, optimistic);
-      if (content.type === "text") {
-        setDraft(room.id, "");
-        setReplyTo(room.id, null);
-      }
-
+  const deliverOutbound = useCallback(
+    async (payload: string, optimisticId: string): Promise<boolean> => {
       try {
         const activeSocket = socket ?? getSocket();
 
@@ -256,7 +247,7 @@ export function ChatPanel({
           return await new Promise<boolean>((resolve) => {
             const ackHandler = (error: Error | null, response?: SocketAck) => {
               if (error || response?.error || !response?.message) {
-                void sendViaApi(payload, optimistic.id).then(resolve);
+                void sendViaApi(payload, optimisticId).then(resolve);
                 return;
               }
               upsertMessage(room.id, response.message!);
@@ -276,27 +267,61 @@ export function ChatPanel({
           });
         }
 
-        return await sendViaApi(payload, optimistic.id);
+        return await sendViaApi(payload, optimisticId);
       } catch {
-        removeMessage(room.id, optimistic.id);
+        markMessageFailed(room.id, optimisticId);
         return false;
       }
     },
     [
-      appendMessage,
       isGeneral,
       isPrivate,
       isStaff,
+      markMessageFailed,
       peerId,
-      removeMessage,
-      room,
+      room.id,
       sendViaApi,
-      setDraft,
-      setReplyTo,
       socket,
       upsertMessage,
+    ],
+  );
+
+  const sendContent = useCallback(
+    async (content: ChatContent): Promise<boolean> => {
+      if (!user) return false;
+      if (isPrivate && !peerId) return false;
+      if (isPrivate && content.type === "poll") return false;
+
+      const payload = serializeChatContent(content);
+      if (!payload) return false;
+
+      const optimistic = createOptimisticChatMessage(payload, user, room);
+      appendMessage(room.id, optimistic);
+      if (content.type === "text") {
+        setDraft(room.id, "");
+        setReplyTo(room.id, null);
+      }
+
+      return deliverOutbound(payload, optimistic.id);
+    },
+    [
+      appendMessage,
+      deliverOutbound,
+      isPrivate,
+      peerId,
+      room,
+      setDraft,
+      setReplyTo,
       user,
     ],
+  );
+
+  const resendMessage = useCallback(
+    async (message: ChatMessage) => {
+      unmarkMessageFailed(room.id, message.id);
+      await deliverOutbound(message.body, message.id);
+    },
+    [deliverOutbound, room.id, unmarkMessageFailed],
   );
 
   const handleReply = useCallback(
@@ -427,7 +452,9 @@ export function ChatPanel({
             const isGroupRoom = !isPrivate && !isStaff;
             const showName = !isOwn && isGroupRoom && !isGrouped;
             const showAvatar = !isOwn && !isGrouped;
-            const isPending = m.id.startsWith("pending-");
+            const deliveryStatus = isOwn
+              ? resolveOwnMessageDeliveryStatus(m.id, failedMessageIds)
+              : undefined;
 
             return (
               <ChatMessageBubble
@@ -438,7 +465,10 @@ export function ChatPanel({
                 showName={showName}
                 showAvatar={showAvatar}
                 isGrouped={isGrouped}
-                isPending={isPending}
+                deliveryStatus={deliveryStatus}
+                onResend={
+                  deliveryStatus === "failed" ? () => void resendMessage(m) : undefined
+                }
                 highlighted={highlightedMessageId === m.id}
                 hidePolls={isPrivate}
                 currentUsername={user?.username}

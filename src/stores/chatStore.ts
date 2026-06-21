@@ -12,6 +12,7 @@ import type { ChatMessage, ChatParticipant, ChatRoom } from "@/types/chat";
 export const EMPTY_CHAT_MESSAGES: ChatMessage[] = [];
 export const EMPTY_CHAT_PARTICIPANTS: ChatParticipant[] = [];
 export const EMPTY_SEEN_MENTION_IDS: string[] = [];
+export const EMPTY_FAILED_MESSAGE_IDS: string[] = [];
 
 interface ChatStore {
   messagesByRoom: Record<string, ChatMessage[]>;
@@ -22,6 +23,7 @@ interface ChatStore {
   messagesLoaded: Record<string, boolean>;
   participantsLoaded: Record<string, boolean>;
   seenMentionIdsByRoom: Record<string, string[]>;
+  failedMessageIdsByRoom: Record<string, string[]>;
   lastReadAtByRoom: Record<string, string>;
   activeGameByRoom: Record<string, ChatGameSessionSnapshot | null>;
   rooms: ChatRoom[];
@@ -34,6 +36,8 @@ interface ChatStore {
   appendMessage: (roomId: string, message: ChatMessage) => void;
   upsertMessage: (roomId: string, message: ChatMessage) => void;
   removeMessage: (roomId: string, messageId: string) => void;
+  markMessageFailed: (roomId: string, messageId: string) => void;
+  unmarkMessageFailed: (roomId: string, messageId: string) => void;
   setParticipants: (roomId: string, participants: ChatParticipant[]) => void;
   upsertParticipant: (roomId: string, participant: ChatParticipant) => void;
   removeParticipant: (roomId: string, userId: string) => void;
@@ -64,6 +68,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   messagesLoaded: {},
   participantsLoaded: {},
   seenMentionIdsByRoom: {},
+  failedMessageIdsByRoom: {},
   lastReadAtByRoom: {},
   activeGameByRoom: {},
   rooms: [],
@@ -107,8 +112,21 @@ export const useChatStore = create<ChatStore>((set) => ({
 
       if (pendingIndex >= 0) {
         const next = [...current];
+        const replacedId = current[pendingIndex].id;
         next[pendingIndex] = message;
-        return { messagesByRoom: { ...state.messagesByRoom, [roomId]: next } };
+        const failed = state.failedMessageIdsByRoom[roomId] ?? [];
+        const nextFailed = failed.filter((id) => id !== replacedId);
+        return {
+          messagesByRoom: { ...state.messagesByRoom, [roomId]: next },
+          ...(nextFailed.length !== failed.length
+            ? {
+                failedMessageIdsByRoom: {
+                  ...state.failedMessageIdsByRoom,
+                  [roomId]: nextFailed,
+                },
+              }
+            : {}),
+        };
       }
 
       return {
@@ -122,7 +140,35 @@ export const useChatStore = create<ChatStore>((set) => ({
         ...state.messagesByRoom,
         [roomId]: (state.messagesByRoom[roomId] ?? []).filter((m) => m.id !== messageId),
       },
+      failedMessageIdsByRoom: {
+        ...state.failedMessageIdsByRoom,
+        [roomId]: (state.failedMessageIdsByRoom[roomId] ?? []).filter((id) => id !== messageId),
+      },
     })),
+
+  markMessageFailed: (roomId, messageId) =>
+    set((state) => {
+      const current = state.failedMessageIdsByRoom[roomId] ?? [];
+      if (current.includes(messageId)) return state;
+      return {
+        failedMessageIdsByRoom: {
+          ...state.failedMessageIdsByRoom,
+          [roomId]: [...current, messageId],
+        },
+      };
+    }),
+
+  unmarkMessageFailed: (roomId, messageId) =>
+    set((state) => {
+      const current = state.failedMessageIdsByRoom[roomId] ?? [];
+      if (!current.includes(messageId)) return state;
+      return {
+        failedMessageIdsByRoom: {
+          ...state.failedMessageIdsByRoom,
+          [roomId]: current.filter((id) => id !== messageId),
+        },
+      };
+    }),
 
   setParticipants: (roomId, participants) =>
     set((state) => ({

@@ -4,8 +4,10 @@ import { useCallback, useRef, useState } from "react";
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { ChatActivityCard } from "@/components/chat/ChatActivityCard";
 import { ChatGameCard } from "@/components/chat/ChatGameCard";
+import { ChatMessageDeliveryStatus } from "@/components/chat/ChatMessageDeliveryStatus";
 import { ChatPollMessage } from "@/components/chat/ChatPollMessage";
 import type { ChatMention } from "@/lib/chat-mentions";
+import type { ChatDeliveryStatus } from "@/lib/chat-delivery";
 import { parseChatContent } from "@/lib/chat-content";
 import { FormattedText } from "@/components/chat/FormattedText";
 import {
@@ -26,7 +28,8 @@ interface ChatMessageBubbleProps {
   showName: boolean;
   showAvatar: boolean;
   isGrouped: boolean;
-  isPending: boolean;
+  deliveryStatus?: ChatDeliveryStatus;
+  onResend?: () => void;
   highlighted?: boolean;
   hidePolls?: boolean;
   currentUsername?: string;
@@ -39,14 +42,16 @@ interface ChatMessageBubbleProps {
 function MessageMeta({
   time,
   isOwn,
-  isPending,
+  deliveryStatus,
   onMedia = false,
+  onResend,
   className,
 }: {
   time: string;
   isOwn: boolean;
-  isPending: boolean;
+  deliveryStatus?: ChatDeliveryStatus;
   onMedia?: boolean;
+  onResend?: () => void;
   className?: string;
 }) {
   return (
@@ -58,50 +63,14 @@ function MessageMeta({
       )}
     >
       <span>{time}</span>
-      {isOwn && <MessageStatus isPending={isPending} onMedia={onMedia} />}
-    </span>
-  );
-}
-
-function MessageStatus({
-  isPending,
-  onMedia = false,
-}: {
-  isPending: boolean;
-  onMedia?: boolean;
-}) {
-  if (isPending) {
-    return (
-      <svg
-        viewBox="0 0 16 15"
-        className={cn(
-          "h-[14px] w-[14px]",
-          onMedia ? "text-primary-foreground/80" : "text-muted-foreground/70",
-        )}
-        aria-hidden
-      >
-        <path
-          fill="currentColor"
-          d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.032l-.358-.325a.32.32 0 0 0-.484.032l-.378.48a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.51z"
+      {isOwn && deliveryStatus && (
+        <ChatMessageDeliveryStatus
+          status={deliveryStatus}
+          onMedia={onMedia}
+          onResend={onResend}
         />
-      </svg>
-    );
-  }
-
-  return (
-    <svg
-      viewBox="0 0 16 15"
-      className={cn(
-        "h-[14px] w-[14px]",
-        onMedia ? "text-primary-foreground/90" : "text-primary",
       )}
-      aria-hidden
-    >
-      <path
-        fill="currentColor"
-        d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.88a.32.32 0 0 1-.484.032l-.358-.325a.32.32 0 0 0-.484.032l-.378.48a.418.418 0 0 0 .036.54l1.32 1.267a.32.32 0 0 0 .484-.034l6.272-8.048a.366.366 0 0 0-.064-.51zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.88a.32.32 0 0 1-.484.032L1.892 7.205a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"
-      />
-    </svg>
+    </span>
   );
 }
 
@@ -156,14 +125,16 @@ function TextMessageBody({
   currentUsername,
   time,
   isOwn,
-  isPending,
+  deliveryStatus,
+  onResend,
 }: {
   text: string;
   mentions?: ChatMention[];
   currentUsername?: string;
   time: string;
   isOwn: boolean;
-  isPending: boolean;
+  deliveryStatus?: ChatDeliveryStatus;
+  onResend?: () => void;
 }) {
   const body = (
     <FormattedText
@@ -182,7 +153,8 @@ function TextMessageBody({
         <MessageMeta
           time={time}
           isOwn={isOwn}
-          isPending={isPending}
+          deliveryStatus={deliveryStatus}
+          onResend={onResend}
           className="shrink-0 pb-px"
         />
       </div>
@@ -194,7 +166,8 @@ function TextMessageBody({
       <MessageMeta
         time={time}
         isOwn={isOwn}
-        isPending={isPending}
+        deliveryStatus={deliveryStatus}
+        onResend={onResend}
         className="float-right ml-2.5 mt-0.5 h-[15px] shrink-0 translate-y-px"
       />
       {body}
@@ -228,7 +201,8 @@ export function ChatMessageBubble({
   showName,
   showAvatar,
   isGrouped,
-  isPending,
+  deliveryStatus,
+  onResend,
   highlighted = false,
   hidePolls = false,
   currentUsername,
@@ -373,7 +347,7 @@ export function ChatMessageBubble({
               : isOwn
                 ? "rounded-lg rounded-tr-none"
                 : "rounded-lg rounded-tl-none",
-            isPending && "opacity-80",
+            deliveryStatus === "failed" && isOwn && "ring-1 ring-red-500/40",
           )}
           style={swipeX !== 0 ? { transform: `translateX(${swipeX}px)` } : undefined}
           onTouchStart={handleTouchStart}
@@ -409,20 +383,31 @@ export function ChatMessageBubble({
                 currentUsername={currentUsername}
                 time={time}
                 isOwn={isOwn}
-                isPending={isPending}
+                deliveryStatus={deliveryStatus}
+                onResend={onResend}
               />
             ) : isChatGame ? (
               <div>
                 <ChatGameCard chatGame={content.chatGame} />
                 <div className="mt-1 flex justify-end">
-                  <MessageMeta time={time} isOwn={isOwn} isPending={isPending} />
+                  <MessageMeta
+                    time={time}
+                    isOwn={isOwn}
+                    deliveryStatus={deliveryStatus}
+                    onResend={onResend}
+                  />
                 </div>
               </div>
             ) : isActivity ? (
               <div>
                 <ChatActivityCard activity={content.activity} />
                 <div className="mt-1 flex justify-end">
-                  <MessageMeta time={time} isOwn={isOwn} isPending={isPending} />
+                  <MessageMeta
+                    time={time}
+                    isOwn={isOwn}
+                    deliveryStatus={deliveryStatus}
+                    onResend={onResend}
+                  />
                 </div>
               </div>
             ) : isPoll ? (
@@ -433,7 +418,12 @@ export function ChatMessageBubble({
                   roomId={roomId}
                 />
                 <div className="mt-1 flex justify-end">
-                  <MessageMeta time={time} isOwn={isOwn} isPending={isPending} />
+                  <MessageMeta
+                    time={time}
+                    isOwn={isOwn}
+                    deliveryStatus={deliveryStatus}
+                    onResend={onResend}
+                  />
                 </div>
               </div>
             ) : content.type === "poll" && hidePolls ? (
@@ -441,7 +431,8 @@ export function ChatMessageBubble({
                 text="Poll (not available in direct messages)"
                 time={time}
                 isOwn={isOwn}
-                isPending={isPending}
+                deliveryStatus={deliveryStatus}
+                onResend={onResend}
               />
             ) : (
               <div className="relative inline-block max-w-full">
@@ -452,7 +443,8 @@ export function ChatMessageBubble({
                 <MessageMeta
                   time={time}
                   isOwn={isOwn}
-                  isPending={isPending}
+                  deliveryStatus={deliveryStatus}
+                  onResend={onResend}
                   onMedia
                   className="absolute bottom-1 right-1 rounded px-1 py-0.5 bg-foreground/45"
                 />

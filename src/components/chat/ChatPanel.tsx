@@ -56,8 +56,6 @@ export function ChatPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sendingRef = useRef(false);
-  const [sending, setSending] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const seenMentionIds = useChatStore(
     (s) => s.seenMentionIdsByRoom[room.id] ?? EMPTY_SEEN_MENTION_IDS,
@@ -237,7 +235,7 @@ export function ChatPanel({
 
   const sendContent = useCallback(
     async (content: ChatContent): Promise<boolean> => {
-      if (!user || sendingRef.current) return false;
+      if (!user) return false;
       if (isPrivate && !peerId) return false;
       if (isPrivate && content.type === "poll") return false;
 
@@ -250,9 +248,6 @@ export function ChatPanel({
         setDraft(room.id, "");
         setReplyTo(room.id, null);
       }
-
-      sendingRef.current = true;
-      setSending(true);
 
       try {
         const activeSocket = socket ?? getSocket();
@@ -282,9 +277,9 @@ export function ChatPanel({
         }
 
         return await sendViaApi(payload, optimistic.id);
-      } finally {
-        sendingRef.current = false;
-        setSending(false);
+      } catch {
+        removeMessage(room.id, optimistic.id);
+        return false;
       }
     },
     [
@@ -293,6 +288,7 @@ export function ChatPanel({
       isPrivate,
       isStaff,
       peerId,
+      removeMessage,
       room,
       sendViaApi,
       setDraft,
@@ -468,7 +464,6 @@ export function ChatPanel({
         <ChatComposer
           draft={draft}
           placeholder={placeholder}
-          disabled={sending}
           allowPolls={!isPrivate}
           allowMentions={!isPrivate}
           mentionParticipants={participants}

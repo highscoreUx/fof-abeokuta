@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { Plus } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { GALLERY_FILE_ACCEPT } from "@/lib/gallery-media";
 import { useGalleryUploadMutation } from "@/hooks/useGalleryQuery";
@@ -9,9 +10,13 @@ import { toastError, toastSuccess } from "@/lib/toast";
 
 interface GalleryUploadControlsProps {
   className?: string;
+  variant?: "button" | "fab";
 }
 
-export function GalleryUploadControls({ className }: GalleryUploadControlsProps) {
+export function GalleryUploadControls({
+  className,
+  variant = "button",
+}: GalleryUploadControlsProps) {
   const forceOfficial = useHasPermission("gallery.official_upload");
   const canUpload = useHasAnyPermission([
     "gallery.upload",
@@ -56,17 +61,29 @@ export function GalleryUploadControls({ className }: GalleryUploadControlsProps)
         className="hidden"
         onChange={(event) => void handleUpload(event.target.files)}
       />
-      <Button
-        className={className ?? "shrink-0"}
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploadMutation.isPending}
-      >
-        {uploadMutation.isPending
-          ? "Queuing…"
-          : forceOfficial
-            ? "Upload official media"
-            : "Upload media"}
-      </Button>
+      {variant === "fab" ? (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadMutation.isPending}
+          aria-label={forceOfficial ? "Upload official media" : "Upload media"}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-95 disabled:opacity-60"
+        >
+          <Plus size={22} weight="bold" aria-hidden />
+        </button>
+      ) : (
+        <Button
+          className={className ?? "shrink-0"}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadMutation.isPending}
+        >
+          {uploadMutation.isPending
+            ? "Queuing…"
+            : forceOfficial
+              ? "Upload official media"
+              : "Upload media"}
+        </Button>
+      )}
     </>
   );
 }

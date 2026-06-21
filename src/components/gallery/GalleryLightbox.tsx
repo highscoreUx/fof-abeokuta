@@ -44,7 +44,7 @@ export function GalleryLightbox({ photo, open, onClose }: GalleryLightboxProps) 
     >
       <button
         type="button"
-        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-xl text-white transition hover:bg-black/70"
+        className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-xl text-white transition hover:bg-black/70"
         onClick={onClose}
         aria-label="Close"
       >
@@ -63,14 +63,14 @@ export function GalleryLightbox({ photo, open, onClose }: GalleryLightboxProps) 
             poster={thumbSrc ?? undefined}
             controls
             autoPlay
-            className="max-h-[92vh] max-w-[92vw] rounded-lg object-contain"
+            className="max-h-[92vh] max-w-[92vw] object-contain lg:rounded-lg"
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fullSrc}
             alt={alt}
-            className="max-h-[92vh] max-w-[92vw] rounded-lg object-contain"
+            className="max-h-[92vh] max-w-[92vw] object-contain lg:rounded-lg"
           />
         )}
       </div>

@@ -24,9 +24,16 @@ export function GalleryView() {
 
   return (
     <PermissionGuard permission="gallery.view">
-      <AppShell title="Gallery" nav={shellNav} contentClassName="max-w-7xl">
-        <div className="w-full space-y-6">
-          <div className="flex w-full justify-end">
+      <AppShell
+        title="Gallery"
+        nav={shellNav}
+        contentClassName="max-w-7xl"
+        hideMobileTitle
+        hideMobileHeader
+        mobileEdgeToEdge
+      >
+        <div className="flex h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] min-h-0 flex-col overflow-hidden lg:h-auto lg:max-h-none">
+          <div className="hidden w-full shrink-0 justify-end lg:flex lg:pb-0 lg:pt-0">
             <GalleryToolbarControls
               filter={filter}
               team={team}
@@ -36,7 +43,16 @@ export function GalleryView() {
               }}
             />
           </div>
-          <GalleryPanel filter={filter} team={team} />
+          <div className="flex min-h-0 flex-1 flex-col lg:block lg:flex-none lg:space-y-6">
+            <GalleryPanel
+              filter={filter}
+              team={team}
+              onFilterChange={(nextFilter, nextTeam) => {
+                setFilter(nextFilter);
+                setTeam(nextTeam);
+              }}
+            />
+          </div>
         </div>
       </AppShell>
     </PermissionGuard>

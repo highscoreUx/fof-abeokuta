@@ -6,6 +6,7 @@ import { GalleryLightbox } from "@/components/gallery/GalleryLightbox";
 import { GalleryMediaPreview } from "@/components/gallery/GalleryMediaPreview";
 import { galleryGridTileClassName } from "@/components/gallery/GalleryGrid";
 import { cn } from "@/lib/cn";
+import { isGalleryVideoMime } from "@/lib/gallery-media";
 import type { GalleryPhotoRow } from "@/types/gallery";
 
 interface GalleryGridTileProps {
@@ -13,6 +14,7 @@ interface GalleryGridTileProps {
   canDelete: boolean;
   onDelete: () => void;
   isDeleting: boolean;
+  native?: boolean;
 }
 
 function GalleryTileAction({
@@ -23,7 +25,7 @@ function GalleryTileAction({
   className,
 }: {
   label: string;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   children: React.ReactNode;
   className?: string;
@@ -52,26 +54,66 @@ export function GalleryGridTile({
   canDelete,
   onDelete,
   isDeleting,
+  native = false,
 }: GalleryGridTileProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const showActions = photo.status === "READY";
+
+  const openLightbox = () => {
+    if (showActions) setLightboxOpen(true);
+  };
 
   return (
     <figure
       className={galleryGridTileClassName(
         cn(
-          "group aspect-square bg-muted shadow-sm",
+          native ? "bg-muted" : "group bg-muted shadow-sm",
           photo.status === "FAILED" && "opacity-80",
+          native && showActions && "cursor-pointer active:opacity-90",
         ),
+        native,
       )}
+      onClick={native && showActions ? openLightbox : undefined}
+      onKeyDown={
+        native && showActions
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openLightbox();
+              }
+            }
+          : undefined
+      }
+      role={native && showActions ? "button" : undefined}
+      tabIndex={native && showActions ? 0 : undefined}
     >
       <GalleryMediaPreview
         photo={photo}
-        passive={showActions}
-        onOpenLightbox={() => setLightboxOpen(true)}
+        passive={native || showActions}
+        onOpenLightbox={openLightbox}
       />
 
-      {showActions && (
+      {native && showActions && isGalleryVideoMime(photo.mimeType) && (
+        <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+          VIDEO
+        </span>
+      )}
+
+      {native && canDelete && showActions && (
+        <GalleryTileAction
+          label="Delete"
+          disabled={isDeleting}
+          className="absolute right-1 top-1 h-8 w-8 bg-black/55 hover:bg-red-600/90"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash size={16} weight="bold" aria-hidden />
+        </GalleryTileAction>
+      )}
+
+      {!native && showActions && (
         <div
           className={cn(
             "absolute inset-0 flex items-center justify-center gap-3 bg-black/35",

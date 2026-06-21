@@ -136,13 +136,13 @@ export function ParticipantView() {
         mobileBottomTabs={mobileBottomTabs}
         activeBottomTab={tab}
         hideMobileTitle
-        hideMobileHeader={tab === "chat" || tab === "agenda"}
+        hideMobileHeader={tab === "chat" || tab === "agenda" || tab === "gallery"}
         hideMobileBottomTabs={inChatThread}
-        mobileEdgeToEdge={tab === "chat" || tab === "agenda"}
+        mobileEdgeToEdge={tab === "chat" || tab === "agenda" || tab === "gallery"}
       >
         <div
           className={cn(
-            tab === "chat" || tab === "agenda"
+            tab === "chat" || tab === "agenda" || tab === "gallery"
               ? "flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden lg:h-auto lg:max-h-none"
               : "w-full space-y-4 px-1 lg:space-y-6 lg:px-0",
             tab === "chat" && "lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]",
@@ -174,11 +174,9 @@ export function ParticipantView() {
             )}
           </div>
 
-          {/* Mobile gallery header */}
           {tab === "gallery" && canViewGallery && (
-            <div className="flex items-center justify-between gap-3 px-1 lg:hidden">
-              <h2 className="text-[28px] font-bold tracking-tight text-foreground">Gallery</h2>
-              <GalleryToolbarControls
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <GalleryPanel
                 filter={galleryFilter}
                 team={galleryTeam}
                 onFilterChange={(filter, team) => {
@@ -198,10 +196,6 @@ export function ParticipantView() {
             >
               <ParticipantChat className="h-full" />
             </div>
-          )}
-
-          {tab === "gallery" && canViewGallery && (
-            <GalleryPanel filter={galleryFilter} team={galleryTeam} />
           )}
 
           {tab === "agenda" &&

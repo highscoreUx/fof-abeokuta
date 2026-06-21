@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useSocket } from "@/hooks/useSocket";
-import { parseChatGameMessageBody } from "@/lib/chat-game-types";
+import { parseChatGameMessageBody, isTerminalChatGameStatus } from "@/lib/chat-game-types";
 import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import type { ChatMessage } from "@/types/chat";
 
@@ -63,7 +63,7 @@ export function useChatGameSession(sessionId: string) {
       if (!messageIdRef.current || message.id !== messageIdRef.current) return;
       const body = parseChatGameMessageBody(message.body);
       if (!body || body.sessionId !== sessionId) return;
-      if (body.status === "lobby" || body.status === "live") return;
+      if (!isTerminalChatGameStatus(body.status)) return;
       void fetchSession();
     };
 

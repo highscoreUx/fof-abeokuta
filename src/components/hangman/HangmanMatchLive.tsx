@@ -19,6 +19,7 @@ import {
 import { applyOptimisticHangmanCouncilVote } from "@/lib/hangman/optimistic-council";
 import type { HangmanChampionInfo, HangmanMatchSnapshot } from "@/lib/hangman/types";
 import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import { preferServerTerminalSnapshot } from "@/lib/optimistic-display";
 
 type HangmanOptimisticAction =
   | { type: "guess"; letter: string }
@@ -63,7 +64,11 @@ export function HangmanMatchLive({
     },
   );
   const [, startGuessTransition] = useTransition();
-  const state = displayState;
+  const state = preferServerTerminalSnapshot(
+    serverState,
+    displayState,
+    (snapshot) => snapshot.state === "FINISHED",
+  );
   const [now, setNow] = useState(() => Date.now());
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);

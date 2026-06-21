@@ -17,6 +17,12 @@ export type { ChatGameKind, ChatGameChannel };
 
 export type ChatGameLobbyStatus = "lobby" | "live" | "ended" | "cancelled";
 
+export function isTerminalChatGameStatus(
+  status: ChatGameLobbyStatus | undefined,
+): boolean {
+  return status === "ended" || status === "cancelled";
+}
+
 export type {
   SocialTttSessionState,
   SocialHangmanSessionState,

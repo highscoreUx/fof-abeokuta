@@ -10,6 +10,7 @@ import {
   type OptimisticSocialGameOptions,
 } from "@/lib/social-games/optimistic-move";
 import type { SocialGameMatchSnapshot } from "@/lib/social-games/types";
+import { preferServerTerminalSnapshot } from "@/lib/optimistic-display";
 import { emitSocketAck } from "@/lib/socket/emit-with-ack";
 import { toastError } from "@/lib/toast";
 
@@ -60,6 +61,7 @@ export function useSocialGameState(
     const onState = (snapshot: SocialGameMatchSnapshot) => {
       if (snapshot.matchId !== matchId) return;
       setServerState((prev) => {
+        if (snapshot.status === "FINISHED") return snapshot;
         if (
           prev &&
           prev.status === snapshot.status &&
@@ -147,5 +149,14 @@ export function useSocialGameState(
     [socket, serverState, user?.id, addOptimisticMove, matchId],
   );
 
-  return { state: displayState, serverState, sendMove, movePending };
+  return {
+    state: preferServerTerminalSnapshot(
+      serverState,
+      displayState,
+      (snapshot) => snapshot.status === "FINISHED",
+    ),
+    serverState,
+    sendMove,
+    movePending,
+  };
 }

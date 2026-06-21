@@ -11,7 +11,12 @@ import {
   applyOptimisticChatGameAction,
   type ChatGameOptimisticAction,
 } from "@/lib/chat-game-optimistic";
-import type { ChatGameMessageBody, ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import type {
+  ChatGameMessageBody,
+  ChatGameRematchPayload,
+  ChatGameSessionSnapshot,
+} from "@/lib/chat-game-types";
+import { isTerminalChatGameStatus } from "@/lib/chat-game-types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { toastError } from "@/lib/toast";
@@ -54,7 +59,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   );
   const [, startActionTransition] = useTransition();
   const [rematchPending, setRematchPending] = useState(false);
-  const local = displayLocal;
+  const local = isTerminalChatGameStatus(serverLocal.status) ? serverLocal : displayLocal;
   const sessionId = chatGame.sessionId;
   const isPendingCard = sessionId.startsWith("pending-game-");
 

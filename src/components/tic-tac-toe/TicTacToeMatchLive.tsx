@@ -18,6 +18,7 @@ import { applyOptimisticTttCouncilVote } from "@/lib/tic-tac-toe/optimistic-coun
 import { toastError } from "@/lib/toast";
 import type { TicTacToeChampionInfo, TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
 import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import { preferServerTerminalSnapshot } from "@/lib/optimistic-display";
 
 type TttOptimisticAction =
   | { type: "move"; cellIndex: number }
@@ -59,7 +60,11 @@ export function TicTacToeMatchLive({
     },
   );
   const [, startMoveTransition] = useTransition();
-  const state = displayState;
+  const state = preferServerTerminalSnapshot(
+    serverState,
+    displayState,
+    (snapshot) => snapshot.state === "FINISHED",
+  );
   const [now, setNow] = useState(() => Date.now());
   const registeredMatchId = useRef<string | null>(null);
   const joinedMatchId = useRef<string | null>(null);

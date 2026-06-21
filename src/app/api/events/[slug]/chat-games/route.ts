@@ -37,7 +37,13 @@ export async function POST(
   }
 
   if (channel === "DM" && !isChatGameAllowedForChannel(kind, "DM")) {
-    return jsonError("This game is only available in team chat.", "VALIDATION_ERROR", 400);
+    return jsonError(
+      kind === "spinner"
+        ? "Spinner is not available in direct messages."
+        : "This game is only available in team chat.",
+      "VALIDATION_ERROR",
+      400,
+    );
   }
 
   if (channel === "TEAM" && !isChatGameAllowedForChannel(kind, "TEAM")) {

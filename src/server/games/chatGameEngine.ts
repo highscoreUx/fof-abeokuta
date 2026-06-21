@@ -235,22 +235,106 @@ function playerSlotForSummary(slot: string | null): "X" | "O" | string | undefin
   return undefined;
 }
 
-async function findActiveDmGameBetweenUsers(
-  eventId: string,
-  userA: string,
-  userB: string,
-) {
-  return prisma.chatGameSession.findFirst({
-    where: {
-      eventId,
-      channel: "DM",
-      status: { in: ["LOBBY", "LIVE"] },
+const MAX_ACTIVE_NON_SPINNER_CHAT_GAMES = 3;
+
+type ChatGameSessionContext =
+  | { channel: "DM"; eventId: string; peerUserIds: [string, string] }
+  | { channel: "TEAM"; eventId: string; teamId: string }
+  | { channel: "GENERAL" | "STAFF"; eventId: string };
+
+function chatGameContextWhere(context: ChatGameSessionContext) {
+  const statusFilter = { status: { in: ["LOBBY", "LIVE"] as ("LOBBY" | "LIVE")[] } };
+  if (context.channel === "DM") {
+    const [userA, userB] = context.peerUserIds;
+    return {
+      eventId: context.eventId,
+      channel: "DM" as const,
+      ...statusFilter,
       OR: [
         { hostUserId: userA, dmPeerUserId: userB },
         { hostUserId: userB, dmPeerUserId: userA },
       ],
-    },
-  });
+    };
+  }
+  if (context.channel === "TEAM") {
+    return {
+      eventId: context.eventId,
+      channel: "TEAM" as const,
+      teamId: context.teamId,
+      ...statusFilter,
+    };
+  }
+  return {
+    eventId: context.eventId,
+    channel: context.channel,
+    ...statusFilter,
+  };
+}
+
+function chatGameContextScopeLabel(context: ChatGameSessionContext): string {
+  if (context.channel === "DM") return "this conversation";
+  if (context.channel === "TEAM") return "this team chat";
+  if (context.channel === "GENERAL") return "general chat";
+  return "staff chat";
+}
+
+function dmChatGameContext(
+  eventId: string,
+  userA: string,
+  userB: string,
+): ChatGameSessionContext {
+  return { channel: "DM", eventId, peerUserIds: [userA, userB] };
+}
+
+function teamChatGameContext(eventId: string, teamId: string): ChatGameSessionContext {
+  return { channel: "TEAM", eventId, teamId };
+}
+
+function openLobbyChatGameContext(
+  eventId: string,
+  channel: "GENERAL" | "STAFF",
+): ChatGameSessionContext {
+  return { channel, eventId };
+}
+
+async function countActiveChatGamesInContext(
+  context: ChatGameSessionContext,
+  options: { spinnerOnly?: boolean; nonSpinnerOnly?: boolean },
+) {
+  const where = {
+    ...chatGameContextWhere(context),
+    ...(options.spinnerOnly
+      ? { kind: "spinner" as const }
+      : options.nonSpinnerOnly
+        ? { kind: { not: "spinner" as const } }
+        : {}),
+  };
+  return prisma.chatGameSession.count({ where });
+}
+
+async function assertCanStartChatGameInContext(
+  context: ChatGameSessionContext,
+  kind: ChatGameKind,
+) {
+  if (context.channel === "DM" && kind === "spinner") {
+    throw new Error("Spinner is not available in direct messages.");
+  }
+
+  const scope = chatGameContextScopeLabel(context);
+  if (kind === "spinner") {
+    const spinnerCount = await countActiveChatGamesInContext(context, { spinnerOnly: true });
+    if (spinnerCount >= 1) {
+      throw new Error(`A spinner is already active in ${scope}.`);
+    }
+    return;
+  }
+
+  const gameCount = await countActiveChatGamesInContext(context, { nonSpinnerOnly: true });
+  if (gameCount >= MAX_ACTIVE_NON_SPINNER_CHAT_GAMES) {
+    throw new Error(
+      `${scope.charAt(0).toUpperCase() + scope.slice(1)} already has ${MAX_ACTIVE_NON_SPINNER_CHAT_GAMES} active games. Wait for one to finish before starting another.`,
+    );
+  }
 }
 
 async function socialMatchResultSummary(
@@ -631,12 +715,10 @@ export async function createDmTicTacToeSession(params: {
   });
   if (!peer) throw new Error("User not found.");
 
-  const activeLobby = await findActiveDmGameBetweenUsers(
-    params.eventId,
-    params.hostUserId,
-    params.peerUserId,
+  await assertCanStartChatGameInContext(
+    dmChatGameContext(params.eventId, params.hostUserId, params.peerUserId),
+    "tic_tac_toe",
   );
-  if (activeLobby) throw new Error("You already have an active game with this person.");
 
   const dmDefaults = getChatGameDefaults("tic_tac_toe", { channel: "DM" });
 
@@ -705,15 +787,10 @@ export async function createTeamTicTacToeSession(params: {
   });
   if (!team) throw new Error("Team not found.");
 
-  const activeLobby = await prisma.chatGameSession.findFirst({
-    where: {
-      eventId: params.eventId,
-      channel: "TEAM",
-      teamId: params.teamId,
-      status: { in: ["LOBBY", "LIVE"] },
-    },
-  });
-  if (activeLobby) throw new Error("This team already has an active game.");
+  await assertCanStartChatGameInContext(
+    teamChatGameContext(params.eventId, params.teamId),
+    "tic_tac_toe",
+  );
 
   const teamDefaults = getChatGameDefaults("tic_tac_toe", { channel: "TEAM", openLobby: true });
 
@@ -765,10 +842,6 @@ export async function createTeamTicTacToeSession(params: {
 
 type OpenLobbyChannel = "GENERAL" | "STAFF";
 
-function openLobbyChatLabel(channel: OpenLobbyChannel) {
-  return channel === "GENERAL" ? "general" : "staff";
-}
-
 function initialPlayerSlotForKind(kind: ChatGameKind): string {
   if (isSocialJsonGameKind(kind)) return "0";
   return "X";
@@ -817,18 +890,10 @@ export async function createOpenLobbyChatGameSession(params: {
 }) {
   await assertOpenLobbyHostAccess(params.eventId, params.hostUserId, params.channel);
 
-  const activeLobby = await prisma.chatGameSession.findFirst({
-    where: {
-      eventId: params.eventId,
-      channel: params.channel,
-      status: { in: ["LOBBY", "LIVE"] },
-    },
-  });
-  if (activeLobby) {
-    throw new Error(
-      `There is already an active game in ${openLobbyChatLabel(params.channel)} chat.`,
-    );
-  }
+  await assertCanStartChatGameInContext(
+    openLobbyChatGameContext(params.eventId, params.channel),
+    params.kind,
+  );
 
   const lobbyDefaults = getChatGameDefaults(params.kind, {
     channel: params.channel,
@@ -1242,12 +1307,10 @@ export async function createDmSocialJsonSession(params: {
   });
   if (!peer) throw new Error("User not found.");
 
-  const activeLobby = await findActiveDmGameBetweenUsers(
-    params.eventId,
-    params.hostUserId,
-    params.peerUserId,
+  await assertCanStartChatGameInContext(
+    dmChatGameContext(params.eventId, params.hostUserId, params.peerUserId),
+    params.kind,
   );
-  if (activeLobby) throw new Error("You already have an active game with this person.");
 
   const dmDefaults = getChatGameDefaults(params.kind, { channel: "DM" });
 
@@ -1324,15 +1387,10 @@ export async function createTeamSocialJsonSession(params: {
   });
   if (!team) throw new Error("Team not found.");
 
-  const activeLobby = await prisma.chatGameSession.findFirst({
-    where: {
-      eventId: params.eventId,
-      channel: "TEAM",
-      teamId: params.teamId,
-      status: { in: ["LOBBY", "LIVE"] },
-    },
-  });
-  if (activeLobby) throw new Error("This team already has an active game.");
+  await assertCanStartChatGameInContext(
+    teamChatGameContext(params.eventId, params.teamId),
+    params.kind,
+  );
 
   const teamDefaults = getChatGameDefaults(params.kind, { channel: "TEAM", openLobby: true });
 
@@ -1402,12 +1460,10 @@ export async function createDmHangmanSession(params: {
   });
   if (!peer) throw new Error("User not found.");
 
-  const activeLobby = await findActiveDmGameBetweenUsers(
-    params.eventId,
-    params.hostUserId,
-    params.peerUserId,
+  await assertCanStartChatGameInContext(
+    dmChatGameContext(params.eventId, params.hostUserId, params.peerUserId),
+    "hangman",
   );
-  if (activeLobby) throw new Error("You already have an active game with this person.");
 
   const dmDefaults = getChatGameDefaults("hangman", { channel: "DM" });
 
@@ -1477,15 +1533,10 @@ export async function createTeamHangmanSession(params: {
   });
   if (!team) throw new Error("Team not found.");
 
-  const activeLobby = await prisma.chatGameSession.findFirst({
-    where: {
-      eventId: params.eventId,
-      channel: "TEAM",
-      teamId: params.teamId,
-      status: { in: ["LOBBY", "LIVE"] },
-    },
-  });
-  if (activeLobby) throw new Error("This team already has an active game.");
+  await assertCanStartChatGameInContext(
+    teamChatGameContext(params.eventId, params.teamId),
+    "hangman",
+  );
 
   const teamDefaults = getChatGameDefaults("hangman", { channel: "TEAM", openLobby: true });
 
@@ -1589,80 +1640,6 @@ export async function startSocialHangmanMatch(
   return broadcastHangmanState(io, match.id, params.eventSlug);
 }
 
-export async function createDmSpinnerSession(params: {
-  eventId: string;
-  eventSlug: string;
-  hostUserId: string;
-  peerUserId: string;
-}) {
-  if (!isChatGameAllowedForChannel("spinner", "DM")) {
-    throw new Error("Spinner is only available in team chat.");
-  }
-  await assertChatSocialGameAllowed(params.eventId, "DM");
-  if (params.hostUserId === params.peerUserId) {
-    throw new Error("Pick someone else to play with.");
-  }
-
-  const peer = await prisma.user.findFirst({
-    where: { id: params.peerUserId, eventId: params.eventId },
-    select: { id: true },
-  });
-  if (!peer) throw new Error("User not found.");
-
-  const activeLobby = await findActiveDmGameBetweenUsers(
-    params.eventId,
-    params.hostUserId,
-    params.peerUserId,
-  );
-  if (activeLobby) throw new Error("You already have an active game with this person.");
-
-  const dmDefaults = getChatGameDefaults("spinner", { channel: "DM" });
-
-  const session = await prisma.chatGameSession.create({
-    data: {
-      eventId: params.eventId,
-      kind: "spinner",
-      source: "social",
-      hostUserId: params.hostUserId,
-      channel: "DM",
-      dmPeerUserId: params.peerUserId,
-      joinPolicy: dmDefaults.joinPolicy,
-      maxPlayers: dmDefaults.maxPlayers,
-      status: "LOBBY",
-      participants: {
-        create: {
-          userId: params.hostUserId,
-          role: "player",
-          playerSlot: "X",
-        },
-      },
-    },
-    include: {
-      host: userWithAccount,
-      participants: { include: { user: userWithAccount } },
-      team: { select: { id: true, letter: true } },
-    },
-  });
-
-  const lobbyBody = serializeChatGameMessage(buildChatGameMessageBody(session));
-  const chatMessage = await createDirectChatMessage(
-    params.eventId,
-    params.hostUserId,
-    params.peerUserId,
-    lobbyBody,
-  );
-
-  await prisma.chatGameSession.update({
-    where: { id: session.id },
-    data: { messageId: chatMessage.id },
-  });
-
-  const io = tryGetIO();
-  if (io) await broadcastChatGameSession(io, params.eventSlug, session.id);
-
-  return buildChatGameSessionSnapshot(session.id);
-}
-
 export async function createTeamSpinnerSession(params: {
   eventId: string;
   eventSlug: string;
@@ -1683,15 +1660,10 @@ export async function createTeamSpinnerSession(params: {
   });
   if (!team) throw new Error("Team not found.");
 
-  const activeLobby = await prisma.chatGameSession.findFirst({
-    where: {
-      eventId: params.eventId,
-      channel: "TEAM",
-      teamId: params.teamId,
-      status: { in: ["LOBBY", "LIVE"] },
-    },
-  });
-  if (activeLobby) throw new Error("This team already has an active game.");
+  await assertCanStartChatGameInContext(
+    teamChatGameContext(params.eventId, params.teamId),
+    "spinner",
+  );
 
   const teamDefaults = getChatGameDefaults("spinner", { channel: "TEAM", openLobby: true });
 
@@ -2193,28 +2165,6 @@ export async function rematchSocialChatGame(params: {
     throw new Error("Not enough players for a rematch.");
   }
 
-  if (session.channel === "DM") {
-    const peerUserId = resolveDmPeerForRematch(session, params.userId);
-    const existing = await findActiveDmGameBetweenUsers(
-      params.eventId,
-      params.userId,
-      peerUserId,
-    );
-    if (existing && existing.id !== params.sessionId) {
-      const result = await buildChatGameSessionSnapshot(existing.id);
-      if (!result) throw new Error("Could not load rematch game.");
-      const io = tryGetIO();
-      if (io) {
-        await broadcastChatGameRematch(io, {
-          fromSessionId: params.sessionId,
-          playerUserIds: players.map((participant) => participant.userId),
-          session: result,
-        });
-      }
-      return result;
-    }
-  }
-
   let snapshot: ChatGameSessionSnapshot;
 
   if (session.channel === "DM") {
@@ -2227,7 +2177,7 @@ export async function rematchSocialChatGame(params: {
         peerUserId,
       }))!;
     } else if (session.kind === "spinner") {
-      throw new Error("Spinner is only available in team chat.");
+      throw new Error("Spinner is not available in direct messages.");
     } else if (isSocialJsonGameKind(session.kind)) {
       snapshot = (await createDmSocialJsonSession({
         eventId: params.eventId,

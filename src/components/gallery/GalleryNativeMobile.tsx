@@ -1,23 +1,18 @@
 "use client";
 
 import { GalleryUploadControls } from "@/components/gallery/GalleryUploadControls";
+import { MobileTabHeader } from "@/components/layout/MobileTabHeader";
 import { GALLERY_FILTER_OPTIONS, parseGalleryFilterValue } from "@/lib/gallery-filters";
 import { cn } from "@/lib/cn";
 import type { GalleryFilter } from "@/types/gallery";
 
 export function GalleryMobileHeader({ className }: { className?: string }) {
   return (
-    <header
-      className={cn(
-        "shrink-0 border-b border-border/60 bg-card px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]",
-        className,
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-bold tracking-tight text-foreground">Gallery</h1>
-        <GalleryUploadControls variant="fab" />
-      </div>
-    </header>
+    <MobileTabHeader
+      title="Gallery"
+      actions={<GalleryUploadControls variant="fab" />}
+      className={className}
+    />
   );
 }
 

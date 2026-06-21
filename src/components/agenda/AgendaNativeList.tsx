@@ -2,6 +2,7 @@
 
 import { Plus } from "@phosphor-icons/react";
 import { AgendaItemActions } from "@/components/agenda/AgendaItemActions";
+import { MobileTabHeader } from "@/components/layout/MobileTabHeader";
 import type { AgendaEventMeta, AgendaListItem, AgendaListProps } from "@/components/agenda/types";
 import { formatAgendaTime, formatAgendaTimeRange, formatEventDateDots } from "@/lib/agenda-format";
 import { cn } from "@/lib/cn";
@@ -14,18 +15,18 @@ export function AgendaMobileHeader({
   onAdd?: () => void;
 }) {
   return (
-    <header className="shrink-0 border-b border-border/60 bg-card px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-bold tracking-tight text-foreground">Agenda</h1>
-          {event && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {event.title}
-              {event.date ? ` · ${formatEventDateDots(event.date)}` : ""}
-            </p>
-          )}
-        </div>
-        {onAdd && (
+    <MobileTabHeader
+      title="Agenda"
+      subtitle={
+        event ? (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {event.title}
+            {event.date ? ` · ${formatEventDateDots(event.date)}` : ""}
+          </p>
+        ) : undefined
+      }
+      actions={
+        onAdd ? (
           <button
             type="button"
             onClick={onAdd}
@@ -34,9 +35,9 @@ export function AgendaMobileHeader({
           >
             <Plus size={22} weight="bold" aria-hidden />
           </button>
-        )}
-      </div>
-    </header>
+        ) : undefined
+      }
+    />
   );
 }
 

@@ -91,6 +91,7 @@ function findPendingSudokuCell(
   if (!server || !display || !userId) return null;
   const serverGame = server.state as SudokuState;
   const displayGame = display.state as SudokuState;
+  if (!serverGame?.puzzle) return null;
   const puzzle = normalizeSudokuGrid(serverGame.puzzle);
   const serverBoard = normalizeSudokuGrid(serverGame.boards[userId] ?? puzzle);
   const displayBoard = normalizeSudokuGrid(displayGame.boards[userId] ?? puzzle);
@@ -130,15 +131,32 @@ function findPendingChessSquares(
   return pending;
 }
 
+function chessPromotionForMove(
+  board: (string | null)[][],
+  from: string,
+  to: string,
+  myColor: "w" | "b",
+): "q" | undefined {
+  const fromCoords = parseSquare(from);
+  const piece = board[fromCoords.row]?.[fromCoords.col];
+  if (!piece || piece.toLowerCase() !== "p") return undefined;
+  const toRow = parseSquare(to).row;
+  if (myColor === "w" && toRow === 0) return "q";
+  if (myColor === "b" && toRow === 7) return "q";
+  return undefined;
+}
+
 function ChessLive({
   snapshot,
   serverSnapshot,
   sendMove,
+  movePending = false,
   chessSettings = DEFAULT_SOCIAL_CHESS_SETTINGS,
 }: {
   snapshot: SocialGameMatchSnapshot;
   serverSnapshot: SocialGameMatchSnapshot | null;
   sendMove: (action: string, payload?: Record<string, unknown>) => void;
+  movePending?: boolean;
   chessSettings?: SocialChessSettings;
 }) {
   const { user } = useAuth();
@@ -152,19 +170,21 @@ function ChessLive({
 
   const mySeat = snapshot.players.find((player) => player.userId === user?.id)?.seat ?? null;
   const myColor = mySeat === "0" || mySeat === "X" ? "w" : "b";
-  const isMyTurn = snapshot.currentTurnUserId === user?.id;
+  const turnUserId = serverSnapshot?.currentTurnUserId ?? snapshot.currentTurnUserId;
+  const isMyTurn = turnUserId === user?.id;
   const finished = snapshot.status === "FINISHED";
+  const interactionDisabled = finished || !isMyTurn || movePending;
   const showLegalMoves = chessSettings.showLegalMoves;
 
   const legalMoves = useMemo(() => {
-    if (!showLegalMoves || !selected || !isMyTurn || finished) return [];
+    if (!showLegalMoves || !selected || interactionDisabled) return [];
     try {
       const chess = new Chess(game.fen);
       return chess.moves({ square: selected as Square, verbose: true });
     } catch {
       return [];
     }
-  }, [showLegalMoves, selected, isMyTurn, finished, game.fen]);
+  }, [showLegalMoves, selected, interactionDisabled, game.fen]);
 
   const legalTargets = useMemo(
     () => new Set<string>(legalMoves.map((move) => move.to as string)),
@@ -172,7 +192,7 @@ function ChessLive({
   );
 
   const onSquareClick = (row: number, col: number) => {
-    if (finished || !isMyTurn) return;
+    if (interactionDisabled) return;
     const square = squareName(row, col);
     const piece = board[row]?.[col] ?? null;
 
@@ -192,7 +212,12 @@ function ChessLive({
       return;
     }
 
-    sendMove("move", { from: selected, to: square });
+    const promotion = chessPromotionForMove(board, selected, square, myColor);
+    sendMove("move", {
+      from: selected,
+      to: square,
+      ...(promotion ? { promotion } : {}),
+    });
     setSelected(null);
   };
 
@@ -204,8 +229,10 @@ function ChessLive({
             ? `${playerName(snapshot, snapshot.winnerUserId)} wins`
             : "Draw"
           : isMyTurn
-            ? "Your turn"
-            : `${playerName(snapshot, snapshot.currentTurnUserId)}'s turn`}
+            ? movePending
+              ? "Sending move…"
+              : "Your turn"
+            : `${playerName(snapshot, turnUserId)}'s turn`}
       </CardTitle>
       <div className="inline-block rounded-lg border border-border p-2">
         <div className="relative">
@@ -221,7 +248,7 @@ function ChessLive({
                   <button
                     key={square}
                     type="button"
-                    disabled={finished || !isMyTurn}
+                    disabled={interactionDisabled}
                     onClick={() => onSquareClick(rowIndex, colIndex)}
                     className={`relative flex h-10 w-10 items-center justify-center text-xl sm:h-12 sm:w-12 ${
                       dark ? "bg-muted" : "bg-card"
@@ -334,6 +361,7 @@ export function SocialGameMatchLive({
           snapshot={state}
           serverSnapshot={serverState}
           sendMove={sendMove}
+          movePending={movePending}
           chessSettings={chessSettings}
         />
       </div>

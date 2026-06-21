@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { Chess } from "chess.js";
 import type { Socket } from "socket.io-client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
 import type { SocialWhotSettings } from "@/lib/chat-game-whot-settings";
+import type { ChessState } from "@/lib/social-games/game-state-types";
 import {
   applyOptimisticSocialGameMove,
   type OptimisticSocialGameOptions,
@@ -17,6 +19,30 @@ import { toastError } from "@/lib/toast";
 interface SocialGameMove {
   action: string;
   payload: Record<string, unknown>;
+}
+
+function isChessMoveLegalOnServer(
+  serverState: SocialGameMatchSnapshot,
+  userId: string,
+  payload: Record<string, unknown>,
+): boolean {
+  if (serverState.status !== "ACTIVE" || serverState.currentTurnUserId !== userId) {
+    return false;
+  }
+  const from = String(payload.from ?? "");
+  const to = String(payload.to ?? "");
+  if (!from || !to) return false;
+
+  const fen = (serverState.state as ChessState).fen;
+  try {
+    const chess = new Chess(fen);
+    const promotion = payload.promotion ? String(payload.promotion) : undefined;
+    return Boolean(
+      chess.move({ from, to, promotion: promotion as "q" | undefined }),
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function useSocialGameState(
@@ -122,17 +148,26 @@ export function useSocialGameState(
   const sendMove = useCallback(
     (action: string, payload: Record<string, unknown> = {}) => {
       if (!socket || !serverState || !user?.id) return;
+      if (movePending) return;
 
       const skipOptimistic = serverState.kind === "ludo" && action === "roll";
 
       startMoveTransition(async () => {
-        if (!skipOptimistic) {
-          addOptimisticMove({ action, payload });
-        } else {
-          setMovePending(true);
-        }
-
+        setMovePending(true);
         try {
+          if (
+            serverState.kind === "chess" &&
+            action === "move" &&
+            !isChessMoveLegalOnServer(serverState, user.id, payload)
+          ) {
+            toastError("Illegal move.");
+            return;
+          }
+
+          if (!skipOptimistic) {
+            addOptimisticMove({ action, payload });
+          }
+
           await emitSocketAck(socket as Socket, "social-game:move", {
             matchId,
             action,
@@ -142,11 +177,11 @@ export function useSocialGameState(
           toastError(error instanceof Error ? error.message : "Invalid move");
           throw error;
         } finally {
-          if (skipOptimistic) setMovePending(false);
+          setMovePending(false);
         }
       });
     },
-    [socket, serverState, user?.id, addOptimisticMove, matchId],
+    [socket, serverState, user?.id, addOptimisticMove, matchId, movePending],
   );
 
   return {

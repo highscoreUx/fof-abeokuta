@@ -83,14 +83,20 @@ export function SudokuLive({
 }) {
   const { user } = useAuth();
   const game = snapshot.state as SudokuState;
-  const puzzle = useMemo(() => normalizeSudokuGrid(game.puzzle), [game.puzzle]);
+  const hasPuzzle = Boolean(game?.puzzle);
+  const boards = game?.boards ?? {};
+
+  const puzzle = useMemo(
+    () => normalizeSudokuGrid(hasPuzzle ? game.puzzle : undefined),
+    [game.puzzle, hasPuzzle],
+  );
   const myBoard = useMemo(() => {
-    const raw = user?.id ? (game.boards[user.id] ?? puzzle) : puzzle;
+    const raw = user?.id ? (boards[user.id] ?? puzzle) : puzzle;
     return normalizeSudokuGrid(raw);
-  }, [game.boards, puzzle, user?.id]);
+  }, [boards, puzzle, user?.id]);
   const myPencils = useMemo(
-    () => (user?.id ? sudokuPencilsForUser(game.pencils, user.id) : []),
-    [game.pencils, user?.id],
+    () => (user?.id ? sudokuPencilsForUser(game?.pencils, user.id) : []),
+    [game?.pencils, user?.id],
   );
   const [selected, setSelected] = useState<number | null>(null);
   const [pencilMode, setPencilMode] = useState(false);
@@ -99,8 +105,8 @@ export function SudokuLive({
   const inputControlsRef = useRef<HTMLDivElement>(null);
   const finished = snapshot.status === "FINISHED";
 
-  const startedAt = game.startedAt ?? snapshot.serverNow;
-  const myFinishAt = user?.id ? game.completedAt[user.id] : undefined;
+  const startedAt = game?.startedAt ?? snapshot.serverNow;
+  const myFinishAt = user?.id ? game?.completedAt?.[user.id] : undefined;
 
   const conflicts = useMemo(() => sudokuConflictIndices(myBoard), [myBoard]);
   const myProgress = useMemo(() => sudokuFillProgress(puzzle, myBoard), [puzzle, myBoard]);
@@ -109,14 +115,14 @@ export function SudokuLive({
     return snapshot.players
       .filter((player) => player.userId !== user?.id)
       .map((player) => {
-        const board = normalizeSudokuGrid(game.boards[player.userId] ?? puzzle);
+        const board = normalizeSudokuGrid(boards[player.userId] ?? puzzle);
         return {
           userId: player.userId,
           name: player.firstName,
           ...sudokuFillProgress(puzzle, board),
         };
       });
-  }, [snapshot.players, user?.id, game.boards, puzzle]);
+  }, [snapshot.players, user?.id, boards, puzzle]);
 
   const selectedValue =
     selected != null && myBoard[selected] !== "0" ? myBoard[selected]! : null;
@@ -227,6 +233,14 @@ export function SudokuLive({
 
   const progressPercent =
     myProgress.total > 0 ? Math.round((myProgress.filled / myProgress.total) * 100) : 0;
+
+  if (!hasPuzzle) {
+    return (
+      <Card className="p-6 text-center">
+        <p className="text-sm text-muted-foreground">Loading puzzle…</p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-4">

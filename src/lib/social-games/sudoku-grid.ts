@@ -1,6 +1,6 @@
 /** Sudoku grids are always 81 digits (0 = empty). */
-export function normalizeSudokuGrid(grid: string): string {
-  return grid
+export function normalizeSudokuGrid(grid: string | null | undefined): string {
+  return String(grid ?? "")
     .replace(/[^0-9]/g, "")
     .padEnd(81, "0")
     .slice(0, 81);

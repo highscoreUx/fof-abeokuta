@@ -45,6 +45,11 @@ import { DEFAULT_SOCIAL_LUDO_SETTINGS } from "@/lib/chat-game-ludo-settings";
 import { DEFAULT_SOCIAL_WHOT_SETTINGS } from "@/lib/chat-game-whot-settings";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 import { startSocialJsonGameMatch } from "@/server/games/socialGameEngine";
+import {
+  mergeChatGameCancellation,
+  parseChatGameCancellation,
+  type ChatGameCancellationMeta,
+} from "@/lib/chat-game-cancellation";
 
 import { CHAT_SOCIAL_CHALLENGE_TITLE } from "@/lib/chat-social-challenges";
 // Placeholder for the shared social challenge row; words come from the static word bank.
@@ -142,6 +147,8 @@ async function loadSession(sessionId: string) {
           currentTurn: true,
           playerXUserId: true,
           playerOUserId: true,
+          teamXId: true,
+          teamOId: true,
         },
       },
       hangmanMatch: {
@@ -321,6 +328,19 @@ async function resolveChatGameText(
     if (summary) return summary;
   }
 
+  if (status === "cancelled") {
+    const cancellation = parseChatGameCancellation(session.settings);
+    if (cancellation?.winnerUserId) {
+      const winner = session.participants
+        .filter((participant) => participant.role === "player")
+        .find((participant) => participant.userId === cancellation.winnerUserId);
+      if (winner) {
+        return `Game cancelled · ${winner.user.account.firstName} wins by forfeit`;
+      }
+    }
+    return "Game cancelled";
+  }
+
   if (status === "live" && gameKind === "tic_tac_toe" && session.scoreX + session.scoreO > 0) {
     const settings = parseSocialTttSettings(session.settings);
     if (settings.seriesMode === "race") {
@@ -482,6 +502,8 @@ export async function buildChatGameSessionSnapshot(
         })
       : null;
 
+  const cancellation = parseChatGameCancellation(session.settings);
+
   return {
     sessionId: session.id,
     eventId: session.eventId,
@@ -508,6 +530,7 @@ export async function buildChatGameSessionSnapshot(
     ...(socialChess ? { socialChess } : {}),
     ...(socialLudo ? { socialLudo } : {}),
     ...(socialWhot ? { socialWhot } : {}),
+    ...(cancellation ? { cancellation } : {}),
   };
 }
 
@@ -1818,6 +1841,114 @@ export async function startChatGameSessionByHost(params: {
   return buildChatGameSessionSnapshot(session.id);
 }
 
+async function applyLiveChatGameCancellationForfeit(
+  io: SocketIOServer,
+  session: NonNullable<Awaited<ReturnType<typeof loadSession>>>,
+  eventSlug: string,
+  cancellerUserId: string,
+): Promise<ChatGameCancellationMeta | null> {
+  if (session.status !== "LIVE") return null;
+
+  const players = session.participants.filter((participant) => participant.role === "player");
+  if (players.length !== 2) return null;
+
+  const opponent = players.find((participant) => participant.userId !== cancellerUserId);
+  if (!opponent) return null;
+
+  const winnerUserId = opponent.userId;
+
+  if (session.tttMatchId && session.tttMatch) {
+    const match = session.tttMatch;
+    const cancellerIsX = match.playerXUserId === cancellerUserId;
+    const winnerMark: "X" | "O" = cancellerIsX ? "O" : "X";
+    let scoreX = session.scoreX;
+    let scoreO = session.scoreO;
+    if (winnerMark === "X") scoreX += 1;
+    else scoreO += 1;
+
+    const { clearSocialTttTurnTimer } = await import("@/server/games/socialTttEngine");
+    clearSocialTttTurnTimer(session.id);
+
+    const matchWinnerUserId =
+      winnerMark === "X" ? match.playerXUserId : match.playerOUserId;
+
+    await prisma.ticTacToeMatch.update({
+      where: { id: session.tttMatchId },
+      data: {
+        state: "FINISHED",
+        winnerUserId: matchWinnerUserId,
+        winnerTeamId: winnerMark === "X" ? match.teamXId : match.teamOId,
+        isDraw: false,
+        finishedAt: new Date(),
+      },
+    });
+
+    await prisma.chatGameSession.update({
+      where: { id: session.id },
+      data: { scoreX, scoreO, turnDeadlineAt: null },
+    });
+
+    await broadcastTttState(io, session.tttMatchId, eventSlug);
+    return { cancelledByUserId: cancellerUserId, winnerUserId: matchWinnerUserId };
+  }
+
+  if (session.hangmanMatchId && session.hangmanMatch) {
+    const match = session.hangmanMatch;
+    const cancellerIsX = match.playerXUserId === cancellerUserId;
+    const winnerMark: "X" | "O" = cancellerIsX ? "O" : "X";
+    let scoreX = session.scoreX;
+    let scoreO = session.scoreO;
+    if (winnerMark === "X") scoreX += 1;
+    else scoreO += 1;
+
+    const { clearSocialHangmanTurnTimer } = await import("@/server/games/socialHangmanEngine");
+    clearSocialHangmanTurnTimer(session.id);
+
+    const matchWinnerUserId =
+      winnerMark === "X" ? match.playerXUserId : match.playerOUserId;
+
+    await prisma.hangmanMatch.update({
+      where: { id: session.hangmanMatchId },
+      data: {
+        state: "FINISHED",
+        winnerUserId: matchWinnerUserId,
+        finishedAt: new Date(),
+      },
+    });
+
+    await prisma.chatGameSession.update({
+      where: { id: session.id },
+      data: { scoreX, scoreO, turnDeadlineAt: null },
+    });
+
+    await broadcastHangmanState(io, session.hangmanMatchId, eventSlug);
+    return { cancelledByUserId: cancellerUserId, winnerUserId: matchWinnerUserId };
+  }
+
+  if (session.socialMatchId && session.socialMatch?.status === "ACTIVE") {
+    await prisma.socialGameMatch.update({
+      where: { id: session.socialMatchId },
+      data: {
+        status: "FINISHED",
+        winnerUserId,
+        currentTurnUserId: null,
+        finishedAt: new Date(),
+      },
+    });
+
+    await prisma.chatGameSession.update({
+      where: { id: session.id },
+      data: { turnDeadlineAt: null },
+    });
+
+    const { broadcastSocialGameState } = await import("@/server/games/socialGameEngine");
+    await broadcastSocialGameState(io, session.socialMatchId, eventSlug);
+    return { cancelledByUserId: cancellerUserId, winnerUserId };
+  }
+
+  return null;
+}
+
 export async function cancelChatGameSession(params: {
   sessionId: string;
   eventId: string;
@@ -1845,15 +1976,30 @@ export async function cancelChatGameSession(params: {
     throw new Error("You cannot cancel this game.");
   }
 
+  const io = tryGetIO();
+  let cancellation: ChatGameCancellationMeta | null = null;
+  if (session.status === "LIVE" && io) {
+    cancellation = await applyLiveChatGameCancellationForfeit(
+      io,
+      session,
+      params.eventSlug,
+      params.userId,
+    );
+  }
+
   await prisma.chatGameSession.update({
     where: { id: session.id },
-    data: { status: "CANCELLED" },
+    data: {
+      status: "CANCELLED",
+      ...(cancellation
+        ? { settings: mergeChatGameCancellation(session.settings, cancellation) }
+        : {}),
+    },
   });
 
   const refreshed = await loadSession(session.id);
   if (refreshed) await updateSessionMessage(params.eventSlug, refreshed);
 
-  const io = tryGetIO();
   if (io) await broadcastChatGameSession(io, params.eventSlug, session.id);
 
   return buildChatGameSessionSnapshot(session.id);

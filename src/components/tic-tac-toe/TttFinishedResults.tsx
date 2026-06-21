@@ -1,9 +1,9 @@
 "use client";
 
 import { Card, CardTitle } from "@/components/ui/card";
+import { ChatGameResultHero } from "@/components/chat/ChatGameResultHero";
 import { CompletionGraceBanner } from "@/components/activities/CompletionGraceBanner";
 import { TicTacToeBoard } from "@/components/tic-tac-toe/TicTacToeBoard";
-import { cn } from "@/lib/cn";
 import type { TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
 
 function resultText(snapshot: TicTacToeMatchSnapshot) {
@@ -38,23 +38,30 @@ export function TttFinishedResults({
   banner?: React.ReactNode;
   hideTitle?: boolean;
 }) {
+  const celebrate = !snapshot.isDraw && Boolean(snapshot.winnerUserId || snapshot.winnerTeamId);
+
   return (
-    <Card className="p-6">
-      {banner}
-      {!hideTitle && <CardTitle>{snapshot.challengeTitle}</CardTitle>}
-      <p className={cn("text-sm text-muted-foreground", !hideTitle && "mt-1")}>
-        {matchupLabel(snapshot)} · {resultText(snapshot)}
-      </p>
-      <div className="mt-6">
-        <TicTacToeBoard
-          board={snapshot.board}
-          currentTurn={snapshot.currentTurn}
-          teamXColor={snapshot.teamX.color}
-          teamOColor={snapshot.teamO.color}
-          disabled
-        />
-      </div>
-    </Card>
+    <div className="space-y-4">
+      <ChatGameResultHero
+        eyebrow="Match over"
+        title={resultText(snapshot)}
+        subtitle={matchupLabel(snapshot)}
+        celebrate={celebrate}
+      />
+      <Card className="p-6">
+        {banner}
+        {!hideTitle && <CardTitle>{snapshot.challengeTitle}</CardTitle>}
+        <div className="mt-6">
+          <TicTacToeBoard
+            board={snapshot.board}
+            currentTurn={snapshot.currentTurn}
+            teamXColor={snapshot.teamX.color}
+            teamOColor={snapshot.teamO.color}
+            disabled
+          />
+        </div>
+      </Card>
+    </div>
   );
 }
 

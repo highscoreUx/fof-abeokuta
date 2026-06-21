@@ -100,9 +100,15 @@ export function useSocialGameState(
     if (!socket || !sessionId) return;
 
     const onChatState = (snapshot: { sessionId: string; status: string }) => {
-      if (snapshot.sessionId !== sessionId || snapshot.status !== "live") return;
-      joinedMatchId.current = null;
-      requestState();
+      if (snapshot.sessionId !== sessionId) return;
+      if (
+        snapshot.status === "live" ||
+        snapshot.status === "cancelled" ||
+        snapshot.status === "ended"
+      ) {
+        joinedMatchId.current = null;
+        requestState();
+      }
     };
 
     socket.on("chat:game:state", onChatState);

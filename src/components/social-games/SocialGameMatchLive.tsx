@@ -17,6 +17,7 @@ import { useSocialGameState } from "@/hooks/useSocialGameState";
 import { WhotLive } from "@/components/social-games/WhotLive";
 import { LudoLive } from "@/components/social-games/LudoLive";
 import { SudokuLive } from "@/components/social-games/SudokuLive";
+import { ChatGameResultHero } from "@/components/chat/ChatGameResultHero";
 import { normalizeSudokuGrid } from "@/lib/social-games/sudoku-grid";
 import type { SudokuState } from "@/lib/social-games/game-state-types";
 
@@ -312,44 +313,69 @@ export function SocialGameMatchLive({
     );
   }
 
+  const finishedHero =
+    state.status === "FINISHED" ? (
+      <ChatGameResultHero
+        eyebrow="Match over"
+        title={
+          state.winnerUserId
+            ? `${playerName(state, state.winnerUserId)} wins!`
+            : "Draw"
+        }
+        celebrate={Boolean(state.winnerUserId)}
+      />
+    ) : null;
+
   if (kind === "chess") {
     return (
-      <ChessLive
-        snapshot={state}
-        serverSnapshot={serverState}
-        sendMove={sendMove}
-        chessSettings={chessSettings}
-      />
+      <div className="space-y-4">
+        {finishedHero}
+        <ChessLive
+          snapshot={state}
+          serverSnapshot={serverState}
+          sendMove={sendMove}
+          chessSettings={chessSettings}
+        />
+      </div>
     );
   }
   if (kind === "sudoku") {
     return (
-      <SudokuLive
-        snapshot={state}
-        sendMove={sendMove}
-        pendingCellIndex={pendingSudokuCell}
-      />
+      <div className="space-y-4">
+        {finishedHero}
+        <SudokuLive
+          snapshot={state}
+          sendMove={sendMove}
+          pendingCellIndex={pendingSudokuCell}
+        />
+      </div>
     );
   }
   if (kind === "whot") {
     return (
-      <WhotLive
-        snapshot={state}
-        sendMove={sendMove}
-        whotSettings={whotSettings ?? DEFAULT_SOCIAL_WHOT_SETTINGS}
-        turnDeadlineAt={turnDeadlineAt}
-      />
+      <div className="space-y-4">
+        {finishedHero}
+        <WhotLive
+          snapshot={state}
+          sendMove={sendMove}
+          whotSettings={whotSettings ?? DEFAULT_SOCIAL_WHOT_SETTINGS}
+          turnDeadlineAt={turnDeadlineAt}
+        />
+      </div>
     );
   }
   if (kind === "ludo") {
     return (
-      <LudoLive
-        snapshot={state}
-        sendMove={sendMove}
-        ludoSettings={ludoSettings ?? DEFAULT_SOCIAL_LUDO_SETTINGS}
-        turnDeadlineAt={turnDeadlineAt}
-        movePending={movePending}
-      />
+      <div className="space-y-4">
+        {finishedHero}
+        <LudoLive
+          snapshot={state}
+          sendMove={sendMove}
+          ludoSettings={ludoSettings ?? DEFAULT_SOCIAL_LUDO_SETTINGS}
+          turnDeadlineAt={turnDeadlineAt}
+          movePending={movePending}
+        />
+      </div>
     );
   }
 

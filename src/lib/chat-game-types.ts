@@ -9,6 +9,9 @@ import {
   type ChatGameKind,
   type ChatGameChannel,
 } from "@/lib/activities/manifest";
+import type { ChatGameCancellationMeta } from "@/lib/chat-game-cancellation";
+
+export type { ChatGameCancellationMeta };
 
 export type { ChatGameKind, ChatGameChannel };
 
@@ -76,6 +79,8 @@ export interface ChatGameSessionSnapshot {
   socialLudo?: SocialLudoSessionState;
   /** Present for social Whot sessions. */
   socialWhot?: SocialWhotSessionState;
+  /** Set when a live game was cancelled (forfeit winner, if any). */
+  cancellation?: ChatGameCancellationMeta;
 }
 
 export interface ChatGameRematchPayload {

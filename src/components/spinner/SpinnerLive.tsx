@@ -8,6 +8,8 @@ import { useEventNav } from "@/hooks/useEventNav";
 import { userCanAccessActivityInstance } from "@/lib/activities/catalog";
 import { SpinnerWheel } from "@/components/spinner/SpinnerWheel";
 import { SpinnerGraceResults } from "@/components/spinner/SpinnerFinishedResults";
+import { ChatGameResultHero } from "@/components/chat/ChatGameResultHero";
+import { CelebrationConfetti } from "@/components/ui/CelebrationConfetti";
 import { useOptionalParticipantActivitiesRegistry } from "@/components/activities/participant-activities-registry";
 import { useActivityCompletionGrace } from "@/hooks/useActivityCompletionGrace";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ export function SpinnerLive({
   const { homeActivities } = useEventNav();
   const [state, setState] = useState<SpinnerStateSnapshot | null>(null);
   const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [showSpinCelebration, setShowSpinCelebration] = useState(false);
   const lastSpinId = useRef<string | null>(null);
   const registeredSessionId = useRef<string | null>(null);
 
@@ -176,15 +179,26 @@ export function SpinnerLive({
           options={state.options}
           targetIndex={state.lastSpin?.selectedIndex ?? null}
           spinning={wheelSpinning}
-          onSpinComplete={() => setWheelSpinning(false)}
+          onSpinComplete={() => {
+            setWheelSpinning(false);
+            if (state.lastSpin) {
+              setShowSpinCelebration(true);
+              window.setTimeout(() => setShowSpinCelebration(false), 2500);
+            }
+          }}
         />
       </div>
 
       {state.lastSpin && (
-        <div className="mt-4 rounded-xl bg-primary/10 px-4 py-3 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Latest result</p>
-          <p className="mt-1 text-lg font-bold">{state.lastSpin.selectedOption}</p>
-          <p className="text-xs text-muted-foreground">by {state.lastSpin.username}</p>
+        <div className="mt-4">
+          {showSpinCelebration && <CelebrationConfetti />}
+          <ChatGameResultHero
+            eyebrow="Result"
+            title={state.lastSpin.selectedOption}
+            subtitle={`Picked by ${state.lastSpin.username}`}
+            celebrate={showSpinCelebration}
+            className="p-5"
+          />
         </div>
       )}
 

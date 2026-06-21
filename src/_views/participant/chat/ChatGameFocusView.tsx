@@ -9,6 +9,7 @@ import { HangmanMatchLive } from "@/components/hangman/HangmanMatchLive";
 import { SpinnerLive } from "@/components/spinner/SpinnerLive";
 import { SocialGameMatchLive } from "@/components/social-games/SocialGameMatchLive";
 import { ChatGameInvitePanel } from "@/components/chat/ChatGameInvitePanel";
+import { ChatGameCancelledResults } from "@/components/chat/ChatGameCancelledResults";
 import { ChatGameTttHostSettings } from "@/components/chat/ChatGameTttHostSettings";
 import { ChatGameHangmanHostSettings } from "@/components/chat/ChatGameHangmanHostSettings";
 import { ChatGameChessHostSettings } from "@/components/chat/ChatGameChessHostSettings";
@@ -245,7 +246,19 @@ export function ChatGameFocusView() {
               </div>
             )}
 
-            {session.matchId && session.challengeId ? (
+            {session.status === "cancelled" ? (
+              session.cancellation ? (
+                <ChatGameCancelledResults
+                  session={session}
+                  cancellation={session.cancellation}
+                />
+              ) : (
+                <div className="rounded-xl border border-border bg-card p-6 text-center">
+                  <p className="font-medium">Game cancelled</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{session.text}</p>
+                </div>
+              )
+            ) : session.matchId && session.challengeId ? (
               session.kind === "hangman" ? (
                 <HangmanMatchLive
                   challengeId={session.challengeId}

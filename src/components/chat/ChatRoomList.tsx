@@ -206,14 +206,14 @@ export function ChatRoomList({
 
   return (
     <div className={cn("flex min-h-0 flex-col flex-1 bg-card lg:flex-none", className)}>
-      <div className="shrink-0 px-4 pb-1 pt-2.5 lg:border-b lg:border-border lg:px-4 lg:py-3">
-        <h2 className="text-lg font-bold tracking-tight text-foreground lg:text-base lg:font-semibold">
-          Chats
-        </h2>
-      </div>
+      <header className="shrink-0 border-b border-border/60 bg-card px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:border-b lg:border-border lg:px-4 lg:py-3 lg:pt-3">
+        <h1 className="text-lg font-bold tracking-tight text-foreground lg:text-base lg:font-semibold">
+          Chat
+        </h1>
+      </header>
 
-      <div className="shrink-0 lg:px-3 lg:pt-3">
-        <div className="flex gap-2 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-wrap lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+      <div className="shrink-0 border-b border-border/40 bg-card px-4 py-2.5 lg:border-0 lg:px-3 lg:pb-0 lg:pt-3">
+        <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-wrap lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
           {FILTERS.map((chip) => {
             const chipActive = filter === chip.value;
             return (
@@ -225,7 +225,7 @@ export function ChatRoomList({
                   "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition lg:px-2.5 lg:py-1 lg:text-xs",
                   chipActive
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted text-muted-foreground hover:text-foreground",
+                    : "bg-muted text-muted-foreground lg:hover:text-foreground",
                 )}
               >
                 {chip.label}

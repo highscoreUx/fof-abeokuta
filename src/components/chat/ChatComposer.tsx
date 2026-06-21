@@ -668,7 +668,7 @@ export function ChatComposer({
           }}
           placeholder={placeholder}
           className={cn(
-            "min-h-10 max-h-32 min-w-0 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50",
+            "min-h-10 max-h-32 min-w-0 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm",
           )}
         />
         <Button

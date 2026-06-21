@@ -80,7 +80,7 @@ export function ParticipantView() {
       ...(canViewChat ? (["chat"] as const) : []),
       ...(canViewGallery ? (["gallery"] as const) : []),
     ];
-    return options.map((value) => {
+    const navTabs = options.map((value) => {
       const Icon = MOBILE_BOTTOM_TAB_ICONS[value];
       const label = value.charAt(0).toUpperCase() + value.slice(1);
       return {
@@ -90,6 +90,16 @@ export function ParticipantView() {
         icon: <Icon active={tab === value} />,
       };
     });
+    const LogoutIcon = MOBILE_BOTTOM_TAB_ICONS.logout;
+    return [
+      ...navTabs,
+      {
+        value: "logout",
+        label: "Log out",
+        action: "logout" as const,
+        icon: <LogoutIcon active={false} />,
+      },
+    ];
   }, [canViewChat, canViewGallery, home, tab]);
 
   const setTabWithUrl = useCallback(

@@ -61,7 +61,7 @@ export function AppShell({
 
   const navHrefs = [
     ...nav.map((item) => item.href),
-    ...(mobileBottomTabs?.map((tab) => tab.href) ?? []),
+    ...(mobileBottomTabs?.map((tab) => tab.href).filter(Boolean) as string[] ?? []),
   ];
 
   const navLink = (item: NavItem) => {

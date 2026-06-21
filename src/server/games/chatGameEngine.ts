@@ -2034,21 +2034,47 @@ export async function inviteSpectatorsToChatGame(params: {
     throw new Error("Only players can invite spectators.");
   }
 
+  const previousIds = parseInvitedSpectatorIds(session.invitedSpectatorIds);
+  const participantIds = new Set(session.participants.map((participant) => participant.userId));
+
   const validUsers = await prisma.user.findMany({
-    where: { eventId: params.eventId, id: { in: params.inviteeUserIds } },
+    where: {
+      eventId: params.eventId,
+      id: { in: params.inviteeUserIds.filter((id) => id !== params.userId) },
+    },
     select: { id: true },
   });
   const merged = [
-    ...new Set([
-      ...parseInvitedSpectatorIds(session.invitedSpectatorIds),
-      ...validUsers.map((user) => user.id),
-    ]),
+    ...new Set([...previousIds, ...validUsers.map((user) => user.id)]),
   ];
+  const newlyInvitedIds = validUsers
+    .map((user) => user.id)
+    .filter((id) => !previousIds.includes(id) && !participantIds.has(id));
 
   await prisma.chatGameSession.update({
     where: { id: session.id },
     data: { invitedSpectatorIds: merged },
   });
+
+  if (newlyInvitedIds.length > 0) {
+    const refreshed = await loadSession(session.id);
+    if (refreshed) {
+      const inviter = refreshed.participants.find(
+        (participant) => participant.userId === params.userId,
+      );
+      const inviterFirstName = inviter?.user.account.firstName ?? "Someone";
+      const gameBody = buildChatGameMessageBody(refreshed);
+
+      for (const inviteeId of newlyInvitedIds) {
+        const inviteBody: ChatGameMessageBody = {
+          ...gameBody,
+          spectatorInvite: true,
+          text: `${inviterFirstName} invited you to watch ${gameBody.title}.`,
+        };
+        await createDirectChatMessage(params.eventId, params.userId, inviteeId, inviteBody);
+      }
+    }
+  }
 
   const io = tryGetIO();
   if (io) await broadcastChatGameSession(io, params.eventSlug, session.id);

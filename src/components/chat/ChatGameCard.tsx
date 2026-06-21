@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useOptimistic, useState, useTransition } from "react";
+import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,7 +25,10 @@ interface ChatGameCardProps {
   chatGame: ChatGameMessageBody;
 }
 
-function snapshotToMessageBody(snapshot: ChatGameSessionSnapshot): ChatGameMessageBody {
+function snapshotToMessageBody(
+  snapshot: ChatGameSessionSnapshot,
+  options?: Pick<ChatGameMessageBody, "spectatorInvite">,
+): ChatGameMessageBody {
   return {
     type: "chat_game",
     sessionId: snapshot.sessionId,
@@ -40,6 +43,7 @@ function snapshotToMessageBody(snapshot: ChatGameSessionSnapshot): ChatGameMessa
     spectatorCount: snapshot.spectatorCount,
     matchId: snapshot.matchId ?? undefined,
     text: snapshot.text,
+    ...(options?.spectatorInvite ? { spectatorInvite: true } : {}),
   };
 }
 
@@ -50,6 +54,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const socket = useSocket();
   const { home } = useEventNav();
   const [serverLocal, setServerLocal] = useState(chatGame);
+  const spectatorInviteRef = useRef(Boolean(chatGame.spectatorInvite));
   const [displayLocal, addOptimisticAction] = useOptimistic(
     serverLocal,
     (current, action: ChatGameOptimisticAction) => {
@@ -64,7 +69,11 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const isPendingCard = sessionId.startsWith("pending-game-");
 
   const applySession = useCallback((session: ChatGameSessionSnapshot) => {
-    setServerLocal(snapshotToMessageBody(session));
+    setServerLocal(
+      snapshotToMessageBody(session, {
+        spectatorInvite: spectatorInviteRef.current || undefined,
+      }),
+    );
   }, []);
 
   const refreshSession = useCallback(async () => {
@@ -79,6 +88,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   }, [api, sessionId, applySession, isPendingCard]);
 
   useEffect(() => {
+    if (chatGame.spectatorInvite) spectatorInviteRef.current = true;
     setServerLocal(chatGame);
     if (!isPendingCard && (chatGame.status === "lobby" || chatGame.status === "live")) {
       void refreshSession();
@@ -118,11 +128,17 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
   const isHost = user?.id === local.hostUserId;
   const isPlayer = local.players.some((player) => player.userId === user?.id);
   const isFull = local.players.length >= local.maxPlayers;
+  const isSpectatorInvite = Boolean(local.spectatorInvite);
   const isReadyToPlay =
     local.status === "lobby" &&
     ((isFull && (isPlayer || isHost)) ||
       (isHost && local.gameKind === "spinner" && local.players.length >= 2));
-  const canJoin = local.status === "lobby" && !isPlayer && !isFull && !isPendingCard;
+  const canJoin =
+    local.status === "lobby" &&
+    !isPlayer &&
+    !isFull &&
+    !isPendingCard &&
+    !isSpectatorInvite;
   const canHostStart =
     isHost &&
     local.status === "lobby" &&
@@ -132,6 +148,13 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
     (isHost || isPlayer) && (local.status === "lobby" || local.status === "live");
   const canSpectate =
     !isPlayer && (local.status === "live" || (local.status === "lobby" && isFull));
+  const canWatchInvite =
+    isSpectatorInvite &&
+    !isPlayer &&
+    !isPendingCard &&
+    (local.status === "lobby" || local.status === "live");
+  const canSeeInviteResults =
+    isSpectatorInvite && !isPlayer && !isPendingCard && local.status === "ended";
   const focusHref = `${home}/game/${local.sessionId}`;
 
   const postAction = useCallback(
@@ -270,7 +293,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
               </Button>
             </Link>
           )}
-        {canSpectate && (
+        {(canSpectate || canWatchInvite) && (
           <Button
             size="sm"
             variant="secondary"
@@ -282,6 +305,13 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
           >
             Watch
           </Button>
+        )}
+        {canSeeInviteResults && local.matchId && (
+          <Link href={focusHref}>
+            <Button size="sm" variant="secondary">
+              See results
+            </Button>
+          </Link>
         )}
         {canCancel && (
           <Button
@@ -297,7 +327,7 @@ export function ChatGameCard({ chatGame }: ChatGameCardProps) {
             {rematchPending ? "Starting rematch…" : "Rematch"}
           </Button>
         )}
-        {local.status === "ended" && local.matchId && (
+        {local.status === "ended" && local.matchId && !canSeeInviteResults && (
           <Link href={focusHref}>
             <Button size="sm" variant="secondary">
               View result

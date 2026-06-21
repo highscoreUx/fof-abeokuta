@@ -51,7 +51,7 @@ export function ChatGameInvitePanel({ sessionId, disabled = false }: ChatGameInv
           body: JSON.stringify({ action: "invite", inviteeUserIds: [userId] }),
         });
         setInvitedIds((prev) => new Set(prev).add(userId));
-        toastSuccess("Spectator invited — they can watch from the game link.");
+        toastSuccess("Invitation sent — they'll see it in your chat.");
       } catch (error) {
         toastError(error instanceof Error ? error.message : "Could not invite spectator");
         throw error;

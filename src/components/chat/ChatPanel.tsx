@@ -21,6 +21,7 @@ import { parseChatContent, serializeChatContent } from "@/lib/chat-content";
 import { findMessagesMentioningUser } from "@/lib/chat-mentions";
 import { createOptimisticChatMessage } from "@/lib/chat-optimistic";
 import { buildReplyRef } from "@/lib/chat-reply";
+import { resolveOwnMessageDeliveryStatus } from "@/lib/chat-delivery";
 import {
   EMPTY_CHAT_MESSAGES,
   EMPTY_CHAT_PARTICIPANTS,

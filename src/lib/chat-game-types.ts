@@ -52,6 +52,8 @@ export interface ChatGameMessageBody {
   spectatorCount: number;
   matchId?: string;
   text: string;
+  /** Set on spectator invite DMs so the card can offer Watch before the lobby is full. */
+  spectatorInvite?: boolean;
 }
 
 export interface ChatGameSessionSnapshot {

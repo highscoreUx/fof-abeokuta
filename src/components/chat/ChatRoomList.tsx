@@ -207,13 +207,14 @@ export function ChatRoomList({
 
   return (
     <div className={cn("flex min-h-0 flex-col flex-1 bg-card lg:flex-none", className)}>
-      <MobileTabHeader
-        title="Chat"
-        className="lg:border-b lg:border-border lg:px-4 lg:py-3 lg:pt-3"
-      />
+      <MobileTabHeader title="Chat" className="lg:hidden" />
+
+      <div className="hidden shrink-0 border-b border-border px-4 py-3 lg:block">
+        <h3 className="font-semibold text-foreground">Chat</h3>
+      </div>
 
       <div className="shrink-0 border-b border-border/40 bg-card px-4 py-2.5 lg:border-0 lg:px-3 lg:pb-0 lg:pt-3">
-        <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-wrap lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-wrap lg:gap-1.5 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
           {FILTERS.map((chip) => {
             const chipActive = filter === chip.value;
             return (

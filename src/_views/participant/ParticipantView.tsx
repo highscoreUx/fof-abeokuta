@@ -138,15 +138,20 @@ export function ParticipantView() {
         hideMobileTitle
         hideMobileHeader={tab === "chat" || tab === "agenda" || tab === "gallery"}
         hideMobileBottomTabs={inChatThread}
-        mobileEdgeToEdge={tab === "chat" || tab === "agenda" || tab === "gallery"}
+        mobileEdgeToEdge={
+          tab === "chat" || tab === "agenda" || tab === "gallery"
+        }
       >
         <div
           className={cn(
-            tab === "chat" || tab === "agenda" || tab === "gallery"
-              ? "flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden lg:h-auto lg:max-h-none"
-              : "w-full space-y-4 px-1 lg:space-y-6 lg:px-0",
-            tab === "chat" && "lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]",
-            inChatThread && "h-[100dvh] max-h-[100dvh] lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]",
+            (tab === "chat" || tab === "agenda" || tab === "gallery") &&
+              "flex h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom,0px))] flex-col overflow-hidden",
+            tab === "chat" &&
+              "lg:flex lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)] lg:flex-col lg:items-start lg:gap-4 lg:overflow-hidden",
+            (tab === "agenda" || tab === "gallery") &&
+              "lg:block lg:h-auto lg:max-h-none lg:w-full lg:space-y-6 lg:overflow-visible",
+            inChatThread &&
+              "h-[100dvh] max-h-[100dvh] lg:h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-9rem)]",
           )}
         >
           {/* Desktop tab switcher + shared actions */}
@@ -175,7 +180,7 @@ export function ParticipantView() {
           </div>
 
           {tab === "gallery" && canViewGallery && (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:block lg:flex-none">
               <GalleryPanel
                 filter={galleryFilter}
                 team={galleryTeam}

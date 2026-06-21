@@ -22,7 +22,7 @@ export function MobileTabHeader({
   return (
     <header
       className={cn(
-        "shrink-0 border-b border-border/60 bg-card px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]",
+        "shrink-0 border-b border-border/60 bg-card px-4 pb-3 max-lg:pt-[max(0.75rem,env(safe-area-inset-top))]",
         className,
       )}
     >

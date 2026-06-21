@@ -182,6 +182,8 @@ async function startNextSocialTttRound(
           currentTurn: true,
           playerXUserId: true,
           playerOUserId: true,
+          teamXId: true,
+          teamOId: true,
         },
       },
       hangmanMatch: {

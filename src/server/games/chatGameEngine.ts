@@ -2003,7 +2003,7 @@ export async function cancelChatGameSession(params: {
     data: {
       status: "CANCELLED",
       ...(cancellation
-        ? { settings: mergeChatGameCancellation(session.settings, cancellation) }
+        ? { settings: mergeChatGameCancellation(session.settings, cancellation) as object }
         : {}),
     },
   });

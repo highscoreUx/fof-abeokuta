@@ -5,7 +5,6 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import type { ChatMessage } from "@/types/chat";
 import { ChatParticipants } from "@/components/chat/ChatParticipants";
 import { ChatRoomList } from "@/components/chat/ChatRoomList";
-import { ChatRoomListSkeleton } from "@/components/chat/ChatRoomListSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatGameNotifications } from "@/hooks/useChatGameNotifications";
 import { useChatMentionSeenHydration } from "@/hooks/useChatMentionSeenHydration";
@@ -19,7 +18,7 @@ interface ParticipantChatProps {
   className?: string;
 }
 
-const panelClass =
+const desktopPanelClass =
   "flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)]";
 
 export function ParticipantChat({ className }: ParticipantChatProps) {
@@ -74,20 +73,23 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
   };
 
   const activeRoom = rooms.find((room) => room.id === activeRoomId);
+  const inMobileThread = mobilePane === "chat";
 
   return (
     <div
       dir="ltr"
       className={cn(
-        "grid h-full min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden md:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)] md:gap-4",
+        "grid h-full min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden",
+        "lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)] lg:gap-4",
         className,
       )}
     >
       <div
         className={cn(
-          panelClass,
           "col-start-1 row-start-1 flex h-full min-h-0 flex-col",
-          mobilePane === "chat" ? "hidden md:flex" : "flex",
+          desktopPanelClass,
+          "max-lg:rounded-none max-lg:border-0 max-lg:bg-card max-lg:shadow-none",
+          inMobileThread ? "max-lg:hidden" : "flex",
         )}
       >
         <ChatRoomList
@@ -95,23 +97,25 @@ export function ParticipantChat({ className }: ParticipantChatProps) {
           activeRoomId={activeRoomId}
           loading={roomsLoading}
           onSelect={handleSelectRoom}
-          className="min-h-0 flex-1 md:flex-none"
+          className="min-h-0 flex-1 lg:flex-none"
         />
         {activeRoom && !roomsLoading && (
           <ChatParticipants
             key={activeRoom.id}
             room={activeRoom}
             isActive
-            className="hidden min-h-0 flex-1 md:flex"
+            className="hidden min-h-0 flex-1 lg:flex"
           />
         )}
       </div>
 
       <div
         className={cn(
-          panelClass,
-          "col-start-1 row-start-1 flex h-full min-h-0 min-w-0 flex-col md:col-start-2",
-          mobilePane === "list" ? "hidden md:flex" : "flex",
+          "col-start-1 row-start-1 flex h-full min-h-0 min-w-0 flex-col",
+          desktopPanelClass,
+          "max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:rounded-none max-lg:border-0 max-lg:shadow-none",
+          "lg:col-start-2",
+          inMobileThread ? "max-lg:flex" : "max-lg:hidden lg:flex",
         )}
       >
         {roomsLoading ? (

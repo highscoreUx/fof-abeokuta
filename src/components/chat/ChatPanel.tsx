@@ -14,6 +14,7 @@ import { isSystemChatMessage } from "@/lib/chat-system";
 import { parseDmRoomId } from "@/lib/chat-dm";
 import { STAFF_ROOM_ID } from "@/lib/chat-staff";
 import { isSameMessageGroup } from "@/lib/chat-display";
+import { roomAvatarColor, roomAvatarLabel } from "@/lib/chat-room-avatar";
 import { cn } from "@/lib/cn";
 import type { ChatContent } from "@/lib/chat-content";
 import { parseChatContent, serializeChatContent } from "@/lib/chat-content";
@@ -341,40 +342,63 @@ export function ChatPanel({
       )}
       aria-hidden={!isActive}
     >
-      <div className="shrink-0 border-b border-border px-3 py-2.5 sm:px-6 sm:py-3">
+      <div
+        className={cn(
+          "shrink-0 border-b border-border px-3 py-2.5 sm:px-6 sm:py-3",
+          "max-lg:border-primary/20 max-lg:bg-primary max-lg:px-2 max-lg:py-2.5 max-lg:text-primary-foreground",
+        )}
+      >
         <div className="flex items-center gap-2">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              className={cn(
+                "flex shrink-0 items-center justify-center rounded-full p-2 transition",
+                "text-muted-foreground hover:bg-muted hover:text-foreground",
+                "max-lg:text-primary-foreground max-lg:hover:bg-primary-foreground/10 max-lg:hover:text-primary-foreground",
+                "lg:hidden",
+              )}
               aria-label="Back to chats"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
           )}
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white lg:hidden"
+            style={{ backgroundColor: roomAvatarColor(room) }}
+            aria-hidden
+          >
+            {roomAvatarLabel(room)}
+          </span>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-semibold text-foreground">{room.label}</h3>
+            <h3 className="truncate text-sm font-semibold text-foreground max-lg:text-primary-foreground lg:text-base">
+              {room.label}
+            </h3>
             {room.category === "team" && room.name && (
-              <p className="truncate text-sm text-muted-foreground">{room.name}</p>
+              <p className="truncate text-sm text-muted-foreground max-lg:hidden">{room.name}</p>
             )}
             {isGeneral && (
-              <p className="truncate text-sm text-muted-foreground">Event-wide conversation</p>
+              <p className="truncate text-sm text-muted-foreground max-lg:hidden">Event-wide conversation</p>
             )}
             {isStaff && (
-              <p className="truncate text-sm text-muted-foreground">Staff-only group chat</p>
+              <p className="truncate text-sm text-muted-foreground max-lg:hidden">Staff-only group chat</p>
             )}
             {isPrivate && (
-              <p className="truncate text-sm text-muted-foreground">Direct message</p>
+              <p className="truncate text-xs text-primary-foreground/75 lg:hidden">Direct message</p>
             )}
           </div>
           {!isPrivate && unseenMentionIds.length > 0 && (
             <button
               type="button"
               onClick={goToNextMention}
-              className="flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/15"
+              className={cn(
+                "flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition",
+                "bg-primary/10 text-primary hover:bg-primary/15",
+                "max-lg:bg-primary-foreground/15 max-lg:text-primary-foreground max-lg:hover:bg-primary-foreground/25",
+              )}
               aria-label={`Jump to next mention (${unseenMentionIds.length} remaining)`}
               title="Jump to next mention"
             >
@@ -387,7 +411,10 @@ export function ChatPanel({
 
       <div
         ref={scrollContainerRef}
-        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-chat-background px-3 py-2 sm:px-4 sm:py-3"
+        className={cn(
+          "min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-chat-background px-3 py-2 sm:px-4 sm:py-3",
+          "max-lg:px-2 max-lg:pb-[env(safe-area-inset-bottom,0px)]",
+        )}
       >
         {!messagesLoaded && messages.length === 0 ? (
           <p className="px-2 text-sm text-muted-foreground">Loading messages...</p>
@@ -430,7 +457,13 @@ export function ChatPanel({
         <div ref={bottomRef} />
       </div>
 
-      <div className="shrink-0 border-t border-border px-3 py-2.5 sm:px-6 sm:py-4">
+      <div
+        className={cn(
+          "shrink-0 border-t border-border px-3 py-2.5 sm:px-6 sm:py-4",
+          "max-lg:border-border/60 max-lg:bg-card max-lg:px-2 max-lg:py-2",
+          "max-lg:pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+        )}
+      >
         {typers.length > 0 && <TypingIndicator typers={typers} className="mb-2" />}
         <ChatComposer
           draft={draft}

@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { BrandMark } from "@/components/layout/BrandMark";
+import { MobileBottomTabBar, type MobileBottomTab } from "@/components/layout/MobileBottomTabBar";
 import { SponsorBars } from "@/components/layout/SponsorBars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { navTransitionTypes } from "@/lib/nav-transition";
 
-interface NavItem {
+export interface NavItem {
   href: string;
   label: string;
 }
@@ -24,6 +24,15 @@ interface AppShellProps {
   contentClassName?: string;
   /** Hide the large mobile page title when the view renders its own heading. */
   hideMobileTitle?: boolean;
+  /** Native-style bottom tabs on mobile (lg:hidden). Hides the mobile drawer nav. */
+  mobileBottomTabs?: MobileBottomTab[];
+  activeBottomTab?: string;
+  /** Hide the sticky app header on mobile (e.g. immersive chat thread). */
+  hideMobileHeader?: boolean;
+  /** Hide bottom tabs on mobile while keeping them configured (e.g. inside a chat). */
+  hideMobileBottomTabs?: boolean;
+  /** Remove main padding on mobile for edge-to-edge screens. */
+  mobileEdgeToEdge?: boolean;
 }
 
 function resolveActiveHref(pathname: string, nav: NavItem[]) {
@@ -32,21 +41,35 @@ function resolveActiveHref(pathname: string, nav: NavItem[]) {
     .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.href;
 }
 
-export function AppShell({ children, title, nav, showSponsors = false, contentClassName, hideMobileTitle = false }: AppShellProps) {
+export function AppShell({
+  children,
+  title,
+  nav,
+  showSponsors = false,
+  contentClassName,
+  hideMobileTitle = false,
+  mobileBottomTabs,
+  activeBottomTab,
+  hideMobileHeader = false,
+  hideMobileBottomTabs = false,
+  mobileEdgeToEdge = false,
+}: AppShellProps) {
   const pathname = usePathname();
   const activeHref = resolveActiveHref(pathname, nav);
   const { user, logout } = useAuth();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const hasMobileBottomTabs = Boolean(mobileBottomTabs?.length) && !hideMobileBottomTabs;
 
-  const navHrefs = nav.map((item) => item.href);
+  const navHrefs = [
+    ...nav.map((item) => item.href),
+    ...(mobileBottomTabs?.map((tab) => tab.href) ?? []),
+  ];
 
-  const navLink = (item: NavItem, onNavigate?: () => void) => {
+  const navLink = (item: NavItem) => {
     const active = activeHref === item.href;
     return (
       <Link
         key={item.href}
         href={item.href}
-        onClick={onNavigate}
         transitionTypes={navTransitionTypes(pathname, item.href, navHrefs)}
         className={cn(
           "block rounded-lg px-3 py-2 text-sm font-medium transition",
@@ -88,21 +111,14 @@ export function AppShell({ children, title, nav, showSponsors = false, contentCl
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header
-            className="sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur-md"
+            className={cn(
+              "sticky top-0 z-20 border-b border-border bg-card/90 backdrop-blur-md",
+              hideMobileHeader && "hidden lg:block",
+            )}
             style={{ viewTransitionName: "site-header" }}
           >
-            <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
               <div className="flex min-w-0 items-center gap-3">
-                <button
-                  type="button"
-                  className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted lg:hidden"
-                  onClick={() => setMobileNavOpen((open) => !open)}
-                  aria-label="Toggle navigation"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeWidth={2} d="M4 7h16M4 12h16M4 17h16" />
-                  </svg>
-                </button>
                 <div className="min-w-0 lg:hidden">
                   <BrandMark compact />
                 </div>
@@ -110,31 +126,39 @@ export function AppShell({ children, title, nav, showSponsors = false, contentCl
                   <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{title}</h1>
                 </div>
               </div>
-              <div className="hidden items-center gap-3 sm:flex lg:hidden">
-                <Badge variant="muted" className="uppercase">
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="muted" className="hidden uppercase sm:inline-flex">
                   {user?.permissionProfile}
                 </Badge>
-                <Button variant="outline" size="sm" onClick={() => logout()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logout()}
+                  className={cn(hasMobileBottomTabs && "text-xs")}
+                >
                   Log out
                 </Button>
               </div>
             </div>
-
-            {mobileNavOpen && (
-              <div className="border-t border-border bg-card p-3 lg:hidden">
-                <p className="mb-2 px-3 text-lg font-semibold text-foreground">{title}</p>
-                <nav className="space-y-0.5">
-                  {nav.map((item) => navLink(item, () => setMobileNavOpen(false)))}
-                </nav>
-              </div>
-            )}
           </header>
 
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            <div className={cn("mx-auto w-full max-w-6xl", contentClassName)}>
+          <main
+            className={cn(
+              "flex-1 lg:px-8 lg:py-8",
+              mobileEdgeToEdge ? "px-0 py-0 lg:px-8 lg:py-8" : "px-4 py-4 sm:px-6 sm:py-6",
+              hasMobileBottomTabs && "pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8",
+            )}
+          >
+            <div
+              className={cn(
+                "mx-auto w-full",
+                mobileEdgeToEdge ? "max-w-none lg:max-w-6xl" : "max-w-6xl",
+                contentClassName,
+              )}
+            >
               {!hideMobileTitle && (
-                <div className="mb-6 lg:hidden">
-                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+                <div className="mb-4 lg:mb-6 lg:hidden">
+                  <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
                 </div>
               )}
               {children}
@@ -142,6 +166,14 @@ export function AppShell({ children, title, nav, showSponsors = false, contentCl
           </main>
 
           {showSponsors && <SponsorBars />}
+
+          {hasMobileBottomTabs && mobileBottomTabs && activeBottomTab && (
+            <MobileBottomTabBar
+              tabs={mobileBottomTabs}
+              activeTab={activeBottomTab}
+              navHrefs={navHrefs}
+            />
+          )}
         </div>
       </div>
     </div>

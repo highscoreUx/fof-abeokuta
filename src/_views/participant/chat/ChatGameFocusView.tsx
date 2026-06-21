@@ -22,7 +22,7 @@ import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
 import { useChatGameSession } from "@/hooks/useChatGameSession";
 import { hasAdminShellAccess } from "@/lib/permissions";
-import type { ChatGameRematchPayload } from "@/lib/chat-game-types";
+import type { ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 
 function RematchButton({

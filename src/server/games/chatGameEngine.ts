@@ -31,7 +31,7 @@ import {
   broadcastSpinnerState,
   createSocialSpinnerSessionRecord,
 } from "@/server/games/spinnerEngine";
-import { eventRoom, userRoom } from "@/server/socket/rooms";
+import { eventRoom, userRoom, chatGameSessionRoom } from "@/server/socket/rooms";
 import { tryGetIO } from "@/server/socket/io";
 import { parseSocialTttSettings } from "@/lib/chat-game-ttt-settings";
 import { DEFAULT_SOCIAL_HANGMAN_SETTINGS, parseSocialHangmanSettings } from "@/lib/chat-game-hangman-settings";
@@ -579,6 +579,7 @@ export async function broadcastChatGameSession(
   if (!snapshot) return null;
 
   io.to(eventRoom(eventSlug)).emit("chat:game:state", snapshot);
+  io.to(chatGameSessionRoom(sessionId)).emit("chat:game:state", snapshot);
 
   const session = await loadSession(sessionId);
   if (session?.channel === "DM" && session.dmPeerUserId) {
@@ -1202,7 +1203,17 @@ export async function completeSocialChatGameFromMatch(matchId: string, eventSlug
   if (refreshed) await updateSessionMessage(eventSlug, refreshed);
 
   const io = tryGetIO();
-  if (io) await broadcastChatGameSession(io, eventSlug, session.id);
+  if (io) {
+    await broadcastChatGameSession(io, eventSlug, session.id);
+    if (session.tttMatchId) {
+      await broadcastTttState(io, session.tttMatchId, eventSlug);
+    } else if (session.hangmanMatchId) {
+      await broadcastHangmanState(io, session.hangmanMatchId, eventSlug);
+    } else if (session.socialMatchId) {
+      const { broadcastSocialGameState } = await import("@/server/games/socialGameEngine");
+      await broadcastSocialGameState(io, session.socialMatchId, eventSlug);
+    }
+  }
 }
 
 export async function completeSocialJsonGame(matchId: string, eventSlug: string) {

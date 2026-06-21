@@ -41,3 +41,7 @@ export function ticTacToeMatchRoom(matchId: string) {
 export function socialGameMatchRoom(matchId: string) {
   return `social-game:${matchId}`;
 }
+
+export function chatGameSessionRoom(sessionId: string) {
+  return `chat-game:${sessionId}`;
+}

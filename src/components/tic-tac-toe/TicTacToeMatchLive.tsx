@@ -17,6 +17,7 @@ import {
 import { applyOptimisticTttCouncilVote } from "@/lib/tic-tac-toe/optimistic-council";
 import { toastError } from "@/lib/toast";
 import type { TicTacToeChampionInfo, TicTacToeMatchSnapshot } from "@/lib/tic-tac-toe/types";
+import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 
 type TttOptimisticAction =
   | { type: "move"; cellIndex: number }
@@ -114,6 +115,27 @@ export function TicTacToeMatchLive({
     joinedMatchId.current = initialMatchId;
     socket.emit("ttt:match:join", initialMatchId);
   }, [socket, initialMatchId]);
+
+  useEffect(() => {
+    if (!socket || !socialSessionId || !initialMatchId) return;
+
+    const refreshMatch = () => {
+      joinedMatchId.current = null;
+      socket.emit("ttt:match:join", initialMatchId);
+    };
+
+    const onChatState = (snapshot: ChatGameSessionSnapshot) => {
+      if (snapshot.sessionId !== socialSessionId) return;
+      if (snapshot.status === "ended" || snapshot.status === "cancelled") {
+        refreshMatch();
+      }
+    };
+
+    socket.on("chat:game:state", onChatState);
+    return () => {
+      socket.off("chat:game:state", onChatState);
+    };
+  }, [socket, socialSessionId, initialMatchId]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 500);

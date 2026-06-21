@@ -18,6 +18,7 @@ import {
 } from "@/lib/hangman/optimistic-guess";
 import { applyOptimisticHangmanCouncilVote } from "@/lib/hangman/optimistic-council";
 import type { HangmanChampionInfo, HangmanMatchSnapshot } from "@/lib/hangman/types";
+import type { ChatGameSessionSnapshot } from "@/lib/chat-game-types";
 
 type HangmanOptimisticAction =
   | { type: "guess"; letter: string }
@@ -118,6 +119,27 @@ export function HangmanMatchLive({
     joinedMatchId.current = initialMatchId;
     socket.emit("hangman:match:join", initialMatchId);
   }, [socket, initialMatchId]);
+
+  useEffect(() => {
+    if (!socket || !socialSessionId || !initialMatchId) return;
+
+    const refreshMatch = () => {
+      joinedMatchId.current = null;
+      socket.emit("hangman:match:join", initialMatchId);
+    };
+
+    const onChatState = (snapshot: ChatGameSessionSnapshot) => {
+      if (snapshot.sessionId !== socialSessionId) return;
+      if (snapshot.status === "ended" || snapshot.status === "cancelled") {
+        refreshMatch();
+      }
+    };
+
+    socket.on("chat:game:state", onChatState);
+    return () => {
+      socket.off("chat:game:state", onChatState);
+    };
+  }, [socket, socialSessionId, initialMatchId]);
 
   useEffect(() => {
     if (!state?.socialHangman?.turnDeadlineAt || state.state !== "ACTIVE") return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
 import { AppShell } from "@/components/layout/AppShell";
@@ -20,8 +20,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventApi } from "@/hooks/useEventApi";
 import { useEventNav } from "@/hooks/useEventNav";
 import { useSocket } from "@/hooks/useSocket";
+import { useChatGameSession } from "@/hooks/useChatGameSession";
 import { hasAdminShellAccess } from "@/lib/permissions";
-import type { ChatGameRematchPayload, ChatGameSessionSnapshot } from "@/lib/chat-game-types";
+import type { ChatGameRematchPayload } from "@/lib/chat-game-types";
 import { isSocialJsonGameKind } from "@/lib/social-games/kinds";
 
 function RematchButton({
@@ -66,39 +67,7 @@ export function ChatGameFocusView() {
   const { nav, participantNav, home } = useEventNav();
   const shellNav = user && hasAdminShellAccess(user.permissions) ? nav : participantNav;
   const socket = useSocket();
-  const [session, setSession] = useState<ChatGameSessionSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    try {
-      const data = await api<{ session: ChatGameSessionSnapshot }>(
-        `/chat-games/${encodeURIComponent(sessionId)}`,
-      );
-      setSession(data.session);
-    } catch {
-      setSession(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, [api, sessionId]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const onState = (snapshot: ChatGameSessionSnapshot) => {
-      if (snapshot.sessionId !== sessionId) return;
-      setSession(snapshot);
-    };
-
-    socket.on("chat:game:state", onState);
-    return () => {
-      socket.off("chat:game:state", onState);
-    };
-  }, [socket, sessionId]);
+  const { session, loading } = useChatGameSession(sessionId);
 
   useEffect(() => {
     if (!socket || !user) return;
@@ -258,7 +227,9 @@ export function ChatGameFocusView() {
                   <p className="mt-2 text-sm text-muted-foreground">{session.text}</p>
                 </div>
               )
-            ) : session.matchId && session.challengeId ? (
+            ) : session.matchId &&
+              session.challengeId &&
+              (session.status === "live" || session.status === "ended") ? (
               session.kind === "hangman" ? (
                 <HangmanMatchLive
                   challengeId={session.challengeId}

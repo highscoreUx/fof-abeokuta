@@ -9,6 +9,7 @@ import {
   countdownSessionRoom,
   hangmanMatchRoom,
   socialGameMatchRoom,
+  chatGameSessionRoom,
   staffRoom,
   teamRoom,
   ticTacToeMatchRoom,
@@ -74,6 +75,7 @@ import {
 import { hasPermission } from "@/lib/permissions";
 import { resolveTypingBroadcastRoom } from "@/server/socket/chat-typing";
 import { buildCompetitionLeaderboard } from "@/lib/leaderboard";
+import { buildChatGameSessionSnapshot } from "@/server/games/chatGameEngine";
 import {
   getOnlineUserIds,
   presenceConnect,
@@ -753,6 +755,27 @@ export function registerSocketHandlers(io: SocketIOServer) {
         });
         ack?.({ error: message });
       }
+    });
+
+    socket.on("chat:game:join", async (sessionId: string) => {
+      if (typeof sessionId !== "string" || !sessionId) return;
+
+      const session = await prisma.chatGameSession.findFirst({
+        where: { id: sessionId, eventId: auth.eventId },
+        include: {
+          participants: { select: { userId: true } },
+        },
+      });
+      if (!session) return;
+
+      const canView =
+        session.hostUserId === auth.userId ||
+        session.participants.some((participant) => participant.userId === auth.userId);
+      if (!canView) return;
+
+      socket.join(chatGameSessionRoom(sessionId));
+      const snapshot = await buildChatGameSessionSnapshot(sessionId);
+      if (snapshot) socket.emit("chat:game:state", snapshot);
     });
 
     socket.on("social-game:join", async (matchId: string) => {

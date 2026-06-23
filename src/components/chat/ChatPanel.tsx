@@ -435,7 +435,7 @@ export function ChatPanel({
         ref={scrollContainerRef}
         className={cn(
           "min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-chat-background px-3 py-2 sm:px-4 sm:py-3",
-          "max-lg:px-2 max-lg:pb-[env(safe-area-inset-bottom,0px)]",
+          "max-lg:px-2 max-lg:pb-4",
         )}
       >
         {!messagesLoaded && messages.length === 0 ? (

@@ -2,11 +2,11 @@ import type { ActivityChatBody } from "@/lib/activity-chat-types";
 
 /** Focus-mode URL for an official event activity announced in chat. */
 export function officialActivityPlayHref(
-  homePrefix: string,
+  homePath: string,
   activity: ActivityChatBody,
   options?: { spectate?: boolean },
 ): string {
-  const base = `${homePrefix}/home/play`;
+  const base = `${homePath}/play`;
   const params = new URLSearchParams();
 
   if (activity.kind === "kahoot") {

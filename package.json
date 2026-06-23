@@ -14,7 +14,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "hangman:words": "node scripts/generate-social-hangman-words.mjs"
+    "hangman:words": "node scripts/generate-social-hangman-words.mjs",
+    "google-photos:refresh": "node scripts/google-photos-oauth.mjs refresh",
+    "google-photos:authorize": "node scripts/google-photos-oauth.mjs authorize"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

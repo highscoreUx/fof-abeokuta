@@ -13,7 +13,7 @@ import {
 } from "@/lib/member-profile-assignment";
 import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
-import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
+import { getProfileLabelForPermissions } from "@/lib/role-preset-cache";
 import { requirePlatformAuth } from "@/lib/platform-auth/middleware";
 import { prisma } from "@/lib/prisma";
 import { serializeMemberRow } from "@/lib/users";

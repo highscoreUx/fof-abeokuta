@@ -4,7 +4,7 @@ import {
   PLATFORM_ADMIN_PROFILE_OPTION,
   PLATFORM_ADMIN_PROFILE_SLUG,
 } from "@/lib/member-access";
-import { getProfileBySlug } from "@/lib/platform-roles.server";
+import { getProfileBySlug } from "@/lib/role-preset-cache";
 import type { RolePermission } from "@/lib/permissions/catalog";
 
 export { PLATFORM_ADMIN_PROFILE_OPTION };

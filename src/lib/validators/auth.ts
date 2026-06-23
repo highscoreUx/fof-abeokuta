@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { DEFAULT_EVENT_USER_ROLE_BUNDLES } from "@/lib/permissions/default-bundles";
 
 const usernameSchema = z
   .string()
@@ -7,7 +7,7 @@ const usernameSchema = z
   .max(32)
   .regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers, and underscores only");
 
-const profileSlugs = PERMISSION_PROFILES.map((p) => p.slug) as [string, ...string[]];
+const profileSlugs = DEFAULT_EVENT_USER_ROLE_BUNDLES.map((p) => p.slug) as [string, ...string[]];
 
 export const loginSchema = z.object({
   email: z.string().email("Valid email is required"),

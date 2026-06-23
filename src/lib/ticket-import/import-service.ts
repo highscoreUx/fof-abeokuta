@@ -1,6 +1,6 @@
 import { hashPassword } from "@/lib/auth/bcrypt";
 import { generateStrongPassword } from "@/lib/auth/password";
-import { getProfilePermissions } from "@/lib/permission-profiles";
+import { getProfilePermissions } from "@/lib/role-preset-cache";
 import { prisma } from "@/lib/prisma";
 import { userWithAccountInclude } from "@/lib/user-display";
 import { computeRegistrationFingerprint } from "@/lib/ticket-import/fingerprint";

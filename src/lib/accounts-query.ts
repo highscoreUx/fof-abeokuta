@@ -1,5 +1,5 @@
 import { buildGlobalStaffAccountFilter, type GlobalMembersAudience } from "@/lib/member-access";
-import { getProfilePermissions } from "@/lib/permission-profiles";
+import { getProfilePermissions } from "@/lib/role-preset-cache";
 import type { parsePaginationParams } from "@/lib/pagination";
 
 const ACCOUNT_SORT_FIELDS = new Set(["firstName", "lastName", "username", "email", "createdAt"]);

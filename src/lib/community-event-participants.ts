@@ -4,7 +4,8 @@ import {
   isParticipantPermissions,
   isPlatformAdminPermissions,
 } from "@/lib/member-access";
-import { getProfileLabelForPermissions, getProfilePermissions } from "@/lib/permission-profiles";
+import { getProfileLabelForPermissions, getProfilePermissions } from "@/lib/role-preset-cache";
+import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { prisma } from "@/lib/prisma";
 import { serializeUserRow, userWithAccountInclude } from "@/lib/users";
 import type { parsePaginationParams } from "@/lib/pagination";
@@ -35,6 +36,7 @@ export async function listAvailableCommunityParticipants(
   eventId: string,
   params: ReturnType<typeof parsePaginationParams>,
 ) {
+  await ensurePlatformRolesSeeded();
   const where = {
     permissions: { equals: getProfilePermissions("participant") },
     users: { none: { eventId } },
@@ -68,6 +70,7 @@ export async function listAvailableCommunityParticipants(
 }
 
 export async function addCommunityMembersToEvent(eventId: string, accountIds: string[]) {
+  await ensurePlatformRolesSeeded();
   const uniqueIds = [...new Set(accountIds)];
   if (uniqueIds.length === 0) {
     throw new Error("Select at least one community member");

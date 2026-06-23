@@ -1,15 +1,19 @@
 import { canAccessPlatform } from "@/lib/account-permissions";
-import { getProfilePermissions } from "@/lib/permission-profiles";
+import {
+  getProfilePermissions,
+  isParticipantPermissions,
+  resolveMemberProfileSlug,
+} from "@/lib/role-preset-cache";
 import {
   hasWildcardAccess,
   normalizeRolePermissions,
-  permissionsFingerprint,
   type RolePermission,
 } from "@/lib/permissions/catalog";
 
-function asPermissions(permissions: unknown): RolePermission[] {
-  return normalizeRolePermissions(permissions);
-}
+export {
+  isParticipantPermissions,
+  resolveMemberProfileSlug,
+} from "@/lib/role-preset-cache";
 
 export const PARTICIPANT_PROFILE_SLUG = "participant";
 export const PLATFORM_ADMIN_PROFILE_SLUG = "platform_admin";
@@ -19,23 +23,14 @@ export const PLATFORM_ADMIN_PROFILE_OPTION = {
   name: "Platform admin",
 } as const;
 
-const PARTICIPANT_PERMISSIONS_FINGERPRINT = permissionsFingerprint(
-  getProfilePermissions(PARTICIPANT_PROFILE_SLUG),
-);
-
 export type GlobalMembersAudience = "all" | "staff";
 
 export function parseGlobalMembersAudience(value: string | null): GlobalMembersAudience {
   return value === "staff" ? "staff" : "all";
 }
 
-export function isParticipantPermissions(permissions: unknown): boolean {
-  const normalized = asPermissions(permissions);
-  return permissionsFingerprint(normalized) === PARTICIPANT_PERMISSIONS_FINGERPRINT;
-}
-
 export function isPlatformAdminPermissions(permissions: unknown): boolean {
-  const normalized = asPermissions(permissions);
+  const normalized = normalizeRolePermissions(permissions);
   return hasWildcardAccess(normalized) || canAccessPlatform(normalized);
 }
 
@@ -61,26 +56,6 @@ export function buildGlobalStaffAccountFilter() {
       permissions: { equals: getProfilePermissions(PARTICIPANT_PROFILE_SLUG) },
     },
   };
-}
-
-export function resolveMemberProfileSlug(permissions: unknown): string {
-  if (isPlatformAdminPermissions(permissions)) return PLATFORM_ADMIN_PROFILE_SLUG;
-  const normalized = asPermissions(permissions);
-  const fingerprint = permissionsFingerprint(normalized);
-  const profiles = [
-    "event_admin",
-    "coordinator",
-    "staff",
-    "judge",
-    "official_photographer",
-    PARTICIPANT_PROFILE_SLUG,
-  ] as const;
-  for (const slug of profiles) {
-    if (fingerprint === permissionsFingerprint(getProfilePermissions(slug))) {
-      return slug;
-    }
-  }
-  return "custom";
 }
 
 export function permissionsForMemberProfileSlug(slug: string): RolePermission[] {

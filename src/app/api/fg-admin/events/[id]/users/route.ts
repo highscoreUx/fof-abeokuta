@@ -8,6 +8,7 @@ import { jsonError } from "@/lib/auth/middleware";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { createUserSchema } from "@/lib/validators/auth";
+import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { buildUsersOrderBy, buildUsersWhere } from "@/lib/users-query";
 import { createUserFromRow, serializeUserRow, userWithAccountInclude } from "@/lib/users";
 
@@ -33,6 +34,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const query = parsePaginationParams(searchParams);
   const audience = parseAudience(searchParams.get("audience"));
+  await ensurePlatformRolesSeeded();
   const where = buildUsersWhere(event.id, { ...query, audience });
 
   const [users, total] = await Promise.all([

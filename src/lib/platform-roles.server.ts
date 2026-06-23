@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import {
   DEFAULT_EVENT_USER_ROLE_BUNDLES,
 } from "@/lib/permissions/default-bundles";
 import {
   normalizeRolePermissions,
+  permissionsFingerprint,
   type RolePermission,
 } from "@/lib/permissions/catalog";
 import {
@@ -12,11 +14,28 @@ import {
   slugFromRoleName,
 } from "@/lib/platform-roles.shared";
 import type { PlatformRoleRow } from "@/lib/platform-roles.types";
+import { invalidateSessionAuthContext } from "@/lib/auth/session";
+import {
+  getProfileBySlug,
+  getProfileLabelForPermissions,
+  setRolePresetCache,
+} from "@/lib/role-preset-cache";
 
 export type { PlatformRoleRow } from "@/lib/platform-roles.types";
 export { roleIsDeletable, roleIsEditable, slugFromRoleName } from "@/lib/platform-roles.shared";
+export {
+  getCachedPermissionProfiles,
+  getProfileBySlug,
+  getProfileLabelForPermissions,
+  getProfilePermissions,
+} from "@/lib/role-preset-cache";
 
-let cachedProfiles: PlatformRoleRow[] | null = null;
+export async function refreshPermissionProfilesCache() {
+  const roles = await prisma.platformRole.findMany({ orderBy: { name: "asc" } });
+  const serialized = roles.map(serializePlatformRole);
+  setRolePresetCache(serialized);
+  return serialized;
+}
 
 export function serializePlatformRole(role: {
   id: string;
@@ -34,23 +53,6 @@ export function serializePlatformRole(role: {
     permissionsVersion: role.permissionsVersion,
     isSystem: role.isSystem,
   };
-}
-
-export async function refreshPermissionProfilesCache() {
-  const roles = await prisma.platformRole.findMany({ orderBy: { name: "asc" } });
-  cachedProfiles = roles.map(serializePlatformRole);
-  return cachedProfiles;
-}
-
-export function getCachedPermissionProfiles(): PlatformRoleRow[] {
-  return cachedProfiles ?? DEFAULT_EVENT_USER_ROLE_BUNDLES.map((bundle) => ({
-    id: bundle.slug,
-    slug: bundle.slug,
-    name: bundle.name,
-    permissions: bundle.permissions,
-    permissionsVersion: 0,
-    isSystem: bundle.isSystem,
-  }));
 }
 
 export async function ensurePlatformRolesSeeded() {
@@ -81,18 +83,71 @@ export async function listPlatformRoles() {
   );
 }
 
-export function getProfileBySlug(slug: string) {
-  return getCachedPermissionProfiles().find((profile) => profile.slug === slug);
-}
-
-export function getProfilePermissions(slug: string): RolePermission[] {
-  const profile = getProfileBySlug(slug);
-  if (!profile) throw new Error(`Unknown permission profile: ${slug}`);
-  return profile.permissions;
-}
-
 export function getProfileLabelForSlug(slug: string): string {
   return getProfileBySlug(slug)?.name ?? slug;
+}
+
+export async function propagateRolePresetPermissions(
+  previousPermissions: RolePermission[],
+  nextPermissions: RolePermission[],
+): Promise<{ accountsUpdated: number; usersUpdated: number }> {
+  const previousFingerprint = permissionsFingerprint(previousPermissions);
+
+  const accounts = await prisma.account.findMany({
+    select: { id: true, permissions: true },
+  });
+  const matchingAccountIds = accounts
+    .filter(
+      (account) =>
+        permissionsFingerprint(normalizeRolePermissions(account.permissions)) ===
+        previousFingerprint,
+    )
+    .map((account) => account.id);
+
+  if (matchingAccountIds.length > 0) {
+    await prisma.account.updateMany({
+      where: { id: { in: matchingAccountIds } },
+      data: {
+        permissions: nextPermissions,
+        permissionsVersion: { increment: 1 },
+      },
+    });
+  }
+
+  const usersWithOverrides = await prisma.user.findMany({
+    where: { permissions: { not: Prisma.DbNull } },
+    select: { id: true, permissions: true },
+  });
+  const matchingUserIds = usersWithOverrides
+    .filter(
+      (user) =>
+        permissionsFingerprint(normalizeRolePermissions(user.permissions)) === previousFingerprint,
+    )
+    .map((user) => user.id);
+
+  if (matchingUserIds.length > 0) {
+    await prisma.user.updateMany({
+      where: { id: { in: matchingUserIds } },
+      data: {
+        permissions: nextPermissions,
+        authVersion: { increment: 1 },
+      },
+    });
+  }
+
+  const usersToInvalidate = await prisma.user.findMany({
+    where: {
+      OR: [{ id: { in: matchingUserIds } }, { accountId: { in: matchingAccountIds } }],
+    },
+    select: { id: true },
+  });
+
+  await Promise.all(usersToInvalidate.map((user) => invalidateSessionAuthContext(user.id)));
+
+  return {
+    accountsUpdated: matchingAccountIds.length,
+    usersUpdated: matchingUserIds.length,
+  };
 }
 
 export async function createPlatformRole(input: {
@@ -119,11 +174,16 @@ export async function createPlatformRole(input: {
 
 export async function updatePlatformRole(
   id: string,
-  input: { name?: string; permissions?: RolePermission[] },
+  input: { name?: string; permissions?: RolePermission[]; applyToExisting?: boolean },
 ) {
   const existing = await prisma.platformRole.findUnique({ where: { id } });
   if (!existing) throw new Error("Role not found");
   if (!roleIsEditable(existing)) throw new Error("This role cannot be edited");
+
+  const previousPermissions = normalizeRolePermissions(existing.permissions);
+  const permissionsChanged =
+    input.permissions !== undefined &&
+    permissionsFingerprint(input.permissions) !== permissionsFingerprint(previousPermissions);
 
   const role = await prisma.platformRole.update({
     where: { id },
@@ -139,20 +199,22 @@ export async function updatePlatformRole(
   });
 
   await refreshPermissionProfilesCache();
-  return serializePlatformRole(role);
+
+  let propagation: { accountsUpdated: number; usersUpdated: number } | undefined;
+  if (input.applyToExisting && permissionsChanged && input.permissions) {
+    propagation = await propagateRolePresetPermissions(previousPermissions, input.permissions);
+  }
+
+  return {
+    role: serializePlatformRole(role),
+    propagation,
+  };
 }
 
 export async function deletePlatformRole(id: string) {
   const existing = await prisma.platformRole.findUnique({ where: { id } });
   if (!existing) throw new Error("Role not found");
   if (!roleIsDeletable(existing)) throw new Error("This role cannot be deleted");
-
-  const inUse = await prisma.account.findFirst({
-    where: { permissions: { equals: existing.permissions as object } },
-  });
-  if (inUse) {
-    throw new Error("Cannot delete a role that is still assigned to members");
-  }
 
   await prisma.platformRole.delete({ where: { id } });
   await refreshPermissionProfilesCache();

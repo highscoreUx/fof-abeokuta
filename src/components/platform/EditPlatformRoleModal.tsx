@@ -46,6 +46,7 @@ export function EditPlatformRoleModal({
   const [useWildcard, setUseWildcard] = useState(false);
   const [search, setSearch] = useState("");
   const [groupId, setGroupId] = useState(ASSIGNABLE_CATALOG[0]?.id ?? "users");
+  const [applyToExisting, setApplyToExisting] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -54,9 +55,10 @@ export function EditPlatformRoleModal({
       setName("");
       setSelected([]);
       setUseWildcard(false);
-      setSearch("");
-      setGroupId(ASSIGNABLE_CATALOG[0]?.id ?? "users");
-      return;
+    setSearch("");
+    setGroupId(ASSIGNABLE_CATALOG[0]?.id ?? "users");
+    setApplyToExisting(false);
+    return;
     }
     if (!role) return;
     setName(role.name);
@@ -71,6 +73,7 @@ export function EditPlatformRoleModal({
     );
     setSearch("");
     setGroupId(ASSIGNABLE_CATALOG[0]?.id ?? "users");
+    setApplyToExisting(false);
   }, [open, create, role]);
 
   const visibleGroups = useMemo(() => {
@@ -108,10 +111,25 @@ export function EditPlatformRoleModal({
           body: JSON.stringify({ name: name.trim(), permissions }),
         });
       } else if (role) {
-        await platformApiFetch(`/api/fg-admin/roles/${role.id}`, {
+        const response = await platformApiFetch<{
+          role: PlatformRoleRow;
+          propagation?: { accountsUpdated: number; usersUpdated: number };
+        }>(`/api/fg-admin/roles/${role.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ name: name.trim(), permissions }),
+          body: JSON.stringify({
+            name: name.trim(),
+            permissions,
+            applyToExisting,
+          }),
         });
+        if (response.propagation) {
+          const { accountsUpdated, usersUpdated } = response.propagation;
+          if (accountsUpdated > 0 || usersUpdated > 0) {
+            window.alert(
+              `Updated permissions for ${accountsUpdated} member account(s) and ${usersUpdated} event override(s).`,
+            );
+          }
+        }
       }
       onSaved();
       onClose();
@@ -236,6 +254,22 @@ export function EditPlatformRoleModal({
           <p className="text-sm text-muted-foreground">
             This system role cannot be edited here.
           </p>
+        )}
+
+        {editable && !create && role && (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={applyToExisting}
+              onChange={(e) => setApplyToExisting(e.target.checked)}
+              disabled={loading}
+            />
+            <span>
+              Apply permission changes to all members whose current permissions match this role
+              preset (they will need to sign in again for access changes to take effect).
+            </span>
+          </label>
         )}
 
         <div className="flex items-center justify-between gap-2 pt-2">

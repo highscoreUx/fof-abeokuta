@@ -3,7 +3,8 @@ import { COMMUNITY_STAFF_PROFILE_SLUGS } from "@/lib/community-audience";
 import { CheckInEmailError, resolveEmailForCheckIn } from "@/lib/check-in-email";
 import { invalidateSessionAuthContext } from "@/lib/auth/session";
 import { isParticipantPermissions } from "@/lib/member-access";
-import { getProfileLabelForPermissions } from "@/lib/permission-profiles";
+import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
+import { getProfileLabelForPermissions } from "@/lib/role-preset-cache";
 import { prisma } from "@/lib/prisma";
 import { serializeUserRow, userWithAccountInclude } from "@/lib/users";
 import {
@@ -27,6 +28,7 @@ export async function updateEventUserAccess(input: {
   permissionProfile: string;
   email?: string;
 }) {
+  await ensurePlatformRolesSeeded();
   const user = await prisma.user.findFirst({
     where: { id: input.userId, eventId: input.eventId },
     include: userWithAccountInclude,

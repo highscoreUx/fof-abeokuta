@@ -133,9 +133,8 @@ export async function createUserFromRow(
 
   let permissions = row.permissions;
   if (!permissions) {
-    const { ensurePlatformRolesSeeded, getProfilePermissions } = await import(
-      "@/lib/platform-roles.server"
-    );
+    const { ensurePlatformRolesSeeded } = await import("@/lib/platform-roles.server");
+    const { getProfilePermissions } = await import("@/lib/role-preset-cache");
     await ensurePlatformRolesSeeded();
     permissions = getProfilePermissions(profileSlug);
   }

@@ -2,7 +2,7 @@ import {
   resolveAccountPermissionList,
   resolveAccountPermissions,
 } from "@/lib/account-permissions";
-import { getProfilePermissions } from "@/lib/permission-profiles";
+import { getProfilePermissions } from "@/lib/role-preset-cache";
 import {
   normalizeRolePermissions,
   permissionsFingerprint,

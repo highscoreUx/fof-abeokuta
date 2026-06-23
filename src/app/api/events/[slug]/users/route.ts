@@ -5,6 +5,7 @@ import { broadcastChatParticipantForUserId } from "@/lib/chat-participants-broad
 import { prisma } from "@/lib/prisma";
 import { parsePaginationParams, toPaginatedResponse } from "@/lib/pagination";
 import { createUserSchema } from "@/lib/validators/auth";
+import { ensurePlatformRolesSeeded } from "@/lib/platform-roles.server";
 import { buildUsersOrderBy, buildUsersWhere } from "@/lib/users-query";
 import { createUserFromRow, serializeUserRow, userWithAccountInclude } from "@/lib/users";
 
@@ -18,6 +19,7 @@ export async function GET(
 
   const { searchParams } = new URL(request.url);
   const query = parsePaginationParams(searchParams);
+  await ensurePlatformRolesSeeded();
   const where = buildUsersWhere(ctx.event.id, query);
 
   const [users, total] = await Promise.all([

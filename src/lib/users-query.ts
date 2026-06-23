@@ -3,7 +3,7 @@ import {
   COMMUNITY_STAFF_PROFILE_SLUGS,
   type CommunityAudience,
 } from "@/lib/community-audience";
-import { getProfilePermissions } from "@/lib/permission-profiles";
+import { getProfilePermissions } from "@/lib/role-preset-cache";
 import { parsePaginationParams } from "@/lib/pagination";
 
 const USER_SORT_FIELDS = new Set(["createdAt", "checkedInAt"]);

@@ -25,7 +25,7 @@ import {
   useUsersTableStore,
   type UsersSortField,
 } from "@/stores/usersTableStore";
-import { PERMISSION_PROFILES } from "@/lib/permission-profiles";
+import { usePlatformRoles } from "@/hooks/usePlatformRoles";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { apiFetch } from "@/lib/api-client";
 import type { EventUserRow } from "@/types/users";
@@ -94,16 +94,18 @@ export function UsersTable() {
 
   const users = data?.data ?? [];
   const teams = teamsData?.teams ?? [];
-  const accessProfiles = PERMISSION_PROFILES;
+  const { roles: platformRoles } = usePlatformRoles();
 
   const roleOptions = useMemo(
     () =>
-      PERMISSION_PROFILES.filter((profile) =>
-        (["participant", ...EVENT_SCOPED_STAFF_PROFILE_SLUGS] as readonly string[]).includes(
-          profile.slug,
-        ),
-      ).map((profile) => ({ slug: profile.slug, name: profile.name })),
-    [],
+      platformRoles
+        .filter((profile) =>
+          (["participant", ...EVENT_SCOPED_STAFF_PROFILE_SLUGS] as readonly string[]).includes(
+            profile.slug,
+          ),
+        )
+        .map((profile) => ({ slug: profile.slug, name: profile.name })),
+    [platformRoles],
   );
 
   const showActionsColumn = canCheckIn || canViewDetails || canChangeRole || canResetPassword;
@@ -197,7 +199,7 @@ export function UsersTable() {
         </div>
         <Select value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="all">All profiles</option>
-          {accessProfiles.map((profile) => (
+          {platformRoles.map((profile) => (
             <option key={profile.slug} value={profile.slug}>
               {profile.name}
             </option>

@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 const updateSchema = z.object({
   name: z.string().min(1).max(64).optional(),
   permissions: z.array(z.union([z.literal("*"), z.string()])).optional(),
+  applyToExisting: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -30,14 +31,15 @@ export async function PATCH(
   }
 
   try {
-    const role = await updatePlatformRole(id, {
+    const result = await updatePlatformRole(id, {
       name: parsed.data.name,
       permissions:
         parsed.data.permissions !== undefined
           ? normalizeRolePermissions(parsed.data.permissions)
           : undefined,
+      applyToExisting: parsed.data.applyToExisting,
     });
-    return NextResponse.json({ role });
+    return NextResponse.json(result);
   } catch (error) {
     return jsonError(
       error instanceof Error ? error.message : "Failed to update role",

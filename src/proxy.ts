@@ -6,15 +6,21 @@ import { RESERVED_EVENT_SLUGS } from "@/lib/reserved-slugs";
 
 const PLATFORM_PUBLIC = [
   "/change-password",
+  "/forgot-password",
+  "/reset-password",
   "/api/auth/login",
   "/api/auth/refresh",
   "/api/auth/change-password",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
 ];
 
 const PUBLIC_PATHS = [
   "/",
   "/login",
   "/change-password",
+  "/forgot-password",
+  "/reset-password",
   "/all-event",
   "/api/events/public",
   "/api/events/current",

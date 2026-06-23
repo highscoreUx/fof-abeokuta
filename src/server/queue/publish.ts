@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PreparedEmail } from "@/lib/email/prepared-email";
+import { prepareForgotPasswordEmail } from "@/lib/email/prepare-forgot-password-email";
 import { prepareAccountCredentialsEmail } from "@/lib/email/prepare-account-credentials-email";
 import { prepareCheckInWelcomeEmail } from "@/lib/email/prepare-check-in-welcome-email";
 import {
@@ -66,6 +67,21 @@ export function enqueueCheckInWelcomeEmail(payload: {
     })
     .catch((error) => {
       console.error("[queue] Failed to prepare check-in welcome email:", error);
+    });
+}
+
+export function enqueueForgotPasswordEmail(payload: {
+  accountId: string;
+  rawToken: string;
+}): void {
+  if (!canEnqueueEmails()) return;
+  void prepareForgotPasswordEmail(payload.accountId, payload.rawToken)
+    .then((prepared) => {
+      if (!prepared) return;
+      return enqueuePreparedEmail(prepared);
+    })
+    .catch((error) => {
+      console.error("[queue] Failed to prepare forgot-password email:", error);
     });
 }
 

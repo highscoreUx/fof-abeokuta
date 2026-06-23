@@ -1,6 +1,6 @@
 /** App-side email payload before enqueue. Worker only sees serialized SendEmailJob. */
 
-export type PreparedEmailKind = "check_in_welcome" | "account_credentials";
+export type PreparedEmailKind = "check_in_welcome" | "account_credentials" | "forgot_password";
 
 export interface PreparedEmailMeta {
   kind: PreparedEmailKind;

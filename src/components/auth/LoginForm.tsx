@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLogin } from "@/hooks/useLogin";
 import { LoginCard } from "@/components/auth/LoginCard";
@@ -70,9 +71,17 @@ export function LoginForm({ eventSlug }: LoginFormProps) {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
-              Password
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label htmlFor="password" className="text-sm font-medium text-foreground">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <PasswordInput
               id="password"
               autoComplete="current-password"

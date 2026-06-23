@@ -1,7 +1,6 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventPermission } from "@/lib/auth/event-middleware";
+import { uploadEventBrandingImage } from "@/lib/event-cover-server";
 import { LOGIN_SLIDES_SETTING_KEY, parseLoginSlides } from "@/lib/login-slides";
 import { prisma } from "@/lib/prisma";
 
@@ -55,27 +54,29 @@ export async function POST(
     return NextResponse.json({ error: "Image must be 5MB or smaller" }, { status: 400 });
   }
 
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "events", slug);
-  await mkdir(uploadDir, { recursive: true });
+  try {
+    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const publicUrl = await uploadEventBrandingImage(slug, file, `slide-${index}.${ext}`);
 
-  const filename = `slide-${index}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, filename), buffer);
+    const setting = await prisma.appSetting.findUnique({
+      where: { eventId_key: { eventId: ctx.event.id, key: LOGIN_SLIDES_SETTING_KEY } },
+    });
+    const slides = [...parseLoginSlides(setting?.value)];
+    slides[index] = publicUrl;
 
-  const setting = await prisma.appSetting.findUnique({
-    where: { eventId_key: { eventId: ctx.event.id, key: LOGIN_SLIDES_SETTING_KEY } },
-  });
-  const slides = [...parseLoginSlides(setting?.value)];
-  slides[index] = `/uploads/events/${slug}/${filename}`;
+    await prisma.appSetting.upsert({
+      where: { eventId_key: { eventId: ctx.event.id, key: LOGIN_SLIDES_SETTING_KEY } },
+      create: { eventId: ctx.event.id, key: LOGIN_SLIDES_SETTING_KEY, value: JSON.stringify(slides) },
+      update: { value: JSON.stringify(slides) },
+    });
 
-  await prisma.appSetting.upsert({
-    where: { eventId_key: { eventId: ctx.event.id, key: LOGIN_SLIDES_SETTING_KEY } },
-    create: { eventId: ctx.event.id, key: LOGIN_SLIDES_SETTING_KEY, value: JSON.stringify(slides) },
-    update: { value: JSON.stringify(slides) },
-  });
-
-  return NextResponse.json({ slides });
+    return NextResponse.json({ slides });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Upload failed" },
+      { status: 400 },
+    );
+  }
 }
 
 export async function DELETE(

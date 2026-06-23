@@ -3,10 +3,17 @@ export const EVENT_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp
 
 const DEFAULT_COVERS = ["/images/fof1.jpg", "/images/fof2.jpg", "/images/fof3.jpg"];
 
+/** Local /uploads paths only exist on the machine that handled the upload — not on Render. */
+export function isEphemeralLocalUploadUrl(url: string): boolean {
+  return url.startsWith("/uploads/");
+}
+
 export function getEventCoverUrl(
   coverImageUrl: string | null | undefined,
   fallbackIndex = 0,
 ): string {
-  if (coverImageUrl) return coverImageUrl;
+  if (coverImageUrl && !isEphemeralLocalUploadUrl(coverImageUrl)) {
+    return coverImageUrl;
+  }
   return DEFAULT_COVERS[fallbackIndex % DEFAULT_COVERS.length]!;
 }

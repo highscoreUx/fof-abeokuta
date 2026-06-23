@@ -1,8 +1,17 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { EVENT_COVER_MAX_BYTES, EVENT_COVER_TYPES } from "@/lib/event-cover";
+import { getStorageAdapter } from "@/lib/storage";
 
-export async function saveEventCoverFile(slug: string, file: File): Promise<string> {
+function coverExtension(mimeType: string): string {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  return "jpg";
+}
+
+export async function uploadEventBrandingImage(
+  slug: string,
+  file: File,
+  filename: string,
+): Promise<string> {
   if (!EVENT_COVER_TYPES.has(file.type)) {
     throw new Error("Only JPEG, PNG, or WebP images are allowed");
   }
@@ -10,13 +19,18 @@ export async function saveEventCoverFile(slug: string, file: File): Promise<stri
     throw new Error("Image must be 5MB or smaller");
   }
 
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "events", slug);
-  await mkdir(uploadDir, { recursive: true });
-
-  const filename = `cover.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, filename), buffer);
+  const storage = getStorageAdapter();
+  const asset = await storage.upload(buffer, {
+    folder: `events/${slug}`,
+    filename,
+    mimeType: file.type,
+    resourceType: "image",
+  });
 
-  return `/uploads/events/${slug}/${filename}`;
+  return asset.url;
+}
+
+export async function saveEventCoverFile(slug: string, file: File): Promise<string> {
+  return uploadEventBrandingImage(slug, file, `cover.${coverExtension(file.type)}`);
 }

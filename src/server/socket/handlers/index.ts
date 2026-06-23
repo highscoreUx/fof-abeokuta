@@ -18,6 +18,7 @@ import {
 import {
   adminStartNextQuestion,
   broadcastQuizState,
+  buildQuizSnapshot,
   endQuizGame,
   startQuizSession,
   submitQuizAnswer,
@@ -371,6 +372,12 @@ export function registerSocketHandlers(io: SocketIOServer) {
       const kahootEnabled = await isActivityEnabledForEvent(auth.eventId, ACTIVITY_KAHOOT);
       if (!kahootEnabled) return;
       await endQuizGame(io, sessionId);
+    });
+
+    socket.on("quiz:session:sync", async (sessionId: string) => {
+      if (typeof sessionId !== "string" || !sessionId) return;
+      const snapshot = await buildQuizSnapshot(sessionId);
+      if (snapshot) socket.emit("quiz:state", snapshot);
     });
 
     socket.on("spinner:join", async (sessionId: string) => {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEventNav } from "@/hooks/useEventNav";
+import { useOfficialActivityCardState } from "@/hooks/useOfficialActivityCardState";
 import type { ActivityChatBody } from "@/lib/activity-chat-types";
 import { officialActivityPlayHref } from "@/lib/activity-play-routes";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,9 @@ interface ChatActivityCardProps {
   activity: ActivityChatBody;
 }
 
-export function ChatActivityCard({ activity }: ChatActivityCardProps) {
+export function ChatActivityCard({ activity: initialActivity }: ChatActivityCardProps) {
   const { home } = useEventNav();
+  const activity = useOfficialActivityCardState(initialActivity);
   const isLive = activity.status === "live";
   const href = officialActivityPlayHref(home, activity);
   const spectateHref = officialActivityPlayHref(home, activity, { spectate: true });

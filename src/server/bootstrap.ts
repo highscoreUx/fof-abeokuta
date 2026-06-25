@@ -28,12 +28,14 @@ async function platformRolesReady(): Promise<boolean> {
 async function ensurePlatformAccount() {
   const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? DEFAULT_PLATFORM_EMAIL;
   const platformUsername = process.env.PLATFORM_ADMIN_USERNAME ?? "platform_admin";
+  const firstName = process.env.PLATFORM_ADMIN_FIRST_NAME?.trim() || "Abdulbasit";
+  const lastName = process.env.PLATFORM_ADMIN_LAST_NAME?.trim() || "Oyesiji";
 
   const { account, initialPassword } = await createAccount({
     email: platformEmail,
     username: platformUsername,
-    firstName: "Platform",
-    lastName: "Admin",
+    firstName,
+    lastName,
     permissions: ["*"],
     mustChangePassword: true,
     globalMember: true,
@@ -49,6 +51,23 @@ async function ensurePlatformAccount() {
   }
 }
 
+async function syncPlatformAdminLegacyName() {
+  const platformEmail = process.env.PLATFORM_ADMIN_EMAIL ?? DEFAULT_PLATFORM_EMAIL;
+  const firstName = process.env.PLATFORM_ADMIN_FIRST_NAME?.trim() || "Abdulbasit";
+  const lastName = process.env.PLATFORM_ADMIN_LAST_NAME?.trim() || "Oyesiji";
+
+  const account = await prisma.account.findUnique({ where: { email: platformEmail } });
+  if (!account) return;
+
+  if (account.firstName === "Platform" && account.lastName === "Admin") {
+    await prisma.account.update({
+      where: { id: account.id },
+      data: { firstName, lastName },
+    });
+    console.log(`[bootstrap] Platform admin name updated to ${firstName} ${lastName}`);
+  }
+}
+
 export async function ensurePlatformBootstrap(): Promise<{ skipped: boolean }> {
   const [typesReady, accountReady, rolesReady] = await Promise.all([
     activityTypesReady(),
@@ -58,6 +77,7 @@ export async function ensurePlatformBootstrap(): Promise<{ skipped: boolean }> {
 
   if (typesReady && accountReady && rolesReady) {
     await ensurePlatformRolesSeeded();
+    await syncPlatformAdminLegacyName();
     return { skipped: true };
   }
 
@@ -73,6 +93,8 @@ export async function ensurePlatformBootstrap(): Promise<{ skipped: boolean }> {
 
   if (!accountReady) {
     await ensurePlatformAccount();
+  } else {
+    await syncPlatformAdminLegacyName();
   }
 
   return { skipped: false };

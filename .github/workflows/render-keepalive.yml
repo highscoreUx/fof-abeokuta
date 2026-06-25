@@ -1,0 +1,41 @@
+# Pings the Render deployment so the free tier instance stays warm.
+# Runs every 13 minutes until end of 2026-06-28 (UTC), then no-ops.
+name: Render keepalive
+
+on:
+  schedule:
+    # Every 13 minutes (GitHub cron minimum granularity is 5 minutes).
+    - cron: "*/13 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check keepalive end date
+        id: window
+        run: |
+          END_EPOCH=$(date -u -d "2026-06-28 23:59:59" +%s)
+          NOW_EPOCH=$(date -u +%s)
+          if [ "$NOW_EPOCH" -gt "$END_EPOCH" ]; then
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "Keepalive window ended after 2026-06-28 UTC."
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "Keepalive active until 2026-06-28 23:59:59 UTC."
+          fi
+
+      - name: Ping https://fof-abeokuta.onrender.com/api/health
+        if: steps.window.outputs.active == 'true'
+        run: |
+          curl --fail --silent --show-error --max-time 90 --retry 2 --retry-delay 5 \
+            -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
+            "https://fof-abeokuta.onrender.com/api/health"

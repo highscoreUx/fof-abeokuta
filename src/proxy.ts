@@ -24,6 +24,7 @@ const PUBLIC_PATHS = [
   "/all-event",
   "/api/events/public",
   "/api/events/current",
+  "/api/health",
 ];
 
 const ROOT_PROTECTED_PREFIXES = [

@@ -62,9 +62,33 @@ function clearStaleRefreshCookie(request: NextRequest): NextResponse | null {
   }
 }
 
-export function proxy(request: NextRequest) {
+async function rewriteRootToLatestEvent(request: NextRequest): Promise<NextResponse | null> {
+  try {
+    const currentUrl = new URL("/api/events/current", request.url);
+    const response = await fetch(currentUrl, { cache: "no-store" });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as { event?: { slug: string } };
+    const slug = data.event?.slug;
+    if (!slug) return null;
+
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = `/${slug}`;
+    return NextResponse.rewrite(rewriteUrl);
+  } catch {
+    return null;
+  }
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasRefresh = request.cookies.has("fof_refresh_token");
+
+  if (pathname === "/") {
+    const rewritten = await rewriteRootToLatestEvent(request);
+    if (rewritten) return rewritten;
+    return NextResponse.next();
+  }
 
   if (pathname === "/login" && hasRefresh) {
     const cleared = clearStaleRefreshCookie(request);

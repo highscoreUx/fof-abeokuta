@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { EventCountdownLanding } from "@/components/event/EventCountdownLanding";
 import { EventLanding } from "@/components/event/EventLanding";
 import { GrapesEditor } from "@/components/landing/grapes/GrapesEditor";
 import { GrapesViewer } from "@/components/landing/grapes/GrapesViewer";
 import { Button } from "@/components/ui/button";
 import { useCanEditLanding } from "@/hooks/useCanEditLanding";
+import { useEventCountdown } from "@/hooks/useEventCountdown";
+import { shouldShowEventCountdown } from "@/lib/event-schedule";
 import { loginPath } from "@/lib/routes";
 import type { LandingPagePayload } from "@/lib/landing-page";
 import type { PlatformEvent } from "@/types";
@@ -25,8 +28,14 @@ export function EventLandingPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { canEdit, isHydrated } = useCanEditLanding();
+  const { isBeforeStart, parts } = useEventCountdown(event.date);
   const editParam = searchParams.get("edit") === "1";
   const [editMode, setEditMode] = useState(false);
+
+  const loginHref = loginPath(isLatest ? "/home" : `/${event.slug}/home`);
+  const allowPreview = isHydrated && canEdit;
+  const showCountdown =
+    isBeforeStart && shouldShowEventCountdown(event, { allowPreview });
 
   useEffect(() => {
     if (isHydrated && canEdit && editParam) {
@@ -53,22 +62,35 @@ export function EventLandingPage({
     router.refresh();
   };
 
+  const customizeButton = canEdit ? (
+    <div className="fixed bottom-6 right-6 z-30">
+      <Button type="button" onClick={enterEditor}>
+        Customize landing page
+      </Button>
+    </div>
+  ) : null;
+
   if (showEditor) {
     return (
       <GrapesEditor event={event} initialPage={initialLandingPage} onExit={exitEditor} />
     );
   }
 
+  if (showCountdown) {
+    return (
+      <EventCountdownLanding
+        event={event}
+        loginHref={loginHref}
+        parts={parts}
+        isCurrent={isLatest}
+      />
+    );
+  }
+
   if (hasCustomPage && initialLandingPage) {
     return (
       <>
-        {canEdit && (
-          <div className="fixed bottom-6 right-6 z-30">
-            <Button type="button" onClick={enterEditor}>
-              Customize landing page
-            </Button>
-          </div>
-        )}
+        {customizeButton}
         <GrapesViewer html={initialLandingPage.html} css={initialLandingPage.css} />
       </>
     );
@@ -76,14 +98,8 @@ export function EventLandingPage({
 
   return (
     <>
-      {canEdit && (
-        <div className="fixed bottom-6 right-6 z-30">
-          <Button type="button" onClick={enterEditor}>
-            Customize landing page
-          </Button>
-        </div>
-      )}
-      <EventLanding event={event} loginHref={loginPath()} isCurrent={isLatest} />
+      {customizeButton}
+      <EventLanding event={event} loginHref={loginHref} isCurrent={isLatest} />
     </>
   );
 }
